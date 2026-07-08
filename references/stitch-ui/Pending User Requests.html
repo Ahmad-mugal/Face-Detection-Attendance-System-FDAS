@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pending User Requests - FDAS Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#934619",
+                        "tertiary-container": "#ac621d",
+                        "surface-variant": "#f0dfd8",
+                        "surface-bright": "#fff8f6",
+                        "on-error-container": "#93000a",
+                        "surface-container": "#fceae4",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed-variant": "#783104",
+                        "on-tertiary-fixed-variant": "#6f3800",
+                        "on-secondary-fixed": "#261a00",
+                        "error": "#ba1a1a",
+                        "inverse-on-surface": "#ffede6",
+                        "tertiary-fixed-dim": "#ffb780",
+                        "on-tertiary-fixed": "#2f1400",
+                        "secondary-fixed-dim": "#f6be39",
+                        "on-secondary-container": "#715300",
+                        "background": "#fff8f6",
+                        "on-surface-variant": "#55433b",
+                        "primary-fixed-dim": "#ffb692",
+                        "secondary-fixed": "#ffdfa0",
+                        "outline-variant": "#dbc1b7",
+                        "surface-tint": "#96481c",
+                        "on-tertiary-container": "#fffbff",
+                        "on-surface": "#221a16",
+                        "on-primary-fixed": "#341100",
+                        "surface-container-low": "#fff1eb",
+                        "on-background": "#221a16",
+                        "secondary": "#795900",
+                        "surface": "#fff8f6",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#5c4300",
+                        "surface-dim": "#e7d7d0",
+                        "on-primary-container": "#fffbff",
+                        "surface-container-high": "#f6e5de",
+                        "inverse-primary": "#ffb692",
+                        "tertiary": "#8e4a01",
+                        "surface-container-highest": "#f0dfd8",
+                        "tertiary-fixed": "#ffdcc4",
+                        "secondary-container": "#ffc641",
+                        "outline": "#887369",
+                        "on-secondary": "#ffffff",
+                        "primary-fixed": "#ffdbcb",
+                        "primary-container": "#b25d2f",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "inverse-surface": "#382e2a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "80px",
+                        "sm": "12px",
+                        "base": "8px",
+                        "xs": "4px",
+                        "container-max": "1280px",
+                        "lg": "48px",
+                        "md": "24px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "h3": ["Plus Jakarta Sans"],
+                        "h2": ["Plus Jakarta Sans"],
+                        "h1": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "caption": ["12px", { "lineHeight": "1.2", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "h3": ["24px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "h2": ["32px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                        "h1": ["40px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background min-h-screen flex flex-col font-body-md text-on-surface">
+<nav class="bg-[#FDF6F0] dark:bg-stone-950 font-['Plus_Jakarta_Sans'] text-orange-950 dark:text-orange-50 docked full-width top-0 shadow-[0_8px_30px_rgb(232,146,74,0.15)] flex justify-between items-center w-full px-6 py-4 max-w-full">
+<div class="flex items-center gap-8">
+<div class="text-2xl font-black text-orange-950 dark:text-orange-100">FDAS</div>
+<div class="hidden md:flex items-center gap-6">
+<a class="text-orange-900/70 dark:text-orange-100/70 hover:text-orange-950 hover:bg-orange-100/50 dark:hover:bg-orange-900/30 transition-colors px-3 py-2 rounded-md" href="#">Dashboard</a>
+<a class="text-orange-900/70 dark:text-orange-100/70 hover:text-orange-950 hover:bg-orange-100/50 dark:hover:bg-orange-900/30 transition-colors px-3 py-2 rounded-md" href="#">Attendance</a>
+<a class="text-orange-900/70 dark:text-orange-100/70 hover:text-orange-950 hover:bg-orange-100/50 dark:hover:bg-orange-900/30 transition-colors px-3 py-2 rounded-md" href="#">Students</a>
+<a class="text-orange-900/70 dark:text-orange-100/70 hover:text-orange-950 hover:bg-orange-100/50 dark:hover:bg-orange-900/30 transition-colors px-3 py-2 rounded-md" href="#">Reports</a>
+<a class="text-[#C1693A] font-bold border-b-2 border-[#EFA342] pb-1 px-3 py-2" href="#">Settings</a>
+</div>
+</div>
+<div class="flex items-center gap-4 text-[#C1693A] dark:text-[#E8924A]">
+<button class="hover:bg-orange-100/50 dark:hover:bg-orange-900/30 transition-colors p-2 rounded-full flex items-center justify-center opacity-80 scale-95 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="hover:bg-orange-100/50 dark:hover:bg-orange-900/30 transition-colors p-2 rounded-full flex items-center justify-center opacity-80 scale-95 transition-all">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</nav>
+<div class="w-full border-b-2 border-[#C1693A]"></div>
+<main class="flex-grow w-full max-w-container-max mx-auto px-6 py-8 md:py-12 flex flex-col gap-8">
+<header class="flex flex-col gap-2">
+<h1 class="font-h1 text-h1 text-primary">Pending User Requests</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Review and approve new operator access requests.</p>
+</header>
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="bg-surface-container-low rounded-xl p-6 shadow-[0_8px_30px_rgb(232,146,74,0.15)] flex flex-col gap-4 border border-outline-variant/30">
+<div class="flex items-center justify-between">
+<span class="font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider">Pending</span>
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined">hourglass_empty</span>
+</div>
+</div>
+<div class="font-h1 text-h1 text-on-surface">12</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-6 shadow-[0_8px_30px_rgb(232,146,74,0.15)] flex flex-col gap-4 border border-outline-variant/30">
+<div class="flex items-center justify-between">
+<span class="font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider">Approved</span>
+<div class="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">check_circle</span>
+</div>
+</div>
+<div class="font-h1 text-h1 text-on-surface">48</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-6 shadow-[0_8px_30px_rgb(232,146,74,0.15)] flex flex-col gap-4 border border-outline-variant/30">
+<div class="flex items-center justify-between">
+<span class="font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider">Rejected</span>
+<div class="w-10 h-10 rounded-full bg-error-container flex items-center justify-center text-on-error-container">
+<span class="material-symbols-outlined">cancel</span>
+</div>
+</div>
+<div class="font-h1 text-h1 text-on-surface">3</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-6 shadow-[0_8px_30px_rgb(232,146,74,0.15)] flex flex-col gap-4 border border-outline-variant/30">
+<div class="flex items-center justify-between">
+<span class="font-label-bold text-label-bold text-on-surface-variant uppercase tracking-wider">Disabled</span>
+<div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">block</span>
+</div>
+</div>
+<div class="font-h1 text-h1 text-on-surface">1</div>
+</div>
+</section>
+<section class="bg-surface-container-lowest rounded-xl shadow-[0_8px_30px_rgb(232,146,74,0.15)] overflow-hidden border border-outline-variant/50">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container border-b border-outline-variant/50">
+<th class="py-4 px-6 font-label-bold text-label-bold text-primary">User Name</th>
+<th class="py-4 px-6 font-label-bold text-label-bold text-primary">Email</th>
+<th class="py-4 px-6 font-label-bold text-label-bold text-primary">Department</th>
+<th class="py-4 px-6 font-label-bold text-label-bold text-primary">Date</th>
+<th class="py-4 px-6 font-label-bold text-label-bold text-primary">Status</th>
+<th class="py-4 px-6 font-label-bold text-label-bold text-primary text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md">
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container/30 transition-colors">
+<td class="py-4 px-6 font-medium text-on-surface">Amina Khalid</td>
+<td class="py-4 px-6 text-on-surface-variant">amina.k@college.edu</td>
+<td class="py-4 px-6 text-on-surface-variant">Computer Science</td>
+<td class="py-4 px-6 text-on-surface-variant">Oct 24, 2023</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-caption text-caption font-medium bg-secondary-container/30 text-secondary">Pending</span>
+</td>
+<td class="py-4 px-6 flex items-center justify-end gap-3">
+<button class="font-label-bold text-label-bold text-secondary hover:text-secondary-fixed-dim transition-colors">View Details</button>
+<button class="font-label-bold text-label-bold bg-primary text-on-primary px-4 py-2 rounded-lg shadow-sm hover:bg-primary-container transition-colors" onclick="document.getElementById('approval-modal').classList.remove('hidden')">Approve</button>
+</td>
+</tr>
+<tr class="bg-surface-container-low/50 border-b border-outline-variant/30 hover:bg-surface-container/30 transition-colors">
+<td class="py-4 px-6 font-medium text-on-surface">Zain Abbas</td>
+<td class="py-4 px-6 text-on-surface-variant">zain.a@college.edu</td>
+<td class="py-4 px-6 text-on-surface-variant">Physics</td>
+<td class="py-4 px-6 text-on-surface-variant">Oct 23, 2023</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-caption text-caption font-medium bg-secondary-container/30 text-secondary">Pending</span>
+</td>
+<td class="py-4 px-6 flex items-center justify-end gap-3">
+<button class="font-label-bold text-label-bold text-secondary hover:text-secondary-fixed-dim transition-colors">View Details</button>
+<button class="font-label-bold text-label-bold bg-primary text-on-primary px-4 py-2 rounded-lg shadow-sm hover:bg-primary-container transition-colors" onclick="document.getElementById('approval-modal').classList.remove('hidden')">Approve</button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container/30 transition-colors">
+<td class="py-4 px-6 font-medium text-on-surface">Fatima Noor</td>
+<td class="py-4 px-6 text-on-surface-variant">f.noor@college.edu</td>
+<td class="py-4 px-6 text-on-surface-variant">Mathematics</td>
+<td class="py-4 px-6 text-on-surface-variant">Oct 22, 2023</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-caption text-caption font-medium bg-secondary-container/30 text-secondary">Pending</span>
+</td>
+<td class="py-4 px-6 flex items-center justify-end gap-3">
+<button class="font-label-bold text-label-bold text-secondary hover:text-secondary-fixed-dim transition-colors">View Details</button>
+<button class="font-label-bold text-label-bold bg-primary text-on-primary px-4 py-2 rounded-lg shadow-sm hover:bg-primary-container transition-colors" onclick="document.getElementById('approval-modal').classList.remove('hidden')">Approve</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 border-t border-outline-variant/50 bg-surface-container flex items-center justify-between">
+<span class="font-caption text-caption text-on-surface-variant">Showing 1 to 3 of 12 requests</span>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-outline-variant rounded-md text-on-surface hover:bg-surface-container-highest transition-colors disabled:opacity-50" disabled="">Prev</button>
+<button class="px-3 py-1 border border-outline-variant rounded-md text-on-surface hover:bg-surface-container-highest transition-colors">Next</button>
+</div>
+</div>
+</section>
+</main>
+<footer class="bg-transparent font-['Plus_Jakarta_Sans'] text-sm tracking-wide w-full py-8 mt-auto flex flex-col md:flex-row justify-between items-center px-12 border-t border-orange-200/50 dark:border-orange-900/30">
+<div class="text-orange-900/60 dark:text-orange-100/60 text-center md:text-left mb-4 md:mb-0">
+            © Govt. Islamia Graduate College, Gujranwala. Face Detection Attendance System.
+        </div>
+<div class="flex gap-6">
+<a class="text-orange-900/60 dark:text-orange-100/60 hover:text-[#C1693A] transition-colors" href="#">Support</a>
+<a class="text-orange-900/60 dark:text-orange-100/60 hover:text-[#C1693A] transition-colors" href="#">Privacy Policy</a>
+<a class="text-orange-900/60 dark:text-orange-100/60 hover:text-[#C1693A] transition-colors" href="#">Institutional Portal</a>
+</div>
+</footer>
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-sm hidden" id="approval-modal">
+<div class="bg-surface-container-lowest w-full max-w-md rounded-xl shadow-[0_8px_30px_rgb(232,146,74,0.25)] border-t-4 border-primary flex flex-col overflow-hidden">
+<div class="p-6 flex flex-col gap-6">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-h3 text-h3 text-on-surface">Approve User Access</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Configure permissions for this operator.</p>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface" onclick="document.getElementById('approval-modal').classList.add('hidden')">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border border-outline-variant/30 flex flex-col gap-1">
+<span class="font-label-bold text-label-bold text-on-surface">Amina Khalid</span>
+<span class="font-body-md text-body-md text-on-surface-variant">amina.k@college.edu</span>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex flex-col gap-2">
+<label class="font-label-bold text-label-bold text-on-surface">Assigned Department</label>
+<select class="w-full bg-surface-container-lowest border border-secondary rounded-lg px-4 py-2.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary focus:border-secondary">
+<option>Computer Science</option>
+<option>Physics</option>
+<option>Mathematics</option>
+</select>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-bold text-label-bold text-on-surface">Access Scope</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary">
+<option>Department Only</option>
+<option>All Departments</option>
+</select>
+</div>
+</div>
+</div>
+<div class="bg-surface-container p-6 flex justify-end gap-3 border-t border-outline-variant/30">
+<button class="font-label-bold text-label-bold px-5 py-2.5 rounded-lg border-2 border-primary text-primary hover:bg-primary/5 transition-colors" onclick="document.getElementById('approval-modal').classList.add('hidden')">Cancel</button>
+<button class="font-label-bold text-label-bold px-5 py-2.5 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-sm" onclick="document.getElementById('approval-modal').classList.add('hidden')">Approve User</button>
+</div>
+</div>
+</div>
+</body></html>

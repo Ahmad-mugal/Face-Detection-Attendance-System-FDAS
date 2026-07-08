@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FDAS - Add New Student</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-tertiary-container": "#fffbff",
+                        "on-surface-variant": "#55433b",
+                        "inverse-on-surface": "#ffede6",
+                        "surface-variant": "#f0dfd8",
+                        "primary-container": "#b25d2f",
+                        "tertiary-container": "#ac621d",
+                        "outline": "#887369",
+                        "inverse-surface": "#382e2a",
+                        "on-surface": "#221a16",
+                        "on-secondary-fixed": "#261a00",
+                        "background": "#fff8f6",
+                        "surface-container-low": "#fff1eb",
+                        "primary-fixed-dim": "#ffb692",
+                        "on-background": "#221a16",
+                        "tertiary-fixed-dim": "#ffb780",
+                        "secondary-fixed-dim": "#f6be39",
+                        "surface-container-highest": "#f0dfd8",
+                        "outline-variant": "#dbc1b7",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#fffbff",
+                        "surface": "#fff8f6",
+                        "on-secondary-container": "#715300",
+                        "on-primary-fixed-variant": "#783104",
+                        "surface-container": "#fceae4",
+                        "on-secondary-fixed-variant": "#5c4300",
+                        "error-container": "#ffdad6",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#ffdfa0",
+                        "inverse-primary": "#ffb692",
+                        "primary": "#934619",
+                        "tertiary": "#8e4a01",
+                        "tertiary-fixed": "#ffdcc4",
+                        "surface-container-high": "#f6e5de",
+                        "secondary": "#795900",
+                        "on-primary-fixed": "#341100",
+                        "primary-fixed": "#ffdbcb",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#6f3800",
+                        "on-tertiary-fixed": "#2f1400",
+                        "on-error-container": "#93000a",
+                        "on-error": "#ffffff",
+                        "surface-bright": "#fff8f6",
+                        "secondary-container": "#ffc641",
+                        "surface-tint": "#96481c",
+                        "surface-dim": "#e7d7d0"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    },
+                    spacing: {
+                        md: "24px",
+                        lg: "48px",
+                        xs: "4px",
+                        sm: "12px",
+                        "container-max": "1280px",
+                        base: "8px",
+                        xl: "80px",
+                        gutter: "24px"
+                    },
+                    fontFamily: {
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        h3: ["Plus Jakarta Sans"],
+                        caption: ["Plus Jakarta Sans"],
+                        h2: ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        h1: ["Plus Jakarta Sans"]
+                    },
+                    fontSize: {
+                        "label-bold": ["14px", { lineHeight: "1.2", fontWeight: "600" }],
+                        "body-md": ["16px", { lineHeight: "1.6", fontWeight: "400" }],
+                        h3: ["24px", { lineHeight: "1.4", fontWeight: "600" }],
+                        caption: ["12px", { lineHeight: "1.2", fontWeight: "400" }],
+                        h2: ["32px", { lineHeight: "1.3", fontWeight: "600" }],
+                        "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+                        h1: ["40px", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" }]
+                    }
+                }
+            }
+        };
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #FAF4EC; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+<!-- TopNavBar (Shared Component) -->
+<nav class="docked full-width top-0 border-b-2 border-b-2 border-[#C4533A] shadow-[0_4px_20px_rgba(232,146,74,0.15)] bg-[#FAF4EC] dark:bg-stone-900 sticky z-50">
+<div class="flex justify-between items-center w-full px-8 h-16 max-w-[1440px] mx-auto">
+<!-- Brand -->
+<div class="flex items-center gap-2">
+<span class="text-2xl font-black text-[#C4533A] tracking-tighter">FDAS</span>
+</div>
+<!-- Navigation Links -->
+<div class="hidden md:flex items-center space-x-6 font-['Plus_Jakarta_Sans'] text-sm font-semibold tracking-tight">
+<a class="text-stone-700 dark:text-stone-300 hover:text-[#C4533A] hover:bg-stone-100/50 dark:hover:bg-stone-800/50 transition-colors duration-200 px-3 py-2 rounded-md" href="#">Dashboard</a>
+<a class="text-[#C4533A] border-b-2 border-[#D4A017] pb-1 px-3 py-2 hover:bg-stone-100/50 dark:hover:bg-stone-800/50 transition-colors duration-200" href="#">Students</a>
+<a class="text-stone-700 dark:text-stone-300 hover:text-[#C4533A] hover:bg-stone-100/50 dark:hover:bg-stone-800/50 transition-colors duration-200 px-3 py-2 rounded-md" href="#">Attendance</a><a class="text-stone-700 dark:text-stone-300 hover:text-[#C4533A] hover:bg-stone-100/50 dark:hover:bg-stone-800/50 transition-colors duration-200 px-3 py-2 rounded-md" href="#">Reports</a>
+</div>
+<!-- Trailing Icons -->
+<div class="flex items-center space-x-4 text-[#C4533A] dark:text-[#E8924A]">
+<button class="hover:bg-stone-100/50 dark:hover:bg-stone-800/50 transition-colors duration-200 p-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="hover:bg-stone-100/50 dark:hover:bg-stone-800/50 transition-colors duration-200 p-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col items-center justify-center p-6 md:p-12 w-full max-w-[1440px] mx-auto">
+<div class="w-full max-w-3xl bg-[#FFF0E6] rounded-xl shadow-[0_4px_20px_rgba(232,146,74,0.15)] overflow-hidden border-t-4 border-[#D4A017]">
+<div class="p-8 md:p-12">
+<!-- Header -->
+<div class="mb-10 text-center">
+<h1 class="text-h2 font-h2 text-[#C4533A] mb-2">Add New Student</h1>
+<p class="text-body-md font-body-md text-stone-600">Enter details to register a new student in the system.</p>
+</div>
+<!-- Progress Bar -->
+<div class="relative flex justify-between items-center mb-12">
+<!-- Connecting Line -->
+<div class="absolute top-1/2 left-0 w-full h-1 bg-gradient-to-r from-[#C4533A] to-[#E8924A] -z-10 transform -translate-y-1/2"></div>
+<!-- Step 1 -->
+<div class="flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-[#D4A017] flex items-center justify-center text-white font-bold mb-2 shadow-md">
+                            1
+                        </div>
+<span class="text-sm font-bold text-[#C4533A]">Personal Info</span>
+</div>
+<!-- Step 2 -->
+<div class="flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-[#FAF4EC] border-2 border-stone-300 flex items-center justify-center text-[#4A2B0F] font-semibold mb-2">
+                            2
+                        </div>
+<span class="text-sm font-medium text-stone-500">Academic Info</span>
+</div>
+<!-- Step 3 -->
+<div class="flex flex-col items-center">
+<div class="w-10 h-10 rounded-full bg-[#FAF4EC] border-2 border-stone-300 flex items-center justify-center text-[#4A2B0F] font-semibold mb-2">
+                            3
+                        </div>
+<span class="text-sm font-medium text-stone-500">Face Capture</span>
+</div>
+</div>
+<!-- Form Content (Step 1) -->
+<form class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Full Name -->
+<div class="relative">
+<label class="block text-sm font-semibold text-[#C4533A] mb-1">Full Name</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-[#D4A017]">person</span>
+<input class="w-full bg-[#FFF0E6] border border-[#D4A017]/30 rounded-lg py-3 pl-10 pr-4 text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#E8924A] focus:border-transparent transition-all" placeholder="John Doe" type="text"/>
+</div>
+</div>
+<!-- Email -->
+<div class="relative">
+<label class="block text-sm font-semibold text-[#C4533A] mb-1">Email Address</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-[#D4A017]">mail</span>
+<input class="w-full bg-[#FFF0E6] border border-[#D4A017]/30 rounded-lg py-3 pl-10 pr-4 text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#E8924A] focus:border-transparent transition-all" placeholder="john.doe@example.com" type="email"/>
+</div>
+</div>
+<!-- Phone -->
+<div class="relative md:col-span-2">
+<label class="block text-sm font-semibold text-[#C4533A] mb-1">Phone Number</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-[#D4A017]">phone</span>
+<input class="w-full bg-[#FFF0E6] border border-[#D4A017]/30 rounded-lg py-3 pl-10 pr-4 text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#E8924A] focus:border-transparent transition-all" placeholder="+92 300 1234567" type="tel"/>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex justify-end space-x-4 mt-8 pt-6 border-t border-stone-200">
+<button class="px-6 py-2.5 rounded-lg border border-[#C4533A] text-[#C4533A] bg-[#FFF0E6] font-semibold hover:bg-stone-50 transition-colors" type="button">
+                            Cancel
+                        </button>
+<button class="px-6 py-2.5 rounded-lg bg-[#C4533A] text-white font-semibold hover:bg-[#a6432d] shadow-md transition-colors flex items-center gap-2" type="button">
+                            Next Step
+                            <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</form>
+</div>
+</div>
+</main>
+</body></html>

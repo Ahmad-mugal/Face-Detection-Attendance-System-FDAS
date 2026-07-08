@@ -1,0 +1,48 @@
+/**
+ * CSVExportButton — Triggers a CSV download from provided data
+ * Phase 1: Client-side CSV generation from dummy data
+ * Phase 6: Will call GET /api/reports/export from backend
+ *
+ * Props:
+ *   data     - Array of objects to export
+ *   filename - Name of the downloaded file
+ *   label    - Button label text
+ */
+export default function CSVExportButton({ data = [], filename = 'fdas_report.csv', label = 'Export CSV' }) {
+  const handleExport = () => {
+    if (!data.length) return
+
+    const headers = Object.keys(data[0])
+    const csvRows = [
+      headers.join(','),
+      ...data.map(row =>
+        headers.map(h => {
+          const val = row[h] ?? ''
+          const str = String(val).replace(/"/g, '""')
+          return str.includes(',') || str.includes('"') || str.includes('\n') ? `"${str}"` : str
+        }).join(',')
+      ),
+    ]
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <button
+      onClick={handleExport}
+      disabled={!data.length}
+      className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{ backgroundColor: '#D4A017', color: '#fff' }}
+      title={!data.length ? 'No data to export' : `Export ${data.length} records`}
+    >
+      <span className="material-symbols-outlined text-[18px]">download</span>
+      {label}
+    </button>
+  )
+}

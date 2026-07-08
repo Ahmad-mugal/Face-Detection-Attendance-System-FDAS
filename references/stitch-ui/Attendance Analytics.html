@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Attendance Analytics - FDAS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#fff8f6",
+                        "on-error": "#ffffff",
+                        "outline-variant": "#dbc1b7",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed": "#ffdfa0",
+                        "on-primary-container": "#fffbff",
+                        "surface-container-highest": "#f0dfd8",
+                        "on-tertiary-container": "#fffbff",
+                        "on-surface": "#221a16",
+                        "tertiary-fixed-dim": "#ffb780",
+                        "surface-variant": "#f0dfd8",
+                        "tertiary-fixed": "#ffdcc4",
+                        "surface-container": "#fceae4",
+                        "outline": "#887369",
+                        "surface": "#fff8f6",
+                        "primary": "#934619",
+                        "on-secondary-fixed-variant": "#5c4300",
+                        "inverse-on-surface": "#ffede6",
+                        "surface-tint": "#96481c",
+                        "surface-container-low": "#fff1eb",
+                        "error": "#ba1a1a",
+                        "on-secondary-container": "#715300",
+                        "primary-fixed": "#ffdbcb",
+                        "tertiary": "#8e4a01",
+                        "surface-container-high": "#f6e5de",
+                        "secondary-container": "#ffc641",
+                        "tertiary-container": "#ac621d",
+                        "on-surface-variant": "#55433b",
+                        "secondary": "#795900",
+                        "on-secondary-fixed": "#261a00",
+                        "surface-dim": "#e7d7d0",
+                        "primary-fixed-dim": "#ffb692",
+                        "secondary-fixed-dim": "#f6be39",
+                        "background": "#fff8f6",
+                        "on-background": "#221a16",
+                        "inverse-surface": "#382e2a",
+                        "primary-container": "#b25d2f",
+                        "on-tertiary-fixed-variant": "#6f3800",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "inverse-primary": "#ffb692",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed": "#2f1400",
+                        "on-primary-fixed-variant": "#783104",
+                        "on-primary-fixed": "#341100",
+                        "warm-linen": "#FAF4EC",
+                        "terracotta": "#C4533A",
+                        "marigold": "#F9A825",
+                        "ivory-white": "#FFF0E6",
+                        "warm-amber": "#E8924A",
+                        "deep-brown": "#4A2C2A"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "container-max": "1280px",
+                        "sm": "12px",
+                        "lg": "48px",
+                        "xs": "4px",
+                        "base": "8px",
+                        "gutter": "24px",
+                        "xl": "80px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "h2": ["Plus Jakarta Sans"],
+                        "h3": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "h1": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "caption": ["12px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "h2": ["32px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                        "h3": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "label-bold": ["14px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "h1": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: theme('colors.warm-linen'); }
+        .amber-shadow { box-shadow: 0 8px 30px rgba(232,146,74,0.15); }
+    </style>
+</head>
+<body class="font-body-md text-body-md text-deep-brown min-h-screen flex flex-col antialiased">
+<!-- TopNavBar -->
+<nav class="flex justify-between items-center px-8 py-4 w-full sticky top-0 z-50 bg-[#FAF4EC] dark:bg-[#1A1614] border-b-2 border-[#C4533A] dark:border-[#C4533A] shadow-[0_8px_30px_rgba(232,146,74,0.15)] font-['Plus_Jakarta_Sans'] text-[#4A2C2A] dark:text-[#F5E6D3]">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#F9A825]" style="font-size: 32px;">school</span>
+<span class="text-2xl font-extrabold tracking-tight text-[#C4533A] dark:text-[#E3856D]">FDAS</span>
+</div>
+<div class="hidden md:flex gap-8 items-center">
+<a class="text-[#4A2C2A] dark:text-[#D1BFAE] font-medium hover:text-[#C4533A] transition-colors" href="#">Dashboard</a>
+<a class="text-[#4A2C2A] dark:text-[#D1BFAE] font-medium hover:text-[#C4533A] transition-colors" href="#">Students</a>
+<a class="text-[#4A2C2A] dark:text-[#D1BFAE] font-medium hover:text-[#C4533A] transition-colors" href="#">Attendance</a>
+<a class="text-[#C4533A] font-bold border-b-2 border-[#F9A825] pb-1" href="#">Reports</a>
+</div>
+<div class="flex items-center gap-4">
+<button aria-label="notifications" class="p-2 rounded-full hover:bg-[#FFF0E6]/50 dark:hover:bg-orange-900/20 transition-all duration-200">
+<span class="material-symbols-outlined text-[#C4533A] dark:text-[#E3856D]">notifications</span>
+</button>
+<img alt="Administrator profile" class="w-10 h-10 rounded-full border-2 border-[#C4533A]" data-alt="professional headshot of an administrator in warm lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqrsLOflWKHnXdLk2oXGzlcEXXPc-YN87_LjQLpKPBy3FRWxVs6SQPccgmkiX-ODVhtC9prdFsy6A9x8Wb3lqd7CsvGp1fQnQWFaeSscWsTXTtcY_yhhRXLZDUlxFGkVQEFkp4zr8g0RbIxCRrMLwEFesVY9fEXFufzQTrX56WcN8Eo5QO5rD3Q5iUWLGUMongSxxrcuaUihL-zXPXtNb7LqNS-JvN-DreDmVNdMwbDVEisBWqiiEmW5MVbaeQNUuWVMVmdRJGXBfJ"/>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="flex-grow w-full max-w-container-max mx-auto px-6 py-8 md:py-12 flex flex-col gap-8">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div>
+<h1 class="font-h1 text-h1 text-terracotta">Attendance Analytics</h1>
+<p class="font-body-md text-body-md text-deep-brown/80 mt-2">Comprehensive overview of attendance trends and data.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 bg-ivory-white text-terracotta border border-terracotta rounded-lg font-label-bold text-label-bold hover:bg-terracotta hover:text-white transition-colors flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">download</span>
+                    Export CSV
+                </button>
+<button class="px-4 py-2 bg-marigold text-white border border-transparent rounded-lg font-label-bold text-label-bold hover:bg-amber-600 transition-colors flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-[20px]">table</span>
+                    Export Excel
+                </button>
+</div>
+</div>
+<!-- Filter Strip -->
+<section class="bg-ivory-white rounded-xl amber-shadow p-6">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+<div class="flex flex-col gap-1.5">
+<label class="font-caption text-caption text-deep-brown font-medium">Start Date</label>
+<div class="relative">
+<input class="w-full bg-white border border-outline-variant rounded-lg px-3 py-2 text-sm focus:ring-warm-amber focus:border-warm-amber text-deep-brown" type="date" value="2023-10-01"/>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-caption text-caption text-deep-brown font-medium">End Date</label>
+<div class="relative">
+<input class="w-full bg-white border border-outline-variant rounded-lg px-3 py-2 text-sm focus:ring-warm-amber focus:border-warm-amber text-deep-brown" type="date" value="2023-10-31"/>
+</div>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-caption text-caption text-deep-brown font-medium">Department</label>
+<select class="w-full bg-white border-2 border-marigold/30 rounded-lg px-3 py-2 text-sm focus:ring-marigold focus:border-marigold text-deep-brown cursor-pointer">
+<option>Computer Science</option>
+<option>Mathematics</option>
+<option>Physics</option>
+<option>All Departments</option>
+</select>
+</div>
+<div class="flex flex-col gap-1.5">
+<label class="font-caption text-caption text-deep-brown font-medium">Year</label>
+<select class="w-full bg-white border-2 border-terracotta/30 rounded-lg px-3 py-2 text-sm focus:ring-terracotta focus:border-terracotta text-deep-brown cursor-pointer">
+<option>3rd Year (BS)</option>
+<option>4th Year (BS)</option>
+<option>1st Year (MS)</option>
+<option>All Years</option>
+</select>
+</div>
+<div class="flex gap-2 h-[38px]">
+<button class="flex-1 bg-terracotta text-white rounded-lg font-label-bold text-label-bold hover:bg-orange-800 transition-colors shadow-sm">
+                        Generate
+                    </button>
+<button class="px-3 bg-ivory-white text-terracotta border border-outline-variant rounded-lg font-label-bold text-label-bold hover:bg-surface-variant transition-colors">
+                        Clear
+                    </button>
+</div>
+</div>
+</section>
+<!-- Charts Grid -->
+<!-- Data Table Card -->
+<section class="bg-ivory-white rounded-xl amber-shadow overflow-hidden flex flex-col">
+<div class="p-6 border-b border-outline-variant/20 flex justify-between items-center bg-white/50">
+<h3 class="font-h3 text-h3 text-deep-brown">Detailed Records</h3>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant text-[20px]">search</span>
+<input class="pl-10 pr-4 py-2 border border-outline-variant rounded-full text-sm focus:ring-terracotta focus:border-terracotta bg-white/80 w-64" placeholder="Search records..." type="text"/>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-terracotta text-white font-label-bold text-label-bold tracking-wide">
+<th class="p-4 whitespace-nowrap">#</th>
+<th class="p-4 whitespace-nowrap">Student ID</th>
+<th class="p-4 whitespace-nowrap">Full Name</th>
+<th class="p-4 whitespace-nowrap">Roll No</th>
+<th class="p-4 whitespace-nowrap">Department</th>
+<th class="p-4 whitespace-nowrap">Year</th>
+<th class="p-4 whitespace-nowrap">Date</th>
+<th class="p-4 whitespace-nowrap">Time</th>
+<th class="p-4 whitespace-nowrap text-center">Status</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-sm text-deep-brown">
+<tr class="bg-ivory-white hover:bg-surface-variant/50 transition-colors border-b border-outline-variant/10">
+<td class="p-4 text-outline font-medium">1</td>
+<td class="p-4 font-medium">CS-2023-042</td>
+<td class="p-4 font-semibold text-terracotta">Ahmad Raza</td>
+<td class="p-4">42</td>
+<td class="p-4">Computer Science</td>
+<td class="p-4">3rd Year (BS)</td>
+<td class="p-4">Oct 24, 2023</td>
+<td class="p-4 text-outline">08:15 AM</td>
+<td class="p-4 text-center">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-marigold text-white shadow-sm">Present</span>
+</td>
+</tr>
+<tr class="bg-warm-linen hover:bg-surface-variant/50 transition-colors border-b border-outline-variant/10">
+<td class="p-4 text-outline font-medium">2</td>
+<td class="p-4 font-medium">CS-2023-088</td>
+<td class="p-4 font-semibold text-terracotta">Fatima Noor</td>
+<td class="p-4">88</td>
+<td class="p-4">Computer Science</td>
+<td class="p-4">3rd Year (BS)</td>
+<td class="p-4">Oct 24, 2023</td>
+<td class="p-4 text-outline">--:--</td>
+<td class="p-4 text-center">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-ivory-white text-terracotta border border-terracotta/30">Absent</span>
+</td>
+</tr>
+<tr class="bg-ivory-white hover:bg-surface-variant/50 transition-colors border-b border-outline-variant/10">
+<td class="p-4 text-outline font-medium">3</td>
+<td class="p-4 font-medium">MT-2023-012</td>
+<td class="p-4 font-semibold text-terracotta">Usman Ali</td>
+<td class="p-4">12</td>
+<td class="p-4">Mathematics</td>
+<td class="p-4">1st Year (MS)</td>
+<td class="p-4">Oct 24, 2023</td>
+<td class="p-4 text-outline">08:40 AM</td>
+<td class="p-4 text-center">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-warm-amber text-white shadow-sm">Late</span>
+</td>
+</tr>
+<tr class="bg-warm-linen hover:bg-surface-variant/50 transition-colors border-b border-outline-variant/10">
+<td class="p-4 text-outline font-medium">4</td>
+<td class="p-4 font-medium">CS-2023-005</td>
+<td class="p-4 font-semibold text-terracotta">Zainab Bilal</td>
+<td class="p-4">5</td>
+<td class="p-4">Computer Science</td>
+<td class="p-4">3rd Year (BS)</td>
+<td class="p-4">Oct 24, 2023</td>
+<td class="p-4 text-outline">08:10 AM</td>
+<td class="p-4 text-center">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-marigold text-white shadow-sm">Present</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 bg-white/50 border-t border-outline-variant/20 flex justify-between items-center text-sm">
+<span class="text-outline">Showing 1 to 4 of 248 entries</span>
+<div class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/30 text-outline hover:bg-surface-variant disabled:opacity-50" disabled=""><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<button class="w-8 h-8 flex items-center justify-center rounded bg-terracotta text-white font-medium shadow-sm">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/30 text-deep-brown hover:bg-surface-variant font-medium">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/30 text-deep-brown hover:bg-surface-variant font-medium">3</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant/30 text-outline hover:bg-surface-variant"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="mt-auto py-8 text-center border-t border-outline-variant/20">
+<p class="font-body-md text-sm text-terracotta font-medium tracking-wide">Govt. Islamia Graduate College, Gujranwala</p>
+</footer>
+</body></html>

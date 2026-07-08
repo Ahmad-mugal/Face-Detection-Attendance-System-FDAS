@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FDAS Portal - Attendance Timing</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-tertiary-container": "#fffbff",
+                        "on-secondary-fixed-variant": "#5c4300",
+                        "on-error": "#ffffff",
+                        "surface-tint": "#96481c",
+                        "error-container": "#ffdad6",
+                        "on-background": "#221a16",
+                        "surface-bright": "#fff8f6",
+                        "on-secondary-fixed": "#261a00",
+                        "inverse-surface": "#382e2a",
+                        "on-tertiary-fixed": "#2f1400",
+                        "tertiary": "#8e4a01",
+                        "surface-container-low": "#fff1eb",
+                        "surface-container": "#fceae4",
+                        "inverse-on-surface": "#ffede6",
+                        "secondary-container": "#ffc641",
+                        "surface-dim": "#e7d7d0",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary": "#795900",
+                        "on-surface-variant": "#55433b",
+                        "primary-container": "#b25d2f",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed-dim": "#f6be39",
+                        "secondary-fixed": "#ffdfa0",
+                        "on-primary": "#ffffff",
+                        "surface": "#fff8f6",
+                        "error": "#ba1a1a",
+                        "primary": "#934619",
+                        "outline": "#887369",
+                        "tertiary-container": "#ac621d",
+                        "on-primary-fixed-variant": "#783104",
+                        "surface-variant": "#f0dfd8",
+                        "on-secondary-container": "#715300",
+                        "background": "#fff8f6",
+                        "tertiary-fixed-dim": "#ffb780",
+                        "on-primary-fixed": "#341100",
+                        "surface-container-high": "#f6e5de",
+                        "on-surface": "#221a16",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed-variant": "#6f3800",
+                        "inverse-primary": "#ffb692",
+                        "surface-container-highest": "#f0dfd8",
+                        "tertiary-fixed": "#ffdcc4",
+                        "outline-variant": "#dbc1b7",
+                        "primary-fixed": "#ffdbcb",
+                        "on-primary-container": "#fffbff",
+                        "primary-fixed-dim": "#ffb692"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "base": "8px",
+                        "container-max": "1280px",
+                        "md": "24px",
+                        "gutter": "24px",
+                        "xs": "4px",
+                        "sm": "12px",
+                        "xl": "80px",
+                        "lg": "48px"
+                    },
+                    fontFamily: {
+                        "h1": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "h3": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "h2": ["Plus Jakarta Sans"]
+                    },
+                    fontSize: {
+                        "h1": ["40px", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "body-md": ["16px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "h3": ["24px", { lineHeight: "1.4", fontWeight: "600" }],
+                        "label-bold": ["14px", { lineHeight: "1.2", fontWeight: "600" }],
+                        "caption": ["12px", { lineHeight: "1.2", fontWeight: "400" }],
+                        "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "h2": ["32px", { lineHeight: "1.3", fontWeight: "600" }]
+                    },
+                    boxShadow: {
+                        'ambient': '0 4px 20px rgba(232, 146, 74, 0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #FAF4EC;
+            color: #4A2B0F;
+        }
+        .bg-ivory {
+            background-color: #FFF0E6;
+        }
+        .text-brown {
+            color: #4A2B0F;
+        }
+        .bg-primary-custom {
+            background-color: #C4533A;
+        }
+        .text-primary-custom {
+            color: #C4533A;
+        }
+        .border-primary-custom {
+            border-color: #C4533A;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex font-body-md text-body-md overflow-x-hidden">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface-container-low dark:bg-surface-container-low shadow-sm shadow-secondary-container/15 p-md gap-base border-r border-outline-variant z-40">
+<div class="mb-lg">
+<div class="flex items-center gap-sm mb-xs">
+<div class="w-10 h-10 rounded-full bg-primary-custom flex items-center justify-center text-on-primary font-h3 text-h3">
+                    GI
+                </div>
+<div>
+<h1 class="font-h3 text-h3 text-primary truncate">Govt. Islamia College</h1>
+<p class="font-caption text-caption text-on-surface-variant">Admin Terminal</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-xs font-label-bold text-label-bold">
+<a class="flex items-center gap-sm text-on-surface-variant hover:bg-surface-variant rounded-lg px-sm py-xs transition-all scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+                Overview
+            </a>
+<a class="flex items-center gap-sm text-on-surface-variant hover:bg-surface-variant rounded-lg px-sm py-xs transition-all scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">supervisor_account</span>
+                Faculty Management
+            </a>
+<a class="flex items-center gap-sm text-on-surface-variant hover:bg-surface-variant rounded-lg px-sm py-xs transition-all scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">fingerprint</span>
+                Biometric Logs
+            </a>
+<a class="flex items-center gap-sm bg-secondary-container text-on-secondary-container rounded-lg px-sm py-xs transition-all scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings_heart</span>
+                System Health
+            </a>
+<a class="flex items-center gap-sm text-on-surface-variant hover:bg-surface-variant rounded-lg px-sm py-xs transition-all scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">history_edu</span>
+                Audit Trail
+            </a>
+</nav>
+<div class="mt-auto flex flex-col gap-xs font-label-bold text-label-bold pt-md border-t border-outline-variant">
+<button class="w-full py-sm bg-primary-custom text-on-primary rounded-lg shadow-ambient hover:opacity-90 transition-opacity mb-sm">
+                Export Today's Log
+            </button>
+<a class="flex items-center gap-sm text-on-surface-variant hover:bg-surface-variant rounded-lg px-sm py-xs transition-all scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">help</span>
+                Help Center
+            </a>
+<a class="flex items-center gap-sm text-on-surface-variant hover:bg-surface-variant rounded-lg px-sm py-xs transition-all scale-98 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">logout</span>
+                Logout
+            </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center w-full px-md h-16 sticky top-0 z-50 bg-background border-b-2 border-primary-custom">
+<div class="flex items-center gap-md">
+<span class="font-h3 text-h3 font-bold text-primary dark:text-primary-fixed md:hidden">FDAS Portal</span>
+<nav class="hidden md:flex gap-md font-body-md text-body-md">
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80 py-4" href="#">Dashboard</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80 py-4" href="#">Students</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80 py-4" href="#">Attendance</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80 py-4" href="#">Reports</a>
+<a class="text-primary font-label-bold border-b-2 border-secondary hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80 py-4" href="#">Settings</a>
+</nav>
+</div>
+<div class="flex items-center gap-sm">
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-variant ml-sm overflow-hidden border border-outline-variant">
+<img alt="Administrator Profile" class="w-full h-full object-cover" data-alt="A professional headshot of an academic administrator in a well-lit office setting. The lighting is warm and natural, emphasizing a welcoming yet authoritative presence. Soft-modern aesthetic with warm linen and amber tones in the background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlABtc4pqip2CXDl2lc0d6E_ijAausj6sVI4S8gN6HI-Esh9gtgaR-FhlPNQAVEkrD37Lh2rLBHNGz6VVCoFRjC2zE8fViMBUbbqpAArYiTbVEOQ6TVke1j-RIH9zhJuntgv_iNZsNONoMtpvu7omR0hXN4LvVp1c7JvE6IlOjxNaSZjugyv-u3zgYJjmoZCgHtKfXIzLWOrELKfXG4a7jU2FqeZ3U-1D7sc82bMftH8Mcl4rusgol0w"/>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="flex-1 p-md md:p-lg max-w-[1280px] w-full mx-auto pb-xl">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-center justify-between mb-lg gap-md">
+<div>
+<h2 class="font-h2 text-h2 text-brown mb-xs">Attendance Timing</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Configure department-wise attendance start and stop times.</p>
+</div>
+<button class="bg-primary-custom text-on-primary px-md py-sm rounded-lg font-label-bold text-label-bold flex items-center gap-xs shadow-ambient hover:opacity-90 transition-opacity whitespace-nowrap self-start md:self-auto">
+<span class="material-symbols-outlined text-body-md">add</span>
+                    Add Time Window
+                </button>
+</div>
+<!-- Summary Cards (Bento Grid Style) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md mb-lg">
+<div class="bg-ivory rounded-xl p-md shadow-ambient border border-outline-variant/30 flex flex-col justify-between">
+<div class="flex items-center justify-between mb-sm">
+<h3 class="font-label-bold text-label-bold text-on-surface-variant">Active Time Windows</h3>
+<span class="material-symbols-outlined text-secondary-container">schedule</span>
+</div>
+<div class="font-h1 text-h1 text-brown">12</div>
+</div>
+<div class="bg-ivory rounded-xl p-md shadow-ambient border border-outline-variant/30 flex flex-col justify-between">
+<div class="flex items-center justify-between mb-sm">
+<h3 class="font-label-bold text-label-bold text-on-surface-variant">Departments Configured</h3>
+<span class="material-symbols-outlined text-secondary-container">domain</span>
+</div>
+<div class="font-h1 text-h1 text-brown">8</div>
+</div>
+<div class="bg-ivory rounded-xl p-md shadow-ambient border border-outline-variant/30 flex flex-col justify-between">
+<div class="flex items-center justify-between mb-sm">
+<h3 class="font-label-bold text-label-bold text-on-surface-variant">Today's Sessions</h3>
+<span class="material-symbols-outlined text-secondary-container">today</span>
+</div>
+<div class="font-h1 text-h1 text-brown">24</div>
+</div>
+<div class="bg-ivory rounded-xl p-md shadow-ambient border border-outline-variant/30 flex flex-col justify-between">
+<div class="flex items-center justify-between mb-sm">
+<h3 class="font-label-bold text-label-bold text-on-surface-variant">Auto-Stop Enabled</h3>
+<span class="material-symbols-outlined text-secondary-container">timer_off</span>
+</div>
+<div class="font-h1 text-h1 text-brown">10</div>
+</div>
+</div>
+<!-- Main Data Table -->
+<div class="bg-ivory rounded-xl shadow-ambient border border-outline-variant/30 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant/50">
+<th class="p-md font-label-bold text-label-bold text-on-surface-variant">Department</th>
+<th class="p-md font-label-bold text-label-bold text-on-surface-variant">Start Time</th>
+<th class="p-md font-label-bold text-label-bold text-on-surface-variant">End Time</th>
+<th class="p-md font-label-bold text-label-bold text-on-surface-variant">Grace Period</th>
+<th class="p-md font-label-bold text-label-bold text-on-surface-variant">Status</th>
+<th class="p-md font-label-bold text-label-bold text-on-surface-variant">Last Updated</th>
+<th class="p-md font-label-bold text-label-bold text-on-surface-variant text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md text-brown">
+<!-- Row 1 -->
+<tr class="border-b border-outline-variant/30 hover:bg-surface-variant/30 transition-colors">
+<td class="p-md">Computer Science</td>
+<td class="p-md">08:00 AM</td>
+<td class="p-md">04:00 PM</td>
+<td class="p-md">15 mins</td>
+<td class="p-md">
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-full bg-[#E8F5E9] text-[#2E7D32] font-caption text-caption">
+<span class="w-2 h-2 rounded-full bg-[#2E7D32]"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="p-md text-on-surface-variant text-caption">Oct 24, 2023</td>
+<td class="p-md text-right">
+<div class="flex items-center justify-end gap-sm">
+<button class="p-xs text-on-surface-variant hover:text-primary-custom transition-colors">
+<span class="material-symbols-outlined text-body-md">edit</span>
+</button>
+<button class="w-10 h-6 bg-primary-custom rounded-full relative transition-colors focus:outline-none">
+<span class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full transition-transform"></span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="bg-[#FAF4EC] border-b border-outline-variant/30 hover:bg-surface-variant/30 transition-colors">
+<td class="p-md">Physics</td>
+<td class="p-md">08:30 AM</td>
+<td class="p-md">02:30 PM</td>
+<td class="p-md">10 mins</td>
+<td class="p-md">
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-full bg-[#E8F5E9] text-[#2E7D32] font-caption text-caption">
+<span class="w-2 h-2 rounded-full bg-[#2E7D32]"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="p-md text-on-surface-variant text-caption">Oct 22, 2023</td>
+<td class="p-md text-right">
+<div class="flex items-center justify-end gap-sm">
+<button class="p-xs text-on-surface-variant hover:text-primary-custom transition-colors">
+<span class="material-symbols-outlined text-body-md">edit</span>
+</button>
+<button class="w-10 h-6 bg-primary-custom rounded-full relative transition-colors focus:outline-none">
+<span class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full transition-transform"></span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-outline-variant/30 hover:bg-surface-variant/30 transition-colors">
+<td class="p-md">Mathematics</td>
+<td class="p-md">09:00 AM</td>
+<td class="p-md">03:00 PM</td>
+<td class="p-md">15 mins</td>
+<td class="p-md">
+<span class="inline-flex items-center gap-xs px-sm py-xs rounded-full bg-surface-variant text-on-surface-variant font-caption text-caption">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+                                        Inactive
+                                    </span>
+</td>
+<td class="p-md text-on-surface-variant text-caption">Oct 15, 2023</td>
+<td class="p-md text-right">
+<div class="flex items-center justify-end gap-sm">
+<button class="p-xs text-on-surface-variant hover:text-primary-custom transition-colors">
+<span class="material-symbols-outlined text-body-md">edit</span>
+</button>
+<button class="w-10 h-6 bg-surface-variant rounded-full relative transition-colors focus:outline-none border border-outline-variant">
+<span class="absolute left-1 top-1 w-4 h-4 bg-outline rounded-full transition-transform"></span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+<!-- Modal Overlay (Visual Representation) -->
+<!-- Hidden by default, uncomment flex classes to view -->
+<div class="hidden fixed inset-0 z-[100] bg-on-background/50 backdrop-blur-sm flex items-center justify-center p-md">
+<div class="bg-ivory w-full max-w-lg rounded-xl shadow-ambient border border-outline-variant/30 overflow-hidden flex flex-col">
+<!-- Modal Header -->
+<div class="px-md py-sm border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low">
+<h3 class="font-h3 text-h3 text-brown">Add/Edit Time Window</h3>
+<button class="text-on-surface-variant hover:text-primary-custom transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Modal Body -->
+<div class="p-md flex flex-col gap-md">
+<div class="flex flex-col gap-xs">
+<label class="font-label-bold text-label-bold text-brown">Department</label>
+<div class="relative">
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm text-brown appearance-none focus:outline-none focus:border-primary-custom focus:ring-1 focus:ring-primary-custom transition-all">
+<option>Select Department</option>
+<option>Computer Science</option>
+<option>Physics</option>
+<option>Mathematics</option>
+</select>
+<span class="material-symbols-outlined absolute right-sm top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div class="flex flex-col gap-xs">
+<label class="font-label-bold text-label-bold text-brown">Start Time</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm text-brown focus:outline-none focus:border-primary-custom focus:ring-1 focus:ring-primary-custom transition-all" type="time"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-bold text-label-bold text-brown">End Time</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm text-brown focus:outline-none focus:border-primary-custom focus:ring-1 focus:ring-primary-custom transition-all" type="time"/>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div class="flex flex-col gap-xs">
+<label class="font-label-bold text-label-bold text-brown">Grace Period (mins)</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm text-brown focus:outline-none focus:border-primary-custom focus:ring-1 focus:ring-primary-custom transition-all" min="0" type="number" value="15"/>
+</div>
+<div class="flex flex-col gap-xs">
+<label class="font-label-bold text-label-bold text-brown">Status</label>
+<div class="relative h-full">
+<select class="w-full h-full bg-surface-container-lowest border border-outline-variant rounded-lg px-sm py-sm text-brown appearance-none focus:outline-none focus:border-primary-custom focus:ring-1 focus:ring-primary-custom transition-all">
+<option>Active</option>
+<option>Inactive</option>
+</select>
+<span class="material-symbols-outlined absolute right-sm top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between mt-xs p-sm bg-surface-container-low rounded-lg border border-outline-variant/30">
+<div>
+<h4 class="font-label-bold text-label-bold text-brown">Auto-stop Attendance</h4>
+<p class="font-caption text-caption text-on-surface-variant">Automatically close attendance after end time.</p>
+</div>
+<button class="w-10 h-6 bg-primary-custom rounded-full relative transition-colors focus:outline-none">
+<span class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full transition-transform"></span>
+</button>
+</div>
+</div>
+<!-- Modal Footer -->
+<div class="px-md py-md border-t border-outline-variant/30 flex justify-end gap-sm bg-surface-container-low">
+<button class="px-md py-sm rounded-lg font-label-bold text-label-bold text-brown border border-outline-variant hover:bg-surface-variant transition-colors">
+                    Cancel
+                </button>
+<button class="px-md py-sm rounded-lg font-label-bold text-label-bold bg-primary-custom text-on-primary shadow-ambient hover:opacity-90 transition-opacity">
+                    Save Time Window
+                </button>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FDAS - Live Attendance</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#fceae4",
+                        "tertiary-container": "#ac621d",
+                        "secondary-fixed": "#ffdfa0",
+                        "primary-fixed-dim": "#ffb692",
+                        "error-container": "#ffdad6",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-primary-container": "#fffbff",
+                        "surface-variant": "#f0dfd8",
+                        "outline-variant": "#dbc1b7",
+                        "primary-fixed": "#ffdbcb",
+                        "primary": "#934619",
+                        "surface-bright": "#fff8f6",
+                        "on-primary-fixed-variant": "#783104",
+                        "on-tertiary-fixed-variant": "#6f3800",
+                        "tertiary-fixed": "#ffdcc4",
+                        "on-surface": "#221a16",
+                        "on-secondary-fixed": "#261a00",
+                        "on-secondary": "#ffffff",
+                        "tertiary": "#8e4a01",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-on-surface": "#ffede6",
+                        "on-error-container": "#93000a",
+                        "surface-dim": "#e7d7d0",
+                        "secondary": "#795900",
+                        "on-primary-fixed": "#341100",
+                        "surface-tint": "#96481c",
+                        "surface-container-low": "#fff1eb",
+                        "on-surface-variant": "#55433b",
+                        "error": "#ba1a1a",
+                        "secondary-fixed-dim": "#f6be39",
+                        "surface-container-highest": "#f0dfd8",
+                        "on-secondary-container": "#715300",
+                        "background": "#fff8f6",
+                        "on-background": "#221a16",
+                        "outline": "#887369",
+                        "inverse-surface": "#382e2a",
+                        "surface": "#fff8f6",
+                        "secondary-container": "#ffc641",
+                        "on-secondary-fixed-variant": "#5c4300",
+                        "primary-container": "#b25d2f",
+                        "inverse-primary": "#ffb692",
+                        "tertiary-fixed-dim": "#ffb780",
+                        "surface-container-high": "#f6e5de",
+                        "on-tertiary-fixed": "#2f1400",
+                        "on-tertiary-container": "#fffbff",
+                        "on-tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "xs": "4px",
+                        "sm": "12px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "base": "8px",
+                        "md": "24px",
+                        "lg": "48px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "h1": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "h2": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "h3": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "label-bold": ["14px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "h1": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "caption": ["12px", {"lineHeight": "1.2", "fontWeight": "400"}],
+                        "h2": ["32px", {"lineHeight": "1.3", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .amber-shadow {
+            box-shadow: 4px 0 12px rgba(232, 146, 74, 0.15);
+        }
+        .amber-shadow-card {
+            box-shadow: 0 4px 16px rgba(232, 146, 74, 0.12);
+        }
+        @keyframes pulse-amber {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 198, 65, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 198, 65, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 198, 65, 0); }
+        }
+        .pulse-indicator {
+            animation: pulse-amber 2s infinite;
+        }
+        .gradient-primary {
+            background: linear-gradient(135deg, #ffb692 0%, #ffdfa0 100%);
+        }
+        .gradient-active {
+            background: linear-gradient(135deg, #f6be39 0%, #ffc641 100%);
+        }
+        .gradient-stop {
+            background: linear-gradient(135deg, #934619 0%, #b25d2f 100%);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen overflow-x-hidden">
+<!-- TopNavBar -->
+<nav class="fixed top-0 right-0 left-64 h-20 bg-surface dark:bg-surface-dim border-b-2 border-primary/20 dark:border-primary/40 flex justify-between items-center px-gutter w-[calc(100%-16rem)] z-50">
+<div class="flex items-center gap-sm">
+<span class="font-h3 text-h3 font-bold text-primary dark:text-primary-fixed-dim">FDAS Portal</span>
+</div>
+<div class="flex items-center gap-md">
+<!-- Search placeholder if needed based on JSON, but keeping minimal as per screen req -->
+<button class="text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+</button>
+<img alt="Administrator Profile" class="w-10 h-10 rounded-full border-2 border-primary-fixed-dim object-cover" data-alt="A small circular profile avatar of an administrator in a soft-modern educational software interface, featuring a neutral academic background with warm sunrise lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDry4RIl-psBoKUqdEn8pbshQCgx2x2TXUM2Nn7N7Kfa6851swQgpVgH0ThGFr4XXQ1oVQ36aySpQnOSEHiw0525VpTGuhJRY-xz7cxn14AMFs08CBv_Tf-fHP9EUp1b8ibDuKYMFEGwGxfM5ynq79aHdnRNrxhGjg3kQnCWla90u5c2AzNJ8O0N01IneFp5dOH5HXmHM3xK5Sn1XVvew7XwZcSaz2E3WZr-ilrgFa_YjDiv1d5Gi4tkw"/>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="w-64 h-screen fixed left-0 top-0 bg-surface-container-low dark:bg-surface-dim shadow-[4px_0_12px_rgba(232,146,74,0.15)] flex flex-col py-md overflow-y-auto z-50">
+<!-- Brand / Header -->
+<div class="px-gutter mb-xl flex items-center gap-sm">
+<div>
+<h1 class="font-h2 text-h2 font-bold text-primary dark:text-primary-fixed-dim">FDAS</h1>
+<p class="font-caption text-caption text-on-surface-variant">Govt. Islamia College</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav class="flex-1 flex flex-col gap-xs font-body-md text-body-md font-label-bold text-label-bold">
+<!-- Dashboard -->
+<a class="flex items-center gap-sm px-gutter py-sm text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<!-- Students -->
+<a class="flex items-center gap-sm px-gutter py-sm text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Students</span>
+</a>
+<!-- Add Student -->
+<a class="flex items-center gap-sm px-gutter py-sm text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">person_add</span>
+<span>Add Student</span>
+</a>
+<!-- Attendance (ACTIVE) -->
+<a class="flex items-center gap-sm px-gutter py-sm text-primary dark:text-primary-fixed font-bold border-r-4 border-primary dark:border-primary-fixed bg-surface-container-highest dark:bg-surface-container Active: scale-[0.98] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">calendar_month</span>
+<span>Attendance</span>
+</a>
+<!-- Reports -->
+<a class="flex items-center gap-sm px-gutter py-sm text-on-surface-variant hover:bg-surface-container-high hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>Reports</span>
+</a>
+</nav>
+<!-- CTA & Footer -->
+<div class="px-gutter mt-auto flex flex-col gap-sm">
+<button class="w-full py-sm rounded-lg gradient-primary text-on-secondary-fixed font-label-bold text-label-bold amber-shadow-card hover:opacity-90 transition-opacity">
+                Manual Override
+            </button>
+<a class="flex items-center gap-sm py-sm text-on-surface-variant hover:text-error transition-colors mt-md" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-bold text-label-bold">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 pt-20 p-gutter min-h-screen">
+<!-- Header Section -->
+<div class="mb-md">
+<h2 class="font-h1 text-h1 text-primary mb-sm">Live Attendance</h2>
+<!-- Top Info Bar (Glassmorphism inspired card) -->
+<div class="bg-surface-container-lowest/80 backdrop-blur-md border border-surface-variant rounded-xl p-md flex flex-wrap justify-between items-center gap-md amber-shadow-card">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container">business</span>
+<span class="font-label-bold text-label-bold text-on-surface">Assigned Department: <span class="font-body-md text-on-surface-variant">IT</span></span>
+</div>
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container">schedule</span>
+<span class="font-label-bold text-label-bold text-on-surface">Attendance Window: <span class="font-body-md text-on-surface-variant">08:00 AM - 08:30 AM</span></span>
+</div>
+<div class="flex items-center gap-sm bg-surface-container px-sm py-xs rounded-full">
+<div class="w-3 h-3 rounded-full bg-secondary-container pulse-indicator"></div>
+<span class="font-label-bold text-label-bold text-secondary">Session Status: Active</span>
+</div>
+</div>
+</div>
+<!-- Controls Row -->
+<div class="bg-surface-container-low rounded-xl p-md mb-lg flex flex-col md:flex-row justify-between items-center gap-md border border-outline-variant/30">
+<div class="flex items-center gap-md w-full md:w-auto">
+<button class="opacity-50 cursor-not-allowed bg-surface-variant text-on-surface-variant font-label-bold text-label-bold py-sm px-gutter rounded-lg flex items-center gap-xs transition-all" disabled="">
+<span class="material-symbols-outlined">play_arrow</span>
+                    Start Attendance
+                </button>
+<button class="gradient-stop text-on-primary font-label-bold text-label-bold py-sm px-gutter rounded-lg flex items-center gap-xs shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all">
+<span class="material-symbols-outlined">stop</span>
+                    Stop Attendance
+                </button>
+</div>
+<div class="flex flex-col items-end w-full md:w-auto">
+<div class="font-h2 text-h2 text-primary font-bold tracking-tight">00:12:45</div>
+<div class="font-caption text-caption text-on-surface-variant flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]">info</span>
+                    Session will auto-stop at scheduled end time.
+                </div>
+</div>
+</div>
+<!-- Main Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter items-start">
+<!-- Left Column: Camera Viewfinder (2/3) -->
+<div class="lg:col-span-2 flex flex-col gap-sm">
+<div class="relative w-full aspect-video bg-inverse-surface rounded-xl overflow-hidden border-4 border-primary border-opacity-80 shadow-[0_0_24px_rgba(255,198,65,0.2)]">
+<!-- Placeholder for Camera Feed -->
+<img alt="Camera Feed" class="absolute inset-0 w-full h-full object-cover opacity-90" data-alt="A clear, frontal camera view of a college student standing in front of an educational setting, illuminated by bright, natural morning light, characteristic of a soft-modern biometric system interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDoGmn92T5A8_9V0WBYutl-MNnm6vE0voaxDzJENyZenudNBUJU4hGVYfKKr7CHGHAgoSqreIHssUgBRCQ9kwcQImcumd5thz4f2LEPnkAL1lnyTTs9-qn1AieV_MGmgxZlGuaK3N5QdO0zYYLkDMi5t9uhXJalsneXjJjZq4XKRhvQjmo-babV9c87bS4LD0OGuroceAlyiNQhnEjvJpSmDmw1rtWtXwM6h72HD7Hk2EdkDlrdbzJYQ"/>
+<!-- Viewfinder Overlay Elements -->
+<div class="absolute inset-0 border-4 border-secondary-container/40 rounded-xl pointer-events-none m-md"></div>
+<!-- Liveness Challenge Box -->
+<div class="absolute top-md left-1/2 -translate-x-1/2 bg-surface/90 backdrop-blur-sm px-gutter py-sm rounded-full border border-secondary-fixed shadow-lg flex items-center gap-sm">
+<span class="material-symbols-outlined text-secondary animate-bounce">visibility</span>
+<span class="font-h3 text-h3 text-secondary font-bold">Please blink</span>
+</div>
+<!-- Status Messages overlay bottom -->
+<div class="absolute bottom-md left-md right-md flex justify-between items-end pointer-events-none">
+<div class="bg-surface/90 backdrop-blur-sm px-sm py-xs rounded-lg border-l-4 border-primary-container flex items-center gap-xs">
+<span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">face</span>
+<span class="font-label-bold text-label-bold text-on-surface">Face recognized</span>
+</div>
+<div class="bg-surface/90 backdrop-blur-sm px-sm py-xs rounded-lg border-l-4 border-secondary flex items-center gap-xs">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-bold text-label-bold text-on-surface">Liveness verification passed</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Today's Log (1/3) -->
+<div class="lg:col-span-1 bg-surface-container-lowest rounded-xl border border-surface-variant amber-shadow-card h-full flex flex-col overflow-hidden">
+<div class="p-md border-b border-surface-variant bg-surface-container-low flex justify-between items-center">
+<h3 class="font-h3 text-h3 text-on-surface">Today's Log</h3>
+<span class="bg-secondary-container/20 text-secondary-container font-label-bold px-sm py-xs rounded-full text-[12px]">24 Processed</span>
+</div>
+<div class="flex-1 overflow-y-auto p-sm flex flex-col gap-xs max-h-[500px]">
+<!-- Log Item 1 -->
+<div class="p-sm rounded-lg bg-surface hover:bg-surface-container transition-colors border border-outline-variant/20 flex justify-between items-center">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary-container font-bold">
+                                A
+                            </div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">Arbaz</div>
+<div class="font-caption text-caption text-on-surface-variant">Roll No. 12 • 08:15 AM</div>
+</div>
+</div>
+<span class="text-primary-container font-label-bold text-[12px] bg-primary-container/10 px-2 py-1 rounded">Present</span>
+</div>
+<!-- Log Item 2 -->
+<div class="p-sm rounded-lg bg-surface hover:bg-surface-container transition-colors border border-outline-variant/20 flex justify-between items-center">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary-container font-bold">
+                                S
+                            </div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">Sarah</div>
+<div class="font-caption text-caption text-on-surface-variant">Roll No. 45 • 08:14 AM</div>
+</div>
+</div>
+<span class="text-primary-container font-label-bold text-[12px] bg-primary-container/10 px-2 py-1 rounded">Present</span>
+</div>
+<!-- Log Item 3 -->
+<div class="p-sm rounded-lg bg-surface hover:bg-surface-container transition-colors border border-outline-variant/20 flex justify-between items-center">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary-container font-bold">
+                                M
+                            </div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">Muneeb</div>
+<div class="font-caption text-caption text-on-surface-variant">Roll No. 08 • 08:12 AM</div>
+</div>
+</div>
+<span class="text-primary-container font-label-bold text-[12px] bg-primary-container/10 px-2 py-1 rounded">Present</span>
+</div>
+<!-- Log Item 4 (Pending/Processing example) -->
+<div class="p-sm rounded-lg bg-surface-container-high border-l-4 border-secondary-container transition-colors flex justify-between items-center opacity-70">
+<div class="flex items-center gap-sm">
+<div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-bold">
+<span class="material-symbols-outlined animate-spin text-[20px]">sync</span>
+</div>
+<div>
+<div class="font-label-bold text-label-bold text-on-surface">Scanning...</div>
+<div class="font-caption text-caption text-on-surface-variant">Processing ID</div>
+</div>
+</div>
+<span class="text-secondary-container font-label-bold text-[12px]">Pending</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

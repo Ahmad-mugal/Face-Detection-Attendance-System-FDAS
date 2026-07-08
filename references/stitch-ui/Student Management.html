@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FDAS - Registered Students</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#93000a",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed-variant": "#6f3800",
+                        "on-tertiary-fixed": "#2f1400",
+                        "secondary-container": "#ffc641",
+                        "surface-tint": "#96481c",
+                        "surface-dim": "#e7d7d0",
+                        "surface-bright": "#fff8f6",
+                        "tertiary": "#8e4a01",
+                        "tertiary-fixed": "#ffdcc4",
+                        "secondary-fixed": "#ffdfa0",
+                        "inverse-primary": "#ffb692",
+                        "primary": "#934619",
+                        "on-primary-fixed": "#341100",
+                        "primary-fixed": "#ffdbcb",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#f6e5de",
+                        "secondary": "#795900",
+                        "surface": "#fff8f6",
+                        "on-secondary-container": "#715300",
+                        "on-primary-fixed-variant": "#783104",
+                        "surface-container": "#fceae4",
+                        "on-secondary-fixed-variant": "#5c4300",
+                        "error-container": "#ffdad6",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#f0dfd8",
+                        "outline-variant": "#dbc1b7",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#fffbff",
+                        "surface-container-lowest": "#ffffff",
+                        "error": "#ba1a1a",
+                        "outline": "#887369",
+                        "inverse-surface": "#382e2a",
+                        "on-surface": "#221a16",
+                        "on-secondary-fixed": "#261a00",
+                        "background": "#fff8f6",
+                        "surface-container-low": "#fff1eb",
+                        "primary-fixed-dim": "#ffb692",
+                        "on-tertiary-container": "#fffbff",
+                        "on-surface-variant": "#55433b",
+                        "inverse-on-surface": "#ffede6",
+                        "surface-variant": "#f0dfd8",
+                        "primary-container": "#b25d2f",
+                        "tertiary-container": "#ac621d",
+                        "secondary-fixed-dim": "#f6be39",
+                        "on-background": "#221a16",
+                        "tertiary-fixed-dim": "#ffb780"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "48px",
+                        "md": "24px",
+                        "sm": "12px",
+                        "xs": "4px",
+                        "container-max": "1280px",
+                        "xl": "80px",
+                        "gutter": "24px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "h1": ["Plus Jakarta Sans"],
+                        "h2": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "h3": ["24px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "caption": ["12px", { "lineHeight": "1.2", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "h1": ["40px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "h2": ["32px", { "lineHeight": "1.3", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .warm-shadow {
+            box-shadow: 0 4px 20px rgba(232, 146, 74, 0.15);
+        }
+        .btn-gradient {
+            background: linear-gradient(135deg, #b25d2f, #934619);
+        }
+        .btn-gradient:hover {
+            background: linear-gradient(135deg, #934619, #783104);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen">
+<!-- TopNavBar -->
+<nav class="bg-orange-50 dark:bg-stone-950 font-['Plus_Jakarta_Sans'] text-sm font-medium docked full-width top-0 z-50 border-b-2 border-orange-700 dark:border-orange-900 flat no shadows flex justify-between items-center px-8 py-4 w-full max-w-full">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-orange-700 dark:text-orange-500 text-2xl">school</span>
+<span class="text-xl font-black text-orange-900 dark:text-orange-100 tracking-tight">FDAS</span>
+</div>
+<div class="hidden md:flex items-center gap-6">
+<a class="text-stone-700 dark:text-stone-400 hover:text-orange-700 dark:hover:text-orange-300 hover:bg-orange-100/50 dark:hover:bg-stone-900 transition-all duration-200 active:scale-95 transform transition-transform cursor-pointer px-2 py-1 rounded-DEFAULT" href="#">Dashboard</a>
+<a class="text-orange-700 dark:text-orange-400 font-bold border-b-2 border-yellow-500 pb-1 hover:bg-orange-100/50 dark:hover:bg-stone-900 transition-all duration-200 active:scale-95 transform transition-transform cursor-pointer px-2 py-1" href="#">Students</a>
+<a class="text-stone-700 dark:text-stone-400 hover:text-orange-700 dark:hover:text-orange-300 hover:bg-orange-100/50 dark:hover:bg-stone-900 transition-all duration-200 active:scale-95 transform transition-transform cursor-pointer px-2 py-1 rounded-DEFAULT" href="#">Attendance</a>
+<a class="text-stone-700 dark:text-stone-400 hover:text-orange-700 dark:hover:text-orange-300 hover:bg-orange-100/50 dark:hover:bg-stone-900 transition-all duration-200 active:scale-95 transform transition-transform cursor-pointer px-2 py-1 rounded-DEFAULT" href="#">Reports</a>
+</div>
+<div class="flex items-center gap-4 text-orange-700 dark:text-orange-500">
+<button class="hover:bg-orange-100/50 dark:hover:bg-stone-900 transition-all duration-200 active:scale-95 transform transition-transform cursor-pointer p-2 rounded-full">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="hover:bg-orange-100/50 dark:hover:bg-stone-900 transition-all duration-200 active:scale-95 transform transition-transform cursor-pointer p-2 rounded-full">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="max-w-container-max mx-auto px-gutter py-lg">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-md gap-4">
+<h1 class="font-h2 text-h2 text-primary">Registered Students</h1>
+<button class="btn-gradient text-on-primary font-label-bold text-label-bold px-md py-sm rounded-DEFAULT transition-all duration-200 active:scale-95 flex items-center gap-2 warm-shadow">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                Register New Student
+            </button>
+</div>
+<!-- Filter Row -->
+<div class="bg-surface p-md rounded-lg warm-shadow mb-lg flex flex-col md:flex-row gap-4 items-center border border-outline-variant">
+<div class="flex-1 w-full relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full bg-surface-container-lowest border-outline-variant focus:border-tertiary focus:ring-1 focus:ring-tertiary rounded-DEFAULT pl-[40px] pr-sm py-sm text-on-surface font-body-md text-body-md transition-colors placeholder:text-outline/70" placeholder="Search by name or Roll No..." type="text"/>
+</div>
+<select class="w-full md:w-auto bg-surface-container-lowest border-secondary-container focus:border-tertiary focus:ring-1 focus:ring-tertiary rounded-DEFAULT px-sm py-sm text-on-surface font-body-md text-body-md">
+<option value="">All Departments</option>
+<option value="cs">Computer Science</option>
+<option value="it">Information Technology</option>
+<option value="physics">Physics</option>
+</select>
+<select class="w-full md:w-auto bg-surface-container-lowest border-primary focus:border-tertiary focus:ring-1 focus:ring-tertiary rounded-DEFAULT px-sm py-sm text-on-surface font-body-md text-body-md">
+<option value="">All Years</option>
+<option value="1">1st Year</option>
+<option value="2">2nd Year</option>
+<option value="3">3rd Year</option>
+<option value="4">4th Year</option>
+</select>
+<div class="flex items-center gap-4 w-full md:w-auto">
+<button class="w-full md:w-auto btn-gradient text-on-primary font-label-bold text-label-bold px-md py-sm rounded-DEFAULT transition-all duration-200 active:scale-95">
+                    Search
+                </button>
+<a class="text-tertiary hover:text-tertiary-container font-label-bold text-label-bold transition-colors whitespace-nowrap" href="#">
+                    Reset
+                </a>
+</div>
+</div>
+<!-- Student Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter mb-lg">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest rounded-lg warm-shadow overflow-hidden relative group">
+<div class="h-[4px] bg-secondary-container w-full absolute top-0 left-0"></div>
+<div class="p-md flex flex-col items-center text-center">
+<div class="w-[80px] h-[80px] rounded-full bg-background border-2 border-secondary-container flex items-center justify-center mb-sm relative overflow-hidden">
+<img alt="portrait of young male student with short dark hair in warm lighting" class="w-full h-full object-cover" data-alt="portrait of young male student with short dark hair in warm lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVPO2deezRxkeiwkPsGfJymn6yWJbA_16ki8yHnKrJpBoN1pth6dRh33qwi6IIomNw_df7kwfZGK-XaZ73jBg_oG-flG0Xq4NRipdTis2JcHoynq1zfir6YMW9494Kr-7PtS8yNF78RVMrj0udAWRuMxLpLoKykLXepu-7aa7P9_U5cB7iSxyA97cXp9xdDgcv1oHrpE-8O49DnZtPpngVeny31TX8XJDpARtRBkxnJBAnTKCansLSMNP0JkB918X1MXKBM8iE8d9n"/>
+</div>
+<h3 class="font-h3 text-h3 text-primary mb-xs">Ali Raza</h3>
+<div class="flex flex-col gap-1 w-full text-left mb-md mt-sm bg-surface-container p-sm rounded-DEFAULT">
+<div class="flex justify-between items-center border-b border-outline-variant/30 pb-1">
+<span class="font-caption text-caption text-outline">Roll No</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">CS-2023-045</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/30 py-1">
+<span class="font-caption text-caption text-outline">Department</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">Computer Science</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/30 py-1">
+<span class="font-caption text-caption text-outline">Year</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">2nd Year</span>
+</div>
+<div class="flex justify-between items-center pt-1">
+<span class="font-caption text-caption text-outline">Email</span>
+<span class="font-caption text-caption text-on-surface-variant truncate max-w-[120px]">ali.raza@gigc.edu.pk</span>
+</div>
+</div>
+<div class="flex gap-2 w-full">
+<button class="flex-1 border border-secondary-container text-secondary font-label-bold text-label-bold py-2 rounded-DEFAULT hover:bg-secondary-container/10 transition-colors flex justify-center items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">edit</span> Edit
+                        </button>
+<button class="flex-1 border border-primary text-primary font-label-bold text-label-bold py-2 rounded-DEFAULT hover:bg-primary/10 transition-colors flex justify-center items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">delete</span> Delete
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-lowest rounded-lg warm-shadow overflow-hidden relative group">
+<div class="h-[4px] bg-secondary-container w-full absolute top-0 left-0"></div>
+<div class="p-md flex flex-col items-center text-center">
+<div class="w-[80px] h-[80px] rounded-full bg-background border-2 border-secondary-container flex items-center justify-center mb-sm relative overflow-hidden">
+<img alt="portrait of young female student with dark hair smiling warmly" class="w-full h-full object-cover" data-alt="portrait of young female student with dark hair smiling warmly" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1pgGBNjHS026OjxZuGujEfq62r1nJYdH40LszUdMXiAU1W9tm9qQcewSQULnbtalKcGvwH0_KM9dQWFRbkhi9bOOjE3AjAQThPlaKbO2KIFjhEKv7umh8pgsp0osUkxy7_qiHt--6x4-hXYXObdflQ_3mGur8SpZxsxCD9YNrALJ-5DL-o_pa3k8vGKAvaU9NiSMbPf9SNNfEWDZ-70xtlnhcx9GhHze-IxsnCJsCouvTMsNTFOTK9XgfKGAeIO_lwYAAbcUFzybd"/>
+</div>
+<h3 class="font-h3 text-h3 text-primary mb-xs">Fatima Khan</h3>
+<div class="flex flex-col gap-1 w-full text-left mb-md mt-sm bg-surface-container p-sm rounded-DEFAULT">
+<div class="flex justify-between items-center border-b border-outline-variant/30 pb-1">
+<span class="font-caption text-caption text-outline">Roll No</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">IT-2022-112</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/30 py-1">
+<span class="font-caption text-caption text-outline">Department</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">Information Tech</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/30 py-1">
+<span class="font-caption text-caption text-outline">Year</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">3rd Year</span>
+</div>
+<div class="flex justify-between items-center pt-1">
+<span class="font-caption text-caption text-outline">Email</span>
+<span class="font-caption text-caption text-on-surface-variant truncate max-w-[120px]">fatima.k@gigc.edu.pk</span>
+</div>
+</div>
+<div class="flex gap-2 w-full">
+<button class="flex-1 border border-secondary-container text-secondary font-label-bold text-label-bold py-2 rounded-DEFAULT hover:bg-secondary-container/10 transition-colors flex justify-center items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">edit</span> Edit
+                        </button>
+<button class="flex-1 border border-primary text-primary font-label-bold text-label-bold py-2 rounded-DEFAULT hover:bg-primary/10 transition-colors flex justify-center items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">delete</span> Delete
+                        </button>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest rounded-lg warm-shadow overflow-hidden relative group">
+<div class="h-[4px] bg-secondary-container w-full absolute top-0 left-0"></div>
+<div class="p-md flex flex-col items-center text-center">
+<div class="w-[80px] h-[80px] rounded-full bg-background border-2 border-secondary-container flex items-center justify-center mb-sm relative overflow-hidden">
+<span class="material-symbols-outlined text-secondary text-[32px]">photo_camera</span>
+</div>
+<h3 class="font-h3 text-h3 text-primary mb-xs">Usman Tariq</h3>
+<div class="flex flex-col gap-1 w-full text-left mb-md mt-sm bg-surface-container p-sm rounded-DEFAULT">
+<div class="flex justify-between items-center border-b border-outline-variant/30 pb-1">
+<span class="font-caption text-caption text-outline">Roll No</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">PH-2024-008</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/30 py-1">
+<span class="font-caption text-caption text-outline">Department</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">Physics</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/30 py-1">
+<span class="font-caption text-caption text-outline">Year</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">1st Year</span>
+</div>
+<div class="flex justify-between items-center pt-1">
+<span class="font-caption text-caption text-outline">Email</span>
+<span class="font-caption text-caption text-on-surface-variant truncate max-w-[120px]">usman.t@gigc.edu.pk</span>
+</div>
+</div>
+<div class="flex gap-2 w-full">
+<button class="flex-1 border border-secondary-container text-secondary font-label-bold text-label-bold py-2 rounded-DEFAULT hover:bg-secondary-container/10 transition-colors flex justify-center items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">edit</span> Edit
+                        </button>
+<button class="flex-1 border border-primary text-primary font-label-bold text-label-bold py-2 rounded-DEFAULT hover:bg-primary/10 transition-colors flex justify-center items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">delete</span> Delete
+                        </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<div class="flex flex-col md:flex-row justify-between items-center border-t border-outline-variant/30 pt-md mt-lg gap-4">
+<span class="font-body-md text-body-md text-tertiary">Showing 1-9 of 24 students</span>
+<div class="flex items-center gap-2">
+<button class="w-8 h-8 rounded-full border border-primary text-primary flex items-center justify-center hover:bg-primary/10 transition-colors disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-bold text-label-bold">1</button>
+<button class="w-8 h-8 rounded-full text-on-surface-variant hover:bg-surface-container-high flex items-center justify-center font-label-bold text-label-bold transition-colors">2</button>
+<button class="w-8 h-8 rounded-full text-on-surface-variant hover:bg-surface-container-high flex items-center justify-center font-label-bold text-label-bold transition-colors">3</button>
+<span class="text-on-surface-variant">...</span>
+<button class="w-8 h-8 rounded-full border border-primary text-primary flex items-center justify-center hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</main>
+</body></html>

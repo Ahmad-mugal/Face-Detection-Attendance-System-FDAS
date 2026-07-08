@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FDAS - Students</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed": "#261a00",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#55433b",
+                        "surface-bright": "#fff8f6",
+                        "outline": "#887369",
+                        "surface-variant": "#f0dfd8",
+                        "primary-fixed": "#ffdbcb",
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed-dim": "#f6be39",
+                        "on-secondary-container": "#715300",
+                        "on-primary-fixed-variant": "#783104",
+                        "surface": "#fff8f6",
+                        "surface-container-high": "#f6e5de",
+                        "on-tertiary": "#ffffff",
+                        "background": "#fff8f6",
+                        "primary-container": "#b25d2f",
+                        "primary": "#934619",
+                        "on-background": "#221a16",
+                        "error-container": "#ffdad6",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb780",
+                        "outline-variant": "#dbc1b7",
+                        "inverse-surface": "#382e2a",
+                        "error": "#ba1a1a",
+                        "surface-container": "#fceae4",
+                        "secondary-container": "#ffc641",
+                        "inverse-on-surface": "#ffede6",
+                        "on-tertiary-fixed-variant": "#6f3800",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed": "#ffdcc4",
+                        "on-surface": "#221a16",
+                        "on-primary-fixed": "#341100",
+                        "secondary": "#795900",
+                        "inverse-primary": "#ffb692",
+                        "on-tertiary-container": "#fffbff",
+                        "on-secondary-fixed-variant": "#5c4300",
+                        "on-primary-container": "#fffbff",
+                        "secondary-fixed": "#ffdfa0",
+                        "surface-dim": "#e7d7d0",
+                        "primary-fixed-dim": "#ffb692",
+                        "tertiary": "#8e4a01",
+                        "on-tertiary-fixed": "#2f1400",
+                        "surface-tint": "#96481c",
+                        "surface-container-highest": "#f0dfd8",
+                        "tertiary-container": "#ac621d",
+                        "surface-container-low": "#fff1eb"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "md": "24px",
+                        "xl": "80px",
+                        "gutter": "24px",
+                        "lg": "48px",
+                        "container-max": "1280px",
+                        "base": "8px",
+                        "sm": "12px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Plus Jakarta Sans"],
+                        "h1": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "h2": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "h3": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "h1": ["40px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "caption": ["12px", { "lineHeight": "1.2", "fontWeight": "400" }],
+                        "h2": ["32px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                        "label-bold": ["14px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "h3": ["24px", { "lineHeight": "1.4", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .warm-shadow {
+            box-shadow: 0 4px 15px rgba(232, 146, 74, 0.15);
+        }
+        .amber-gradient-btn {
+            background: linear-gradient(135deg, #ffc641 0%, #E8924A 100%);
+        }
+        .amber-gradient-btn:hover {
+            background: linear-gradient(135deg, #E8924A 0%, #b25d2f 100%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 bg-surface-container-low shadow-[4px_0_15px_rgba(232,146,74,0.15)] py-md px-base z-20">
+<div class="mb-lg px-sm">
+<h1 class="font-h3 text-h3 font-bold text-primary">FDAS</h1>
+<p class="font-caption text-caption text-on-surface-variant mt-xs">Face Detection Attendance</p>
+</div>
+<div class="flex items-center gap-sm mb-lg px-sm">
+<img class="w-10 h-10 rounded-full object-cover border border-outline-variant" data-alt="A small, circular avatar portrait of an administrative operator, rendered in a warm, professional light. Soft, diffused lighting highlights the subject, appropriate for an educational campus setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTTkb3HnRgv6x9T_S7g_5TG7rIQ83klcEr0AqW-1Cp_-538I1gGXC0DsLdmVBLckTSLWFggRs78MkwVwBynAPs_rk4CS09ky1LRaYiVt1KZ_2NqgUCkdY9PGRRJ82mqgj6OtXmU1w4rJI9PbyRkSTCr2ksQCbmYVYc-jPClqXZ9Jom48iB3X4jjT3mj6cC2EWprfOsLAHfiPhzU_edLiYhu-EAyHJgmuroTXSer1uoZGM7HBa0GqkCsg"/>
+<div>
+<p class="font-label-bold text-label-bold text-on-background">FDAS Operator</p>
+<p class="font-caption text-caption text-on-surface-variant">College Campus</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-xs">
+<!-- Dashboard -->
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-bold text-label-bold">Dashboard</span>
+</a>
+<!-- Students (Active) -->
+<a class="flex items-center gap-sm px-sm py-sm rounded bg-surface-container-high text-primary font-bold border-r-4 border-secondary transition-all duration-200 scale-95" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">group</span>
+<span class="font-label-bold text-label-bold">Students</span>
+</a>
+<!-- Add Student -->
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">person_add</span>
+<span class="font-label-bold text-label-bold">Add Student</span>
+</a>
+<!-- Attendance -->
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">fact_check</span>
+<span class="font-label-bold text-label-bold">Attendance</span>
+</a>
+<!-- Reports -->
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-label-bold text-label-bold">Reports</span>
+</a>
+</nav>
+<div class="mt-auto">
+<a class="flex items-center gap-sm px-sm py-sm rounded text-on-surface-variant hover:bg-surface-variant hover:text-error transition-all duration-200" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-bold text-label-bold">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 flex flex-col min-h-screen bg-background">
+<!-- TopNavBar (Mobile mainly, but keeps structure) -->
+<header class="w-full top-0 sticky bg-background border-b-2 border-primary z-10 flex justify-between items-center px-gutter py-sm max-w-container-max mx-auto md:hidden">
+<div class="font-h3 text-h3 font-bold text-primary">FDAS</div>
+<div class="flex items-center gap-sm">
+<button class="text-primary hover:text-secondary transition-colors duration-200">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-primary hover:text-secondary transition-colors duration-200">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Page Canvas -->
+<div class="p-gutter max-w-container-max mx-auto w-full flex-1">
+<!-- Page Header & Controls -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-md mb-lg">
+<div>
+<h2 class="font-h2 text-h2 text-primary">Students</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">Manage students for your assigned department.</p>
+<div class="mt-sm inline-flex items-center gap-xs px-sm py-xs bg-surface-container-high border border-outline-variant rounded-full">
+<span class="material-symbols-outlined text-secondary" style="font-size: 16px;">school</span>
+<span class="font-label-bold text-label-bold text-on-background">Department: IT</span>
+</div>
+</div>
+<div class="flex flex-wrap items-center gap-sm w-full md:w-auto">
+<!-- Search -->
+<div class="relative flex-grow md:flex-grow-0">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full md:w-64 pl-xl pr-sm py-sm bg-surface rounded border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors font-body-md text-on-background placeholder:text-outline" placeholder="Search student..." type="text"/>
+</div>
+<!-- Filters -->
+<select class="px-sm py-sm bg-surface rounded border border-outline-variant focus:border-primary outline-none font-body-md text-on-background">
+<option value="">Class</option>
+<option value="BSIT-1">BSIT-1</option>
+<option value="BSIT-2">BSIT-2</option>
+<option value="BSIT-3">BSIT-3</option>
+<option value="BSIT-4">BSIT-4</option>
+</select>
+<select class="px-sm py-sm bg-surface rounded border border-outline-variant focus:border-primary outline-none font-body-md text-on-background">
+<option value="">Status</option>
+<option value="active">Active</option>
+<option value="inactive">Inactive</option>
+</select>
+<!-- Add Button -->
+<button class="amber-gradient-btn text-on-secondary-fixed font-label-bold text-label-bold px-md py-sm rounded flex items-center gap-xs transition-colors shadow-sm ml-auto md:ml-0">
+<span class="material-symbols-outlined">add</span>
+                        Add Student
+                    </button>
+</div>
+</div>
+<!-- Student Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-md">
+<!-- Card 1 -->
+<div class="bg-surface rounded-lg p-md warm-shadow border border-surface-container-highest hover:-translate-y-1 transition-transform duration-200">
+<div class="flex justify-between items-start mb-md">
+<div class="w-16 h-16 rounded-full overflow-hidden border-2 border-primary-container">
+<!-- Placeholder reference applied here -->
+<img class="w-full h-full object-cover" src="https://www.gstatic.com/labs-code/stitch/stitch-placeholder-300x300.svg"/>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<h3 class="font-h3 text-h3 text-on-background mb-xs">Ahmad Ali</h3>
+<p class="font-label-bold text-label-bold text-primary mb-sm">Roll No: F20-IT-001</p>
+<div class="space-y-xs mb-md">
+<div class="flex justify-between font-caption text-caption text-on-surface-variant">
+<span>Department</span>
+<span class="font-label-bold text-on-background">IT</span>
+</div>
+<div class="flex justify-between font-caption text-caption text-on-surface-variant">
+<span>Class</span>
+<span class="font-label-bold text-on-background">BSIT-4</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs pt-sm border-t border-surface-container-highest">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-[#934619]"></span>
+<span class="font-caption text-caption text-on-background">Face Registered</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-caption text-caption text-on-background">Active</span>
+</div>
+</div>
+<div class="mt-md flex gap-xs">
+<button class="flex-1 py-xs border border-outline-variant rounded font-label-bold text-label-bold text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-colors text-center">View</button>
+<button class="flex-1 py-xs bg-primary text-on-primary rounded font-label-bold text-label-bold hover:bg-primary-container transition-colors text-center">Edit</button>
+</div>
+</div>
+<!-- Card 2 (Unregistered) -->
+<div class="bg-surface rounded-lg p-md warm-shadow border border-surface-container-highest hover:-translate-y-1 transition-transform duration-200">
+<div class="flex justify-between items-start mb-md">
+<div class="w-16 h-16 rounded-full overflow-hidden border-2 border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A portrait of a male student standing outdoors on a bright college campus. The lighting is warm morning sun, casting gentle shadows. Professional and academic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLAySEHyQKw6Rkb1CE0WLoVEZiVqnWUdZL_knFRGfPSFpK0M3jDiIyL5dK0aw1Ugx91R8rs98kDvQZOGssDeJxRCdGnmfKNlHCQB4FXPaGFEt7bqQddD6dqj_6aknytA6kcO0HFrPeocKHNd4zo879D_zydtgYEPAkju-7Z54q3jeXtaz8RXPoOizEhiFfTwib9MazVjO0_4vcR1G1K_wZ47y_NRrC9XyLFYodzRuqTkujEnHKFr9-Ug"/>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<h3 class="font-h3 text-h3 text-on-background mb-xs">Usman Khan</h3>
+<p class="font-label-bold text-label-bold text-primary mb-sm">Roll No: F21-IT-042</p>
+<div class="space-y-xs mb-md">
+<div class="flex justify-between font-caption text-caption text-on-surface-variant">
+<span>Department</span>
+<span class="font-label-bold text-on-background">IT</span>
+</div>
+<div class="flex justify-between font-caption text-caption text-on-surface-variant">
+<span>Class</span>
+<span class="font-label-bold text-on-background">BSIT-3</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs pt-sm border-t border-surface-container-highest">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-secondary-fixed-dim"></span>
+<span class="font-caption text-caption text-on-surface-variant">Not Registered</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-caption text-caption text-on-background">Active</span>
+</div>
+</div>
+<div class="mt-md">
+<button class="w-full py-sm amber-gradient-btn text-on-secondary-fixed rounded font-label-bold text-label-bold transition-colors text-center flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined" style="font-size: 18px;">face_retouching_natural</span>
+                            Register Face
+                        </button>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface rounded-lg p-md warm-shadow border border-surface-container-highest hover:-translate-y-1 transition-transform duration-200">
+<div class="flex justify-between items-start mb-md">
+<div class="w-16 h-16 rounded-full overflow-hidden border-2 border-primary-container">
+<img class="w-full h-full object-cover" data-alt="A portrait of a female student wearing a modest hijab, studying in a brightly lit library setting. The atmosphere is quiet, focused, and academic with soft ivory and warm linen tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBneOld9hjg-I5mEYlW5N0Upnd1GpCoqXZ6bW47SakG3axnb8LrW-ietezK3DL8wf71ewAIS9TQPkH4zTGtb3ktexuSgxCuSMxD2zf8GAL0oeQgwl0wLz_kVT378U07sNSj8_2JE28mN2gyhclOnOvXRq8pwrYca7jVss0VLqLZ-YR9c3c50ToP4GQpgeWTaXRlDW6obmM6QedbkJ1fqlhEWXDIKvZgSgfxhhEgDw1sTrynha21RMzFYQ"/>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<h3 class="font-h3 text-h3 text-on-background mb-xs">Fatima Noor</h3>
+<p class="font-label-bold text-label-bold text-primary mb-sm">Roll No: F20-IT-015</p>
+<div class="space-y-xs mb-md">
+<div class="flex justify-between font-caption text-caption text-on-surface-variant">
+<span>Department</span>
+<span class="font-label-bold text-on-background">IT</span>
+</div>
+<div class="flex justify-between font-caption text-caption text-on-surface-variant">
+<span>Class</span>
+<span class="font-label-bold text-on-background">BSIT-4</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs pt-sm border-t border-surface-container-highest">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-[#934619]"></span>
+<span class="font-caption text-caption text-on-background">Face Registered</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-caption text-caption text-on-background">Active</span>
+</div>
+</div>
+<div class="mt-md flex gap-xs">
+<button class="flex-1 py-xs border border-outline-variant rounded font-label-bold text-label-bold text-on-surface-variant hover:bg-surface-variant hover:text-primary transition-colors text-center">View</button>
+<button class="flex-1 py-xs bg-primary text-on-primary rounded font-label-bold text-label-bold hover:bg-primary-container transition-colors text-center">Edit</button>
+</div>
+</div>
+<!-- Card 4 (Inactive) -->
+<div class="bg-surface rounded-lg p-md warm-shadow border border-error-container hover:-translate-y-1 transition-transform duration-200 opacity-80">
+<div class="flex justify-between items-start mb-md">
+<div class="w-16 h-16 rounded-full overflow-hidden border-2 border-outline-variant grayscale">
+<img class="w-full h-full object-cover" data-alt="A portrait of a male student standing near a brick wall on campus. The lighting is slightly muted. Professional and academic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBk_yvN342iOEvYVaLpl1eGWN0EMIePepToZtW81nQ8q8huxazv6cep4ngNg5T7b_eMQGODuDZnjbF0tA1YKMDLHY-8ibEXn1EfkRPE9dVglt2kJUH4jr2RMRy1fdC8RbJzvBctwtGl-d0aOXE6ShQN6JWQ4mfa7I4zwJYAv9PWlsTC-mMp_Lxc_aZYyibGSqMWW7DLu368a1Adt_tNHl2wlkGdPO8RgLbiz_hcpOTaTUq0aU1hns5aTg"/>
+</div>
+<button class="text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<h3 class="font-h3 text-h3 text-on-background mb-xs">Bilal Hassan</h3>
+<p class="font-label-bold text-label-bold text-outline mb-sm">Roll No: F19-IT-112</p>
+<div class="space-y-xs mb-md">
+<div class="flex justify-between font-caption text-caption text-on-surface-variant">
+<span>Department</span>
+<span class="font-label-bold text-on-surface-variant">IT</span>
+</div>
+<div class="flex justify-between font-caption text-caption text-on-surface-variant">
+<span>Class</span>
+<span class="font-label-bold text-on-surface-variant">BSIT-4</span>
+</div>
+</div>
+<div class="flex flex-col gap-xs pt-sm border-t border-surface-container-highest">
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+<span class="font-caption text-caption text-on-surface-variant">Face Registered</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="font-caption text-caption text-error">Inactive</span>
+</div>
+</div>
+<div class="mt-md flex gap-xs">
+<button class="w-full py-xs border border-outline-variant rounded font-label-bold text-label-bold text-on-surface-variant hover:bg-surface-variant transition-colors text-center">View</button>
+</div>
+</div>
+</div>
+<!-- Pagination Placeholder -->
+<div class="mt-lg flex justify-center items-center gap-sm">
+<button class="p-xs text-outline hover:text-primary disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded-full bg-primary text-on-primary font-label-bold flex items-center justify-center">1</button>
+<button class="w-8 h-8 rounded-full text-on-surface-variant hover:bg-surface-variant font-label-bold flex items-center justify-center transition-colors">2</button>
+<button class="w-8 h-8 rounded-full text-on-surface-variant hover:bg-surface-variant font-label-bold flex items-center justify-center transition-colors">3</button>
+<span class="text-outline">...</span>
+<button class="p-xs text-outline hover:text-primary">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</main>
+</body></html>

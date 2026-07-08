@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Live Attendance Marking - FDAS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#f0dfd8",
+                    "outline": "#887369",
+                    "error-container": "#ffdad6",
+                    "outline-variant": "#dbc1b7",
+                    "secondary-fixed": "#ffdfa0",
+                    "tertiary-fixed": "#ffdcc4",
+                    "secondary-fixed-dim": "#f6be39",
+                    "on-primary-fixed-variant": "#783104",
+                    "surface-container-highest": "#f0dfd8",
+                    "on-primary-fixed": "#341100",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-low": "#fff1eb",
+                    "on-background": "#221a16",
+                    "on-secondary-fixed-variant": "#5c4300",
+                    "on-surface-variant": "#55433b",
+                    "primary-container": "#b25d2f",
+                    "surface": "#fff8f6",
+                    "on-surface": "#221a16",
+                    "error": "#ba1a1a",
+                    "on-secondary-fixed": "#261a00",
+                    "on-error": "#ffffff",
+                    "on-tertiary-fixed-variant": "#6f3800",
+                    "on-tertiary-fixed": "#2f1400",
+                    "secondary": "#795900",
+                    "inverse-surface": "#382e2a",
+                    "tertiary-container": "#ac621d",
+                    "primary-fixed": "#ffdbcb",
+                    "on-tertiary-container": "#fffbff",
+                    "surface-container-high": "#f6e5de",
+                    "on-error-container": "#93000a",
+                    "surface-tint": "#96481c",
+                    "on-tertiary": "#ffffff",
+                    "inverse-primary": "#ffb692",
+                    "tertiary": "#8e4a01",
+                    "surface-dim": "#e7d7d0",
+                    "secondary-container": "#ffc641",
+                    "on-primary-container": "#fffbff",
+                    "primary": "#934619",
+                    "primary-fixed-dim": "#ffb692",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#fff8f6",
+                    "on-secondary-container": "#715300",
+                    "tertiary-fixed-dim": "#ffb780",
+                    "surface-container": "#fceae4",
+                    "inverse-on-surface": "#ffede6",
+                    "on-secondary": "#ffffff",
+                    "background": "#fff8f6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "12px",
+                    "md": "24px",
+                    "lg": "48px",
+                    "gutter": "24px",
+                    "xl": "80px",
+                    "xs": "4px",
+                    "container-max": "1280px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Plus Jakarta Sans"],
+                    "h1": ["Plus Jakarta Sans"],
+                    "h3": ["Plus Jakarta Sans"],
+                    "label-bold": ["Plus Jakarta Sans"],
+                    "body-md": ["Plus Jakarta Sans"],
+                    "h2": ["Plus Jakarta Sans"],
+                    "caption": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "h1": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "h3": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "label-bold": ["14px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "h2": ["32px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "caption": ["12px", {"lineHeight": "1.2", "fontWeight": "400"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #FAF4EC; color: #4A2B0F; }
+        .bg-warm-linen { background-color: #FAF4EC; }
+        .bg-ivory { background-color: #FFF0E6; }
+        .text-primary { color: #C4533A; }
+        .text-accent { color: #D4A017; }
+        .text-amber-custom { color: #E8924A; }
+        .text-dark { color: #4A2B0F; }
+        .bg-primary { background-color: #C4533A; }
+        .bg-accent { background-color: #D4A017; }
+        .border-primary { border-color: #C4533A; }
+        .border-accent { border-color: #D4A017; }
+        .border-amber-custom { border-color: #E8924A; }
+        .shadow-amber { box-shadow: 0 4px 20px rgba(232, 146, 74, 0.15); }
+        .shadow-glow { box-shadow: 0 0 15px rgba(232, 146, 74, 0.4); }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+        .animate-blink {
+            animation: blink 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-warm-linen min-h-screen flex flex-col">
+<!-- TopNavBar -->
+<header class="bg-[#FAF4EC] dark:bg-stone-900 border-b-2 border-[#C4533A] shadow-[0_4px_20px_rgba(232,146,74,0.15)] flex justify-between items-center px-8 py-4 w-full max-w-full mx-auto relative z-20">
+<div class="flex items-center gap-2 text-2xl font-black text-[#C1693A] tracking-tight"><span class="material-symbols-outlined text-[#D4A017]" style="font-variation-settings: 'FILL' 1;">school</span>
+<span class="text-[#C4533A]">FDAS</span></div>
+<nav class="hidden md:flex gap-8 items-center"><a class="text-[#4A2B0F] dark:text-stone-400 font-medium hover:text-[#C4533A] transition-colors" href="#">Dashboard</a>
+<a class="text-[#4A2B0F] dark:text-stone-400 font-medium hover:text-[#C4533A] transition-colors" href="#">Students</a>
+<a class="text-[#4A2B0F] font-bold border-b-2 border-[#D4A017] pb-1" href="#">Attendance</a>
+<a class="text-[#4A2B0F] dark:text-stone-400 font-medium hover:text-[#C4533A] transition-colors" href="#">Reports</a></nav>
+<div class="flex items-center gap-4 text-[#C1693A] dark:text-[#E07A4A]"><button class="text-[#C4533A] hover:bg-stone-100/50 dark:hover:bg-stone-800/50 rounded-lg p-2 transition-all active:scale-95 duration-200">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<!-- Sub-header Strip -->
+<div class="bg-ivory border-b-2 border-primary shadow-amber py-4 px-8 flex justify-between items-center relative z-10">
+<div class="flex-1">
+<h2 class="text-primary font-bold text-xl tracking-wide">Live Attendance Mode</h2>
+</div>
+<div class="flex-1 flex justify-center items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-[#E8924A] animate-blink"></div>
+<span class="text-accent font-semibold tracking-wider uppercase text-sm">Camera Active</span>
+</div>
+<div class="flex-1 flex justify-end">
+<button class="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity active:scale-95">
+                Stop Recognition
+            </button>
+</div>
+</div>
+<!-- Main Canvas -->
+<main class="flex-1 p-gutter max-w-container-max mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start mt-4">
+<!-- Left Column: Camera Feed -->
+<div class="lg:col-span-8 bg-ivory border-2 border-ivory rounded-xl shadow-glow overflow-hidden flex flex-col h-[716px] min-h-[500px]">
+<div class="relative flex-1 bg-black overflow-hidden">
+<img alt="Classroom setting with students" class="w-full h-full object-cover opacity-80 mix-blend-screen" data-alt="bright classroom setting with a diverse group of students sitting at desks, soft natural lighting from windows, shallow depth of field focusing on the foreground" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeF5C_eKEbNd1Ck9KyUFVOzJgngtlYB-QRNbpfLiRrnGNk393zL78CqqxQVmYDgOVQzOpI5uS0l0DsoevOBZtheGhZHHGlAddlRwe07EcoggU1TC2_p-Xx4hQFPdupytyozar22emzY0mmKrkKAUEj53ui9kHJcVF32kfV-PBOc88gT2KOadmKaWUSq4pWJo8yGhT7Qo-MDnsTfThreVBEo8kxfMKxSfu6E4-j6IhDpgHgnxk9vjM8BqY8TEgj9aQnbowsKeKLdKA-"/>
+<!-- Bounding Box (Recognized) -->
+<div class="absolute top-1/4 left-1/3 w-48 h-56 border-2 border-[#E8924A] rounded-lg shadow-[0_0_15px_rgba(232,146,74,0.5)] flex flex-col justify-end p-2">
+<div class="absolute -top-3 -right-3 bg-accent rounded-full w-6 h-6 flex items-center justify-center text-white border-2 border-ivory">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<div class="bg-[#D4A017] text-white text-xs font-bold py-1 px-2 rounded backdrop-blur-sm shadow-sm inline-block self-center mb-[-20px] absolute bottom-[-10px]">
+                        Arbaz — Roll No. 12
+                    </div>
+</div>
+<!-- Bounding Box (Unrecognized) -->
+<div class="absolute top-1/3 right-1/4 w-40 h-48 border-2 border-dashed border-ivory rounded-lg flex flex-col justify-end p-2 opacity-80">
+<div class="bg-primary text-white text-[10px] font-bold py-1 px-2 rounded backdrop-blur-sm shadow-sm inline-block self-center absolute bottom-[-10px] whitespace-nowrap">
+                        Please Register First
+                    </div>
+</div>
+<!-- Context Pill -->
+<div class="absolute bottom-4 left-4 bg-primary/80 backdrop-blur-md text-white text-sm font-semibold py-2 px-4 rounded-full flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">location_on</span>
+                    CS Dept | 1st Year
+                </div>
+<!-- Overlay Gradients -->
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 pointer-events-none"></div>
+</div>
+<div class="bg-ivory p-4 flex justify-between items-center border-t border-amber-custom/20">
+<div class="flex items-center gap-2 text-dark/70 text-sm">
+<span class="material-symbols-outlined text-[#E8924A]">videocam</span>
+                    Cam 01 - Main Lab
+                </div>
+<div class="text-sm font-semibold text-primary">
+                    Scanning...
+                </div>
+</div>
+</div>
+<!-- Right Column: Log -->
+<div class="lg:col-span-4 bg-ivory rounded-xl shadow-amber overflow-hidden border-t-[3px] border-[#D4A017] flex flex-col h-[716px] min-h-[500px]">
+<div class="p-6 border-b border-amber-custom/20 flex justify-between items-center bg-white/50">
+<h3 class="font-h3 text-h3 text-primary">Today's Log</h3>
+<span class="text-accent font-bold bg-[#D4A017]/10 px-3 py-1 rounded-full text-xs">42 Present</span>
+</div>
+<div class="flex-1 overflow-y-auto p-2 space-y-1">
+<!-- Log Entry 1 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-ivory hover:bg-white/60 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-[#D4A017]"></div>
+<span class="font-label-bold text-label-bold text-dark">Arbaz</span>
+</div>
+<span class="text-xs font-semibold text-amber-custom">09:15 AM</span>
+</div>
+<!-- Log Entry 2 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-warm-linen hover:bg-white/60 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-[#D4A017]"></div>
+<span class="font-label-bold text-label-bold text-dark">Sarah</span>
+</div>
+<span class="text-xs font-semibold text-amber-custom">09:14 AM</span>
+</div>
+<!-- Log Entry 3 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-ivory hover:bg-white/60 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-[#D4A017]"></div>
+<span class="font-label-bold text-label-bold text-dark">Usman</span>
+</div>
+<span class="text-xs font-semibold text-amber-custom">09:12 AM</span>
+</div>
+<!-- Log Entry 4 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-warm-linen hover:bg-white/60 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-[#D4A017]"></div>
+<span class="font-label-bold text-label-bold text-dark">Fatima</span>
+</div>
+<span class="text-xs font-semibold text-amber-custom">09:10 AM</span>
+</div>
+<!-- Log Entry 5 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-ivory hover:bg-white/60 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-[#D4A017]"></div>
+<span class="font-label-bold text-label-bold text-dark">Ali</span>
+</div>
+<span class="text-xs font-semibold text-amber-custom">09:05 AM</span>
+</div>
+<!-- Log Entry 6 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-warm-linen hover:bg-white/60 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-[#D4A017]"></div>
+<span class="font-label-bold text-label-bold text-dark">Zainab</span>
+</div>
+<span class="text-xs font-semibold text-amber-custom">09:01 AM</span>
+</div>
+<!-- Log Entry 7 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-ivory hover:bg-white/60 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-[#D4A017]"></div>
+<span class="font-label-bold text-label-bold text-dark">Hassan</span>
+</div>
+<span class="text-xs font-semibold text-amber-custom">08:58 AM</span>
+</div>
+</div>
+<div class="p-4 bg-white/50 border-t border-amber-custom/10 text-center">
+<button class="text-sm font-semibold text-primary hover:text-accent transition-colors flex items-center justify-center gap-1 w-full">
+                    View Full History <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</main>
+</body></html>

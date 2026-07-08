@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>User Dashboard - FDAS Operator</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#887369",
+                        "on-error": "#ffffff",
+                        "primary-container": "#b25d2f",
+                        "surface-container": "#fceae4",
+                        "primary-fixed": "#ffdbcb",
+                        "on-tertiary-fixed-variant": "#6f3800",
+                        "on-secondary-container": "#715300",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#fff8f6",
+                        "on-primary-fixed-variant": "#783104",
+                        "primary-fixed-dim": "#ffb692",
+                        "primary": "#934619",
+                        "inverse-primary": "#ffb692",
+                        "on-primary-container": "#fffbff",
+                        "secondary-fixed": "#ffdfa0",
+                        "on-secondary-fixed-variant": "#5c4300",
+                        "secondary-container": "#ffc641",
+                        "surface-container-low": "#fff1eb",
+                        "surface-dim": "#e7d7d0",
+                        "surface-variant": "#f0dfd8",
+                        "outline-variant": "#dbc1b7",
+                        "tertiary-fixed-dim": "#ffb780",
+                        "tertiary-container": "#ac621d",
+                        "tertiary": "#8e4a01",
+                        "on-tertiary-container": "#fffbff",
+                        "surface-container-high": "#f6e5de",
+                        "on-tertiary": "#ffffff",
+                        "on-background": "#221a16",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-on-surface": "#ffede6",
+                        "secondary-fixed-dim": "#f6be39",
+                        "secondary": "#795900",
+                        "inverse-surface": "#382e2a",
+                        "on-tertiary-fixed": "#2f1400",
+                        "on-surface-variant": "#55433b",
+                        "on-surface": "#221a16",
+                        "error-container": "#ffdad6",
+                        "on-error-container": "#93000a",
+                        "background": "#fff8f6",
+                        "surface-tint": "#96481c",
+                        "surface": "#fff8f6",
+                        "tertiary-fixed": "#ffdcc4",
+                        "surface-container-highest": "#f0dfd8",
+                        "on-secondary-fixed": "#261a00",
+                        "on-primary-fixed": "#341100"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "sm": "12px",
+                        "base": "8px",
+                        "gutter": "24px",
+                        "xs": "4px",
+                        "xl": "80px",
+                        "md": "24px",
+                        "lg": "48px"
+                    },
+                    "fontFamily": {
+                        "h2": ["Plus Jakarta Sans"],
+                        "h1": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "label-bold": ["Plus Jakarta Sans"],
+                        "h3": ["Plus Jakarta Sans"],
+                        "caption": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "h2": ["32px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                        "h1": ["40px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-bold": ["14px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "h3": ["24px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "caption": ["12px", { "lineHeight": "1.2", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #FAF4EC;
+        }
+        .amber-shadow {
+            box-shadow: 0 4px 15px rgba(232, 146, 74, 0.15);
+        }
+        .peach-gradient {
+            background: linear-gradient(135deg, #fceae4 0%, #ffb692 100%);
+        }
+        .peach-gradient:hover {
+            background: linear-gradient(135deg, #ffb692 0%, #934619 100%);
+        }
+    </style>
+</head>
+<body class="text-on-background font-body-md flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-low border-r border-outline-variant shadow-sm h-screen w-64 fixed left-0 top-0 flex flex-col py-md space-y-xs hidden md:flex z-50">
+<div class="px-gutter mb-lg">
+<h2 class="text-h2 font-h2 text-primary">FDAS Operator</h2>
+<p class="text-label-bold font-label-bold text-on-surface-variant mt-xs">Department: IT</p>
+</div>
+<div class="flex-1 space-y-xs">
+<a class="bg-secondary-container text-on-secondary-container rounded-lg font-bold mx-2 px-4 py-3 flex items-center gap-3 scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+                Dashboard
+            </a>
+<a class="text-on-surface-variant mx-2 px-4 py-3 flex items-center gap-3 hover:bg-surface-variant transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">group</span>
+                Students
+            </a>
+<a class="text-on-surface-variant mx-2 px-4 py-3 flex items-center gap-3 hover:bg-surface-variant transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">person_add</span>
+                Add Student
+            </a>
+<a class="text-on-surface-variant mx-2 px-4 py-3 flex items-center gap-3 hover:bg-surface-variant transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">shape_recognition</span>
+                Attendance
+            </a>
+<a class="text-on-surface-variant mx-2 px-4 py-3 flex items-center gap-3 hover:bg-surface-variant transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">assessment</span>
+                Reports
+            </a>
+</div>
+<div class="mt-auto pb-gutter">
+<a class="text-on-surface-variant mx-2 px-4 py-3 flex items-center gap-3 hover:bg-surface-variant transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">logout</span>
+                Logout
+            </a>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="flex-1 md:ml-64 overflow-y-auto w-full">
+<!-- TopAppBar (Mobile Only) -->
+<header class="md:hidden bg-background border-b-2 border-primary/20 flex justify-between items-center w-full px-gutter h-16 max-w-container-max mx-auto sticky top-0 z-40">
+<h1 class="text-h3 font-h3 font-bold text-primary">FDAS Operator</h1>
+<button class="text-primary hover:text-primary transition-colors duration-200">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</header>
+<div class="max-w-container-max mx-auto px-gutter py-lg space-y-lg">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-md">
+<div>
+<h1 class="text-h1 font-h1 text-[#C4533A] mb-xs">Welcome, Operator</h1>
+<p class="text-body-lg font-body-lg text-[#4A2B0F]">Assigned Department: IT</p>
+</div>
+<div class="bg-[#D4A017] text-on-primary px-sm py-xs rounded-full inline-flex items-center gap-xs shadow-sm">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+<span class="text-label-bold font-label-bold text-[#fff8f6]">Department Access</span>
+</div>
+</div>
+<!-- Summary Cards Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
+<div class="bg-[#FFF0E6] p-md rounded-xl amber-shadow border border-warm-amber/10 flex flex-col justify-between min-h-[120px]">
+<span class="text-label-bold font-label-bold text-on-surface-variant">Total Students in Department</span>
+<span class="text-h1 font-h1 text-primary">156</span>
+</div>
+<div class="bg-[#FFF0E6] p-md rounded-xl amber-shadow border border-warm-amber/10 flex flex-col justify-between min-h-[120px]">
+<span class="text-label-bold font-label-bold text-on-surface-variant">Today's Present</span>
+<span class="text-h1 font-h1 text-secondary-container">142</span>
+</div>
+<div class="bg-[#FFF0E6] p-md rounded-xl amber-shadow border border-warm-amber/10 flex flex-col justify-between min-h-[120px]">
+<span class="text-label-bold font-label-bold text-on-surface-variant">Active Attendance Session</span>
+<span class="text-h2 font-h2 text-tertiary-container mt-auto">Morning - B</span>
+</div>
+<div class="bg-[#FFF0E6] p-md rounded-xl amber-shadow border border-warm-amber/10 flex flex-col justify-between min-h-[120px]">
+<span class="text-label-bold font-label-bold text-on-surface-variant">Attendance Rate</span>
+<span class="text-h1 font-h1 text-primary">91%</span>
+</div>
+</div>
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-md items-start">
+<!-- Left Column (Wide) -->
+<div class="lg:col-span-8 space-y-md">
+<!-- Today's Attendance Summary (Placeholder for Chart) -->
+<div class="bg-[#FFF0E6] p-md rounded-xl amber-shadow border border-outline-variant/30">
+<h3 class="text-h3 font-h3 text-on-surface mb-md">Today's Attendance Summary</h3>
+<div class="w-full h-48 bg-surface-container-low rounded-lg border border-outline-variant/50 flex items-end justify-around p-sm pt-lg relative overflow-hidden">
+<!-- Simple CSS Bar Chart Representation -->
+<div class="w-12 bg-secondary-container/80 rounded-t-sm h-[90%] relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-caption font-caption opacity-0 group-hover:opacity-100 transition-opacity">9am</span></div>
+<div class="w-12 bg-secondary-container/80 rounded-t-sm h-[70%] relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-caption font-caption opacity-0 group-hover:opacity-100 transition-opacity">10am</span></div>
+<div class="w-12 bg-primary-container/80 rounded-t-sm h-[85%] relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-caption font-caption opacity-0 group-hover:opacity-100 transition-opacity">11am</span></div>
+<div class="w-12 bg-secondary-container/80 rounded-t-sm h-[40%] relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-caption font-caption opacity-0 group-hover:opacity-100 transition-opacity">12pm</span></div>
+<div class="w-12 bg-primary-container/80 rounded-t-sm h-[60%] relative group"><span class="absolute -top-6 left-1/2 -translate-x-1/2 text-caption font-caption opacity-0 group-hover:opacity-100 transition-opacity">1pm</span></div>
+</div>
+</div>
+<!-- Recent Attendance Records -->
+<div class="bg-[#FFF0E6] rounded-xl amber-shadow border border-outline-variant/30 overflow-hidden">
+<div class="p-md border-b border-outline-variant/30 flex justify-between items-center">
+<h3 class="text-h3 font-h3 text-on-surface">Recent Attendance Records</h3>
+<button class="text-primary hover:text-tertiary-container transition-colors text-label-bold font-label-bold">View All</button>
+</div>
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left border-collapse min-w-[600px]">
+<thead>
+<tr class="bg-surface-container-high border-b border-outline-variant/30">
+<th class="p-sm text-label-bold font-label-bold text-on-surface-variant font-medium">Student Name</th>
+<th class="p-sm text-label-bold font-label-bold text-on-surface-variant font-medium">Roll No</th>
+<th class="p-sm text-label-bold font-label-bold text-on-surface-variant font-medium">Class</th>
+<th class="p-sm text-label-bold font-label-bold text-on-surface-variant font-medium">Marked Time</th>
+<th class="p-sm text-label-bold font-label-bold text-on-surface-variant font-medium">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b border-outline-variant/10 bg-[#FFF0E6] hover:bg-surface-container-high/50 transition-colors">
+<td class="p-sm text-body-md font-body-md">Ali Raza</td>
+<td class="p-sm text-body-md font-body-md">IT-2023-01</td>
+<td class="p-sm text-body-md font-body-md">BS IT 3rd Sem</td>
+<td class="p-sm text-body-md font-body-md">08:15 AM</td>
+<td class="p-sm"><span class="inline-block px-2 py-1 rounded-full text-caption font-label-bold bg-primary-fixed text-primary-fixed-dim border border-[#b25d2f]">Present</span></td>
+</tr>
+<tr class="border-b border-outline-variant/10 bg-[#FAF4EC] hover:bg-surface-container-high/50 transition-colors">
+<td class="p-sm text-body-md font-body-md">Fatima Noor</td>
+<td class="p-sm text-body-md font-body-md">IT-2023-45</td>
+<td class="p-sm text-body-md font-body-md">BS IT 3rd Sem</td>
+<td class="p-sm text-body-md font-body-md">08:22 AM</td>
+<td class="p-sm"><span class="inline-block px-2 py-1 rounded-full text-caption font-label-bold bg-primary-fixed text-primary-fixed-dim border border-[#b25d2f]">Present</span></td>
+</tr>
+<tr class="border-b border-outline-variant/10 bg-[#FFF0E6] hover:bg-surface-container-high/50 transition-colors">
+<td class="p-sm text-body-md font-body-md">Usman Khan</td>
+<td class="p-sm text-body-md font-body-md">IT-2023-12</td>
+<td class="p-sm text-body-md font-body-md">BS IT 3rd Sem</td>
+<td class="p-sm text-body-md font-body-md">08:45 AM</td>
+<td class="p-sm"><span class="inline-block px-2 py-1 rounded-full text-caption font-label-bold bg-secondary-fixed text-secondary border border-[#795900]">Late</span></td>
+</tr>
+<tr class="bg-[#FAF4EC] hover:bg-surface-container-high/50 transition-colors">
+<td class="p-sm text-body-md font-body-md">Zainab Bibi</td>
+<td class="p-sm text-body-md font-body-md">IT-2023-88</td>
+<td class="p-sm text-body-md font-body-md">BS IT 3rd Sem</td>
+<td class="p-sm text-body-md font-body-md">08:50 AM</td>
+<td class="p-sm"><span class="inline-block px-2 py-1 rounded-full text-caption font-label-bold bg-secondary-fixed text-secondary border border-[#795900]">Late</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Right Column (Narrow) -->
+<div class="lg:col-span-4 space-y-md">
+<!-- Active Session Status -->
+<div class="bg-[#FFF0E6] p-md rounded-xl amber-shadow border border-outline-variant/30 flex flex-col items-center text-center">
+<div class="relative mb-md">
+<span class="absolute -top-1 -right-1 w-3 h-3 bg-secondary-container rounded-full animate-ping"></span>
+<span class="absolute -top-1 -right-1 w-3 h-3 bg-secondary-container rounded-full"></span>
+<span class="material-symbols-outlined text-[48px] text-primary" style="font-variation-settings: 'FILL' 1;">videocam</span>
+</div>
+<h3 class="text-h3 font-h3 text-on-surface mb-xs">Camera Active</h3>
+<p class="text-body-md font-body-md text-on-surface-variant mb-md">Main Gate Terminal</p>
+<div class="w-full bg-surface-container-low p-sm rounded-lg border border-outline-variant/20 text-left">
+<p class="text-label-bold font-label-bold text-on-surface mb-xs">Session Details:</p>
+<ul class="text-body-md font-body-md text-on-surface-variant space-y-1">
+<li><strong>Started:</strong> 08:00 AM</li>
+<li><strong>Expected End:</strong> 12:00 PM</li>
+<li><strong>Scans/min:</strong> ~12</li>
+</ul>
+</div>
+</div>
+<!-- Quick Actions -->
+<div class="bg-[#FFF0E6] p-md rounded-xl amber-shadow border border-outline-variant/30">
+<h3 class="text-h3 font-h3 text-on-surface mb-md">Quick Actions</h3>
+<div class="flex flex-col gap-sm">
+<button class="w-full py-3 px-4 border-2 border-[#C4533A] text-[#C4533A] rounded-lg font-label-bold text-label-bold hover:bg-[#C4533A] hover:text-white transition-all duration-300 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">person_add</span>
+                                Add Student
+                            </button>
+<button class="w-full py-3 px-4 peach-gradient text-[#341100] rounded-lg font-label-bold text-label-bold shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 border border-[#934619]/20">
+<span class="material-symbols-outlined">play_circle</span>
+                                Start Attendance
+                            </button>
+<button class="w-full py-3 px-4 border-2 border-[#D4A017] text-[#D4A017] rounded-lg font-label-bold text-label-bold hover:bg-[#D4A017] hover:text-white transition-all duration-300 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">bar_chart</span>
+                                View Reports
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="mt-xl pt-lg border-t border-outline-variant/30 text-center pb-md">
+<p class="text-body-md font-body-md text-[#C4533A]">© Govt. Islamia Graduate College, Gujranwala. FDAS Operator Portal.</p>
+</footer>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 w-full bg-surface-container-low border-t border-outline-variant/20 shadow-lg z-50">
+<div class="flex justify-around items-center h-16 px-xs">
+<a class="flex flex-col items-center justify-center w-full h-full text-primary border-t-2 border-secondary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">shape_recognition</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-on-surface-variant hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">assessment</span>
+</a>
+</div>
+</nav>
+</body></html>
