@@ -169,3 +169,129 @@ Build the static React frontend shell from the Stitch screens using dummy data o
 - Kept active attendance navigation confirmation behavior on all User sidebar links and Logout.
 - `npm.cmd run build` - passed with the existing non-blocking Vite chunk-size warning.
 - `npm.cmd run lint` - passed with no warnings.
+
+## Phase 2 - Backend Foundation and Local Database
+
+### Goal
+Create the FastAPI backend foundation with a local SQLite database for the single-laptop/offline demo. Phase 2 intentionally does not include frontend API integration, JWT authentication, real attendance marking, OpenCV, MediaPipe, or real face recognition.
+
+### Files Created Or Modified
+- `backend/requirements.txt`
+- `backend/.gitignore`
+- `backend/README.md`
+- `backend/app/__init__.py`
+- `backend/app/main.py`
+- `backend/app/config.py`
+- `backend/app/database.py`
+- `backend/app/seed.py`
+- `backend/app/models/__init__.py`
+- `backend/app/models/role.py`
+- `backend/app/models/department.py`
+- `backend/app/models/user.py`
+- `backend/app/models/classroom.py`
+- `backend/app/models/student.py`
+- `backend/app/models/face_template.py`
+- `backend/app/models/attendance_time_window.py`
+- `backend/app/models/attendance_session.py`
+- `backend/app/models/attendance_record.py`
+- `backend/app/schemas/__init__.py`
+- `backend/app/schemas/foundation.py`
+- `backend/app/routers/__init__.py`
+- `backend/app/routers/foundation.py`
+- `backend/app/services/__init__.py`
+- `backend/app/utils/__init__.py`
+- `backend/app/utils/security.py`
+- `backend/app/verify_phase2.py`
+- `docs/development_journey.md`
+
+### Database Models
+- `Role`
+- `Department`
+- `User`
+- `ClassRoom`
+- `Student`
+- `FaceTemplate`
+- `AttendanceTimeWindow`
+- `AttendanceSession`
+- `AttendanceRecord`
+
+### Database Rules
+- `User.email` is unique.
+- `Student.rollNo` is unique.
+- `AttendanceRecord` has unique `(sessionId, studentId)` via `uq_attendance_session_student`.
+- Class deletion is not implemented; classes use a `status` field for future archive behavior.
+
+### Seed Data
+- Roles: `Admin`, `User`
+- Departments: `Computer Science`, `IT`, `Mathematics`, `Physics`
+- Default Admin:
+  - `fullName`: `Admin User`
+  - `email`: `admin@fdas.local`
+  - `password`: `Admin@12345`
+  - `status`: `Approved`
+  - `accessScope`: `AllDepartments`
+- Extra verification seed data:
+  - Approved CS operator: `operator.cs@fdas.local`
+  - Classrooms: `BSCS Semester 5 - A`, `BSIT Semester 3 - A`
+  - Students: `CS-2026-001`, `CS-2026-002`, `IT-2026-001`
+
+### Endpoints Created
+- `GET /health`
+- `GET /api/info`
+
+### Database File Location
+- `C:\Users\WELCOME\Desktop\FDAS Project\fdas-app\backend\fdas_local.db`
+
+### Tables Created
+- `attendance_records`
+- `attendance_sessions`
+- `attendance_time_windows`
+- `classrooms`
+- `departments`
+- `face_templates`
+- `roles`
+- `students`
+- `users`
+
+### Commands Run
+- `python --version` - still failed because `python` is not on PATH in this shell.
+- `py --version` - still failed with `No installed Python found!`.
+- Searched common install folders and found Python at `C:\Users\WELCOME\AppData\Local\Programs\Python\Python311\python.exe`.
+- `& 'C:\Users\WELCOME\AppData\Local\Programs\Python\Python311\python.exe' --version` - passed with `Python 3.11.9`.
+- `& 'C:\Users\WELCOME\AppData\Local\Programs\Python\Python311\python.exe' -m venv .venv` - passed.
+- `.\.venv\Scripts\python.exe -m pip install -r requirements.txt` - first run timed out after partial install; second run completed successfully.
+- `.\.venv\Scripts\python.exe -m pip list` - verified installed packages.
+- `.\.venv\Scripts\python.exe -m app.seed` - created and seeded the local SQLite database.
+- `.\.venv\Scripts\python.exe -m app.verify_phase2` - passed schema and seed verification.
+- `.\.venv\Scripts\python.exe -c "from app.main import app; print(app.title); print([route.path for route in app.routes])"` - verified FastAPI app imports and exposes Phase 2 routes only.
+- `.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000` - server started successfully.
+- `curl.exe --max-time 10 http://127.0.0.1:8000/health` - returned `{"status":"ok","service":"FDAS Backend","database":"connected"}`.
+- `curl.exe --max-time 10 http://127.0.0.1:8000/api/info` - returned backend app info and database path.
+
+### Verification Results
+- Database exists: `True`
+- Tables: `attendance_records`, `attendance_sessions`, `attendance_time_windows`, `classrooms`, `departments`, `face_templates`, `roles`, `students`, `users`
+- Missing tables: `none`
+- Role count: `2`
+- Department count: `4`
+- User count: `2`
+- Classroom count: `2`
+- Student count: `3`
+- Default admin exists: `True`
+- Default admin password hashed: `True`
+- `/health` response: `{"status":"ok","service":"FDAS Backend","database":"connected"}`
+
+### Errors Found And Fixed
+- Python 3.11 was installed but not discoverable through `python` or `py`; fixed verification by using the direct Python 3.11 install path.
+- PowerShell activation was avoided by using `.\.venv\Scripts\python.exe` directly.
+- Initial `pip install` timed out after partial installation; reran with a longer timeout and completed successfully.
+- `Role.createdAt` was missing; added it as an optional Phase 2 timestamp field.
+- `/health` did not report database status; updated it to run a lightweight database connectivity check and return `database: connected`.
+- Removed the extra `POST /api/init-db` endpoint to keep the Phase 2 API surface limited to the requested foundation endpoints.
+- Added `app.verify_phase2` to make schema and seed verification repeatable.
+
+### Remaining Issues
+- `python` and `py` are still not available on PATH in this shell. Use the direct Python path or add Python 3.11 to PATH later.
+- No automated pytest suite exists yet; Phase 2 verification is covered by `app.verify_phase2`, SQLAlchemy inspection, app import, Uvicorn startup, and curl checks.
+- LAN-based central local server remains a future enhancement.
+- Frontend API integration, JWT authentication, real attendance marking, and real face recognition remain future phases.
