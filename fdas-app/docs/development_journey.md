@@ -295,3 +295,111 @@ Create the FastAPI backend foundation with a local SQLite database for the singl
 - No automated pytest suite exists yet; Phase 2 verification is covered by `app.verify_phase2`, SQLAlchemy inspection, app import, Uvicorn startup, and curl checks.
 - LAN-based central local server remains a future enhancement.
 - Frontend API integration, JWT authentication, real attendance marking, and real face recognition remain future phases.
+
+## Phase 3 - Backend Authentication and Role-Based Access Control
+
+### Goal
+Implement backend authentication, JWT bearer tokens, role-based access control, user approval/status checks, admin user management, and reusable department-access helpers. Phase 3 intentionally does not include frontend API integration, student/class CRUD, attendance sessions, attendance marking, reports, face enrollment, OpenCV, MediaPipe, or LAN deployment.
+
+### Files Created Or Modified
+- `backend/requirements.txt`
+- `backend/README.md`
+- `backend/app/config.py`
+- `backend/app/main.py`
+- `backend/app/dependencies.py`
+- `backend/app/verify_phase3.py`
+- `backend/app/routers/auth.py`
+- `backend/app/routers/admin_users.py`
+- `backend/app/schemas/auth.py`
+- `backend/app/services/access_control.py`
+- `backend/app/utils/jwt.py`
+- `backend/app/utils/security.py`
+- `docs/development_journey.md`
+
+### Auth Endpoints Created
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `POST /api/auth/register-request`
+
+### Admin User Management Endpoints Created
+- `GET /api/admin/users`
+- `GET /api/admin/user-requests`
+- `PATCH /api/admin/users/{userId}/approve`
+- `PATCH /api/admin/users/{userId}/reject`
+- `PATCH /api/admin/users/{userId}/disable`
+- `PATCH /api/admin/users/{userId}/enable`
+- `PATCH /api/admin/users/{userId}/access`
+
+### RBAC Rules Implemented
+- JWT tokens include `userId`, `email`, `role`, `accessScope`, `assignedDepartmentId`, and expiration time.
+- `get_current_user` validates bearer tokens and reloads the user from the database.
+- `require_approved_user` blocks Pending, Rejected, and Disabled users from protected endpoints.
+- `require_admin` allows only approved Admin users.
+- `require_operator_or_admin` allows approved Admin and User/operator accounts.
+- Disabled users with previously issued tokens are blocked because protected endpoints check current database status.
+
+### Department Access Rules Implemented
+- `can_access_department(user, departmentId)` returns true for Admin users.
+- `AllDepartments` access can reach any department.
+- `Department` access can reach only the user assigned department.
+- Other scopes return false.
+- `require_department_access(departmentId)` returns a reusable FastAPI dependency for later department-scoped endpoints.
+
+### Commands Run
+- `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`
+- `.\.venv\Scripts\python.exe -m app.seed`
+- `.\.venv\Scripts\python.exe -c "from app.main import app; print(app.title); print([route.path for route in app.routes])"`
+- `.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000`
+- `.\.venv\Scripts\python.exe -m app.verify_phase3`
+
+### Tests Performed
+- `/health` still works.
+- Admin login works with `admin@fdas.local` / `Admin@12345`.
+- Wrong password is rejected.
+- Pending user cannot login.
+- Approved operator can login.
+- `/api/auth/me` works with a valid token.
+- `/api/auth/me` fails without a token.
+- Admin endpoint fails without a token.
+- Normal operator cannot access admin user endpoints.
+- Admin can list users.
+- Admin can list pending user requests.
+- Admin can approve a pending user.
+- Admin can change user access to `AllDepartments`.
+- Admin can change user access back to `Department`.
+- Admin can disable a user.
+- Disabled user cannot login.
+- Department access helper works for Admin, AllDepartments user, Department-only own department, and Department-only blocked from another department.
+
+### Verification Results
+- `health=True`
+- `admin_login=True`
+- `wrong_password_rejected=True`
+- `pending_register=True`
+- `pending_user_rejected=True`
+- `operator_login=True`
+- `me_endpoint=True`
+- `me_without_token_rejected=True`
+- `admin_endpoint_protected=True`
+- `operator_admin_blocked=True`
+- `admin_list_users=True`
+- `admin_list_pending_requests=True`
+- `approve_user=True`
+- `all_departments_access_update=True`
+- `department_access_update=True`
+- `disable_user=True`
+- `disabled_user_rejected=True`
+- `admin_department_access=True`
+- `all_departments_access=True`
+- `department_only_access=True`
+- `department_only_blocked=True`
+
+### Errors Found And Fixed
+- Pydantic `EmailStr` rejected the required local demo email domain `admin@fdas.local`; changed auth schema email fields to plain strings so `.local` demo addresses are accepted.
+- Manual curl JSON quoting in PowerShell produced invalid JSON; used PowerShell JSON conversion and the Python verifier for reliable endpoint tests.
+
+### Remaining Issues
+- `python` and `py` are still not available on PATH in this shell. Continue using `.\.venv\Scripts\python.exe` or add Python 3.11 to PATH later.
+- `SECRET_KEY` is stored in `app/config.py` for the local FYP demo. Production should use environment variables.
+- No frontend API integration yet.
+- No student/class CRUD, attendance session, attendance marking, report, face enrollment, OpenCV, MediaPipe, or LAN deployment work has been started.

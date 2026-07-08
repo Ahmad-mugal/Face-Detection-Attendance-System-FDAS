@@ -6,6 +6,10 @@ DATABASE_FILE = BASE_DIR / "fdas_local.db"
 DATABASE_URL = f"sqlite:///{DATABASE_FILE.as_posix()}"
 
 APP_NAME = "FDAS Backend"
-APP_VERSION = "0.2.0"
-APP_PHASE = "Phase 2 - Backend Foundation and Local Database"
+APP_VERSION = "0.3.0"
+APP_PHASE = "Phase 3 - Backend Authentication and Role-Based Access Control"
 
+# Local FYP demo secret only. Production deployments should load this from environment variables.
+SECRET_KEY = "fdas-local-demo-change-before-production"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
