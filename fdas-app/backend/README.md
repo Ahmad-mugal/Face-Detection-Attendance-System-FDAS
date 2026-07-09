@@ -155,11 +155,62 @@ Admin user management:
 
 JWT settings are currently stored in `app/config.py` for the local FYP demo. Production should load `SECRET_KEY` and token settings from environment variables.
 
+## Phase 4 Academic Management Endpoints
+
+Departments:
+
+- `GET /api/departments`
+- `GET /api/departments/{departmentId}`
+- `POST /api/departments`
+- `PATCH /api/departments/{departmentId}`
+- `PATCH /api/departments/{departmentId}/disable`
+- `PATCH /api/departments/{departmentId}/enable`
+
+Classes:
+
+- `GET /api/classes`
+- `GET /api/classes/{classId}`
+- `POST /api/classes`
+- `PATCH /api/classes/{classId}`
+- `PATCH /api/classes/{classId}/archive`
+- `PATCH /api/classes/{classId}/activate`
+
+Students:
+
+- `GET /api/students`
+- `GET /api/students/{studentId}`
+- `POST /api/students`
+- `PATCH /api/students/{studentId}`
+- `PATCH /api/students/{studentId}/disable`
+- `PATCH /api/students/{studentId}/enable`
+
+Attendance time windows:
+
+- `GET /api/attendance-time-windows`
+- `GET /api/attendance-time-windows/{windowId}`
+- `POST /api/attendance-time-windows`
+- `PATCH /api/attendance-time-windows/{windowId}`
+- `PATCH /api/attendance-time-windows/{windowId}/activate`
+- `PATCH /api/attendance-time-windows/{windowId}/deactivate`
+
+Phase 4 keeps soft status changes only. Departments are enabled/disabled, classes are archived/activated, and students are enabled/disabled. No delete endpoints are implemented.
+
+## Verify Phase 4
+
+Start Uvicorn first, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.verify_phase4
+```
+
+The verifier checks department scoping, admin-only academic mutations, class archive behavior, student creation/update/status changes, roll number uniqueness, attendance time window creation, and cross-department blocking for department-only operators.
+
 ## Current Limitations
 
 - No frontend API integration yet.
-- No student CRUD endpoints yet.
+- No face enrollment or face recognition yet.
 - No attendance session endpoints yet.
 - No attendance marking logic yet.
+- No report endpoints yet.
 - No face recognition or liveness implementation yet.
 - LAN-based central local server deployment remains a future enhancement.

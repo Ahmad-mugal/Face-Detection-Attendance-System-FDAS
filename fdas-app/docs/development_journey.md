@@ -403,3 +403,123 @@ Implement backend authentication, JWT bearer tokens, role-based access control, 
 - `SECRET_KEY` is stored in `app/config.py` for the local FYP demo. Production should use environment variables.
 - No frontend API integration yet.
 - No student/class CRUD, attendance session, attendance marking, report, face enrollment, OpenCV, MediaPipe, or LAN deployment work has been started.
+
+## Phase 4 - Backend Academic Management APIs
+
+### Goal
+Implement backend academic management APIs for Departments, Classes, Students, and Attendance Time Windows. Phase 4 intentionally does not include frontend API integration, real login UI integration, face enrollment upload, OpenCV/MediaPipe, attendance session start/stop backend, attendance marking, reports, LAN deployment, or Phase 5 work.
+
+### Files Created Or Modified
+- `backend/README.md`
+- `backend/app/config.py`
+- `backend/app/main.py`
+- `backend/app/schemas/academic.py`
+- `backend/app/services/departments.py`
+- `backend/app/services/classes.py`
+- `backend/app/services/students.py`
+- `backend/app/services/attendance_time_windows.py`
+- `backend/app/routers/departments.py`
+- `backend/app/routers/classes.py`
+- `backend/app/routers/students.py`
+- `backend/app/routers/attendance_time_windows.py`
+- `backend/app/verify_phase4.py`
+- `docs/development_journey.md`
+
+### Endpoints Created
+Departments:
+- `GET /api/departments`
+- `GET /api/departments/{departmentId}`
+- `POST /api/departments`
+- `PATCH /api/departments/{departmentId}`
+- `PATCH /api/departments/{departmentId}/disable`
+- `PATCH /api/departments/{departmentId}/enable`
+
+Classes:
+- `GET /api/classes`
+- `GET /api/classes/{classId}`
+- `POST /api/classes`
+- `PATCH /api/classes/{classId}`
+- `PATCH /api/classes/{classId}/archive`
+- `PATCH /api/classes/{classId}/activate`
+
+Students:
+- `GET /api/students`
+- `GET /api/students/{studentId}`
+- `POST /api/students`
+- `PATCH /api/students/{studentId}`
+- `PATCH /api/students/{studentId}/disable`
+- `PATCH /api/students/{studentId}/enable`
+
+Attendance Time Windows:
+- `GET /api/attendance-time-windows`
+- `GET /api/attendance-time-windows/{windowId}`
+- `POST /api/attendance-time-windows`
+- `PATCH /api/attendance-time-windows/{windowId}`
+- `PATCH /api/attendance-time-windows/{windowId}/activate`
+- `PATCH /api/attendance-time-windows/{windowId}/deactivate`
+
+### Schemas Created
+- `DepartmentCreate`
+- `DepartmentUpdate`
+- `DepartmentRead`
+- `ClassRoomCreate`
+- `ClassRoomUpdate`
+- `ClassRoomRead`
+- `StudentCreate`
+- `StudentUpdate`
+- `StudentRead`
+- `AttendanceTimeWindowCreate`
+- `AttendanceTimeWindowUpdate`
+- `AttendanceTimeWindowRead`
+
+### Access Rules Implemented
+- Admin users can access all department data and all Phase 4 endpoints.
+- Approved User/operator accounts with `AllDepartments` can read all department-scoped academic data and can create/update students in any valid department/class.
+- Department-only User/operator accounts can read only their assigned department data.
+- Department-only User/operator accounts can create/update students only inside their assigned department.
+- Department-only User/operator accounts are blocked from creating students in another department.
+- Department-only User/operator accounts are blocked from admin-only department, class, and attendance time window create/update/archive endpoints.
+- Department, class, student, and time-window detail reads enforce department access.
+
+### Commands Run
+- `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`
+- `.\.venv\Scripts\python.exe -m app.seed`
+- `.\.venv\Scripts\python.exe -c "from app.main import app; print(app.title); print([route.path for route in app.routes])"`
+- `.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000`
+- `.\.venv\Scripts\python.exe -m app.verify_phase4`
+
+### Verification Results
+- `health=True`
+- `admin_login=True`
+- `operator_login=True`
+- `admin_list_departments=True`
+- `operator_department_scope=True`
+- `create_department=True`
+- `operator_department_create_blocked=True`
+- `create_class=True`
+- `archive_class=True`
+- `archive_class_not_deleted=True`
+- `operator_class_archive_blocked=True`
+- `create_student=True`
+- `operator_create_own_department_student=True`
+- `operator_cross_department_blocked=True`
+- `roll_no_unique=True`
+- `update_student=True`
+- `disable_student=True`
+- `enable_student=True`
+- `create_time_window=True`
+- `operator_own_time_windows_only=True`
+- `operator_time_window_create_blocked=True`
+- `class_filters=True`
+- `student_filters=True`
+- `phase4_passed=True`
+
+### Errors Found And Fixed
+- The first Phase 4 verifier run failed only on `student_filters` because the test query searched `Phase 4` while the seeded test student names used `Phase Four`. Updated the verifier to search the correct student text and reran successfully.
+
+### Remaining Issues
+- `python` and `py` are still not available on PATH in this shell. Continue using `.\.venv\Scripts\python.exe`.
+- No frontend API integration yet.
+- No real login UI integration yet.
+- No face enrollment upload, OpenCV/MediaPipe, attendance session backend, attendance marking, reports, or LAN deployment yet.
+- Face registered status is returned from existing `FaceTemplate` relationships and remains false/placeholder unless templates are added later.
