@@ -207,10 +207,54 @@ The verifier checks department scoping, admin-only academic mutations, class arc
 
 ## Current Limitations
 
-- No frontend API integration yet.
 - No face enrollment or face recognition yet.
-- No attendance session endpoints yet.
 - No attendance marking logic yet.
 - No report endpoints yet.
 - No face recognition or liveness implementation yet.
 - LAN-based central local server deployment remains a future enhancement.
+
+## Phase 6A Attendance Session Endpoints
+
+Attendance sessions are department-based. Admin and AllDepartments users can work with any department; department-only operators can work only with their assigned department.
+
+- `POST /api/attendance-sessions/start`
+- `POST /api/attendance-sessions/{sessionId}/stop`
+- `POST /api/attendance-sessions/{sessionId}/cancel`
+- `GET /api/attendance-sessions/active`
+- `GET /api/attendance-sessions`
+- `GET /api/attendance-sessions/{sessionId}`
+
+Start session request body:
+
+```json
+{"departmentId":1}
+```
+
+Rules implemented:
+
+- Only one `Active` attendance session is allowed per department.
+- Starting a session uses the active department attendance time window when one exists.
+- Stopping a session sets `status=Closed` and records `actualEndTime`.
+- Cancelling a session sets `status=Cancelled` and records `actualEndTime`.
+- No attendance records, face recognition, attendance marking, or report calculations are created in Phase 6A.
+
+## Verify Phase 6A
+
+Start Uvicorn first, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.verify_phase6a
+```
+
+Recommended backend regression sequence:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m app.seed
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m app.verify_phase3
+.\.venv\Scripts\python.exe -m app.verify_phase4
+.\.venv\Scripts\python.exe -m app.verify_phase6a
+```
+
+The Phase 6A verifier checks health, admin/operator login, duplicate active-session blocking, stop/cancel behavior, department-only operator scoping, AllDepartments access, and attendance time window usage.

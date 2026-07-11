@@ -671,3 +671,66 @@ Live attendance, analytics, and reports remain dummy/static where backend APIs d
 - `node .\scripts\phase5-smoke.mjs` - passed all smoke checks.
 - Confirmed no `fonts.googleapis.com`, `fonts.gstatic.com`, or Material Symbols console/resource errors remain.
 - Remaining console error is expected from the wrong-login test: `POST /api/auth/login` returned `401 Unauthorized`.
+
+## Phase 6A - Attendance Session Backend APIs
+
+### Phase Goal
+Implement backend attendance session APIs for the local/offline FDAS demo without adding face recognition, liveness detection, attendance marking, report calculations, frontend UI work, or LAN deployment.
+
+### Files Created/Modified
+- `backend/app/schemas/attendance_sessions.py` - request/response schemas for attendance sessions.
+- `backend/app/services/attendance_sessions.py` - session business rules, duplicate-active-session prevention, scoping helpers, and time-window scheduling.
+- `backend/app/routers/attendance_sessions.py` - Phase 6A attendance session API routes.
+- `backend/app/verify_phase6a.py` - HTTP verification script for Phase 6A scenarios.
+- `backend/app/main.py` - registered the attendance session router.
+- `backend/app/config.py` - updated app phase/version metadata.
+- `backend/README.md` - added Phase 6A endpoints and testing notes.
+- `docs/development_journey.md` - added this Phase 6A record.
+
+### Endpoints Created
+- `POST /api/attendance-sessions/start`
+- `POST /api/attendance-sessions/{sessionId}/stop`
+- `POST /api/attendance-sessions/{sessionId}/cancel`
+- `GET /api/attendance-sessions/active`
+- `GET /api/attendance-sessions`
+- `GET /api/attendance-sessions/{sessionId}`
+
+### Access Rules Implemented
+- Admin users can start, stop, cancel, list, and view sessions for any department.
+- AllDepartments users can start, stop, cancel, list, and view sessions for any department.
+- Department-only operators can start, stop, cancel, list, and view sessions only for their assigned department.
+- Cross-department access is blocked through the existing Phase 3 department access helper.
+- Protected endpoints require approved authenticated users through the existing Phase 3 dependencies.
+
+### Session Start/Stop/Cancel Rules
+- Attendance sessions are department-based.
+- A department can have only one `Active` session at a time.
+- Starting a session stores `departmentId`, `startedByUserId`, `actualStartTime`, `createdDate`, and `status=Active`.
+- If an active attendance time window exists for the department, its start/end times are used for `scheduledStartTime` and `scheduledEndTime`.
+- If no active time window exists, the schedule defaults to the current time through one hour later.
+- Stopping an active session sets `status=Closed` and `actualEndTime`.
+- Cancelling an active session sets `status=Cancelled` and `actualEndTime`.
+- Closed or cancelled sessions cannot be stopped or cancelled again.
+
+### Commands Run
+- `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`
+- `py --version`
+- `python --version`
+- `py -0p`
+- Workspace searches for `python.exe`
+
+### Verification Results
+- Runtime verification could not be completed in this shell because Python is not currently visible to the system.
+- Existing `.venv` is broken and points to the removed/missing interpreter path `C:\Users\WELCOME\AppData\Local\Programs\Python\Python311\python.exe`.
+- `py -0p` returned `No installed Pythons found!`.
+- `python --version` returned `python : The term 'python' is not recognized`.
+- The only `python.exe` found in the workspace was `backend/.venv/Scripts/python.exe`, which fails because its base interpreter path is missing.
+
+### Errors Found/Fixed
+- Implemented the missing Phase 6A backend modules and router registration.
+- No application logic regressions were runtime-tested yet because Python is unavailable to the shell.
+
+### Remaining Issues
+- Reinstall/register Python 3.11 or update PATH so `py`/`python` can find it.
+- Recreate the backend virtual environment after Python is visible: `python -m venv .venv`.
+- Run the required verification sequence: `app.seed`, `app.verify_phase3`, `app.verify_phase4`, `app.verify_phase6a`, and Uvicorn endpoint testing.
