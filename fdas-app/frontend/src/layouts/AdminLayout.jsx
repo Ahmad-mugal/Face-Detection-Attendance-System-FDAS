@@ -1,6 +1,8 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { useAttendanceSession } from '../context/useAttendanceSession'
+import { useAuth } from '../context/useAuth'
+import Icon from '../components/Icon'
 
 const navLinks = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -25,6 +27,7 @@ export default function AdminLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { confirmNavigation } = useAttendanceSession()
+  const { currentUser, logout } = useAuth()
 
   const isSettingsActive = settingsLinks.some(l => location.pathname.startsWith(l.to))
   const closeDropdowns = () => {
@@ -44,6 +47,7 @@ export default function AdminLayout() {
 
   const guardedNavigate = to => {
     if (!confirmNavigation(to, location.pathname)) return
+    if (to === '/login') logout()
     closeDropdowns()
     setMobileMenuOpen(false)
     navigate(to)
@@ -88,7 +92,7 @@ export default function AdminLayout() {
         <div className="max-w-[1280px] mx-auto px-3 sm:px-4 flex items-center justify-between h-16 min-w-0 gap-2">
           {/* Logo */}
           <NavLink to="/admin/dashboard" onClick={event => handleGuardedNavClick('/admin/dashboard', event)} className="flex items-center gap-1.5 select-none shrink-0">
-            <span className="material-symbols-outlined filled text-[22px]" style={{ color: '#D4A017' }}>school</span>
+            <Icon name="school" size={22} style={{ color: '#D4A017' }} />
             <span className="text-xl font-black tracking-tight" style={{ color: '#C4533A' }}>FDAS</span>
           </NavLink>
 
@@ -107,7 +111,7 @@ export default function AdminLayout() {
                   }`
                 }
               >
-                <span className="material-symbols-outlined text-[18px]">{link.icon}</span>
+                <Icon name={link.icon} size={18} />
                 {link.label}
               </NavLink>
             ))}
@@ -126,9 +130,9 @@ export default function AdminLayout() {
                     : 'text-[#4A2B0F] opacity-80 hover:text-[#C4533A] hover:bg-orange-50'
                 }`}
               >
-                <span className="material-symbols-outlined text-[18px]">settings</span>
+                <Icon name="settings" size={18} />
                 Settings
-                <span className="material-symbols-outlined text-[16px]">{settingsOpen ? 'expand_less' : 'expand_more'}</span>
+                <Icon name={settingsOpen ? 'expand_less' : 'expand_more'} size={16} />
               </button>
 
               {settingsOpen && (
@@ -149,7 +153,7 @@ export default function AdminLayout() {
                         } first:rounded-t-xl last:rounded-b-xl`
                       }
                     >
-                      <span className="material-symbols-outlined text-[18px]">{link.icon}</span>
+                      <Icon name={link.icon} size={18} />
                       {link.label}
                     </NavLink>
                   ))}
@@ -172,7 +176,7 @@ export default function AdminLayout() {
                 style={{ color: '#C4533A' }}
                 aria-label="Open notifications"
               >
-                <span className="material-symbols-outlined">notifications</span>
+                <Icon name="notifications" size={20} />
                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#D4A017]" />
               </button>
               {notificationsOpen && (
@@ -197,18 +201,18 @@ export default function AdminLayout() {
                 aria-label="Open profile menu"
               >
                 <div className="w-9 h-9 rounded-full border-2 flex items-center justify-center font-bold text-white text-sm" style={{ backgroundColor: '#C4533A', borderColor: '#D4A017' }}>
-                  A
+                  {(currentUser?.fullName || 'Admin').charAt(0)}
                 </div>
                 <div className="hidden lg:block text-left">
-                  <div className="text-xs font-bold" style={{ color: '#4A2B0F' }}>Admin</div>
-                  <div className="text-[10px]" style={{ color: '#887369' }}>Administrator</div>
+                  <div className="text-xs font-bold" style={{ color: '#4A2B0F' }}>{currentUser?.fullName || 'Admin'}</div>
+                  <div className="text-[10px]" style={{ color: '#887369' }}>{currentUser?.role || 'Administrator'}</div>
                 </div>
               </button>
               {profileOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-50" style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', boxShadow: '0 8px 24px rgba(232,146,74,0.2)' }}>
                   <div className="px-3 py-2 border-b mb-1" style={{ borderColor: '#f0dfd8' }}>
-                    <p className="text-sm font-bold" style={{ color: '#4A2B0F' }}>Admin User</p>
-                    <p className="text-xs" style={{ color: '#887369' }}>admin@igc.edu.pk</p>
+                    <p className="text-sm font-bold" style={{ color: '#4A2B0F' }}>{currentUser?.fullName || 'Admin User'}</p>
+                    <p className="text-xs" style={{ color: '#887369' }}>{currentUser?.email || 'admin@fdas.local'}</p>
                   </div>
                   <button className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>View Profile</button>
                   <button className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>Account Preferences</button>
@@ -219,7 +223,7 @@ export default function AdminLayout() {
 
             {/* Mobile Menu */}
             <button className="md:hidden p-2" style={{ color: '#C4533A' }} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-              <span className="material-symbols-outlined">{mobileMenuOpen ? 'close' : 'menu'}</span>
+              <Icon name={mobileMenuOpen ? 'close' : 'menu'} size={20} />
             </button>
           </div>
         </div>
@@ -238,7 +242,7 @@ export default function AdminLayout() {
                   }`
                 }
               >
-                <span className="material-symbols-outlined text-[18px]">{link.icon}</span>
+                <Icon name={link.icon} size={18} />
                 {link.label}
               </NavLink>
             ))}
@@ -247,7 +251,7 @@ export default function AdminLayout() {
               className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium w-full text-left"
               style={{ color: '#ba1a1a' }}
             >
-              <span className="material-symbols-outlined text-[18px]">logout</span>
+              <Icon name="logout" size={18} />
               Logout
             </button>
           </div>

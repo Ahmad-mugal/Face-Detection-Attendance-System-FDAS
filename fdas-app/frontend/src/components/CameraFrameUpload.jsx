@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Icon from './Icon'
 
 const CHALLENGES = ['Please blink', 'Look straight at camera', 'Turn head slightly left', 'Turn head slightly right', 'Smile']
 
@@ -108,7 +109,7 @@ export default function CameraFrameUpload({ sessionId, onMarkRecord, isActive = 
 
         {!cameraOn ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
-            <span className="material-symbols-outlined text-[80px]" style={{ color: '#55433b' }}>videocam_off</span>
+            <Icon name="videocam_off" size={80} style={{ color: '#55433b' }} />
             <p className="mt-3 font-semibold text-sm" style={{ color: '#887369' }}>{cameraError || 'Click "Start Attendance" to begin'}</p>
           </div>
         ) : null}
@@ -116,7 +117,7 @@ export default function CameraFrameUpload({ sessionId, onMarkRecord, isActive = 
         {cameraOn && lastResult === 'recognized' && (
           <div className="absolute border-2 rounded-lg" style={{ top: '20%', left: '30%', width: 180, height: 220, maxWidth: '45%', borderColor: '#E8924A', boxShadow: '0 0 15px rgba(232,146,74,0.5)' }}>
             <div className="absolute -top-3 -right-3 w-6 h-6 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: '#D4A017' }}>
-              <span className="material-symbols-outlined filled text-[14px]">check</span>
+              <Icon name="check" size={14} />
             </div>
             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-white text-xs font-bold whitespace-nowrap" style={{ backgroundColor: '#D4A017' }}>
               Demo Student - DEMO-001
@@ -135,11 +136,11 @@ export default function CameraFrameUpload({ sessionId, onMarkRecord, isActive = 
         {cameraOn && (
           <>
             <div className="absolute bottom-4 left-4 right-4 py-2 px-4 rounded-xl text-center font-bold text-sm" style={{ backgroundColor: 'rgba(196,83,58,0.85)', color: '#fff', backdropFilter: 'blur(4px)' }}>
-              <span className="material-symbols-outlined text-[16px] mr-1 align-middle">psychology</span>
+              <Icon name="psychology" size={16} className="mr-1" />
               Liveness Check: {challenge}
             </div>
             <div className="absolute top-4 left-4 py-1.5 px-3 rounded-full text-xs font-semibold flex items-center gap-1" style={{ backgroundColor: 'rgba(196,83,58,0.8)', color: '#fff', backdropFilter: 'blur(4px)' }}>
-              <span className="material-symbols-outlined text-[14px]">location_on</span>
+              <Icon name="location_on" size={14} />
               CS Dept | BSCS-2022
             </div>
           </>
@@ -148,7 +149,7 @@ export default function CameraFrameUpload({ sessionId, onMarkRecord, isActive = 
 
       <div className="px-5 py-3 flex items-center justify-between" style={{ backgroundColor: '#FFF0E6', borderTop: '1px solid rgba(232,146,74,0.2)' }}>
         <div className="flex items-center gap-2 text-sm" style={{ color: '#887369' }}>
-          <span className="material-symbols-outlined text-[18px]" style={{ color: '#E8924A' }}>videocam</span>
+          <Icon name="videocam" size={18} style={{ color: '#E8924A' }} />
           Cam 01 - Main Lab
         </div>
         <div className="text-sm font-bold" style={{ color: cameraOn ? '#C4533A' : '#887369' }}>

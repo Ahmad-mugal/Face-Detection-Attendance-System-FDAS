@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { DEPARTMENTS } from '../data/dummyData'
+import Icon from './Icon'
 
 /**
  * FilterBar — Search + filter controls for student/report pages
@@ -38,12 +39,7 @@ export default function FilterBar({
     >
       {/* Search */}
       <div className="relative w-full md:w-80">
-        <span
-          className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[20px]"
-          style={{ color: '#887369' }}
-        >
-          search
-        </span>
+        <Icon name="search" size={20} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#887369' }} />
         <input
           type="text"
           value={search}

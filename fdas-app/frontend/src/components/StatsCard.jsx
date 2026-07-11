@@ -1,3 +1,5 @@
+import Icon from './Icon'
+
 /**
  * StatsCard — Reusable metric card matching Stitch design
  *
@@ -5,7 +7,7 @@
  *   title       - Card heading text
  *   value       - Main numeric or text value
  *   subtitle    - Optional secondary value (e.g., "88%")
- *   icon        - Material Symbols icon name
+ *   icon        - Local icon name
  *   iconColor   - Hex color for icon
  *   borderColor - Left border accent color (optional)
  *   topBorder   - Use top border instead of left (optional bool)
@@ -19,7 +21,6 @@ export default function StatsCard({
   iconColor = '#D4A017',
   borderColor,
   topBorder = false,
-  filled = false,
 }) {
   const borderStyle = borderColor
     ? topBorder
@@ -40,12 +41,7 @@ export default function StatsCard({
         <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: '#55433b' }}>
           {title}
         </h3>
-        <span
-          className={`material-symbols-outlined text-[22px] ${filled ? 'filled' : ''}`}
-          style={{ color: iconColor }}
-        >
-          {icon}
-        </span>
+        <Icon name={icon} size={22} style={{ color: iconColor }} />
       </div>
       <div className="flex items-baseline gap-2 mt-auto">
         <span className="text-3xl font-bold leading-tight" style={{ color: '#4A2B0F' }}>

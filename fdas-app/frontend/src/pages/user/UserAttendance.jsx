@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import AttendanceLogSidebar from '../../components/AttendanceLogSidebar'
 import { useAttendanceSession } from '../../context/useAttendanceSession'
 import { LIVE_LOG, SESSIONS } from '../../data/dummyData'
+import Icon from '../../components/Icon'
 
 const ASSIGNED_DEPARTMENT = 'Computer Science'
 
@@ -124,7 +125,7 @@ export default function UserAttendance() {
             <div className="absolute inset-6 rounded-xl border-2 border-dashed" style={{ borderColor: cameraOn ? '#D4A017' : '#55433b' }} />
             {!cameraOn && (
               <div className="text-center relative z-10 p-8">
-                <span className="material-symbols-outlined text-[80px] block mb-3" style={{ color: '#887369' }}>videocam_off</span>
+                <Icon name="videocam_off" size={80} className="block mx-auto mb-3" style={{ color: '#887369' }} />
                 <p className="text-lg font-black" style={{ color: '#fff8f6' }}>Camera stopped</p>
                 <p className="mt-2 text-sm font-bold px-4 py-2 rounded-full inline-flex" style={{ backgroundColor: '#C4533A', color: '#fff' }}>{message}</p>
               </div>

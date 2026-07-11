@@ -1,12 +1,62 @@
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
-import FilterBar from '../../components/FilterBar'
+import { useEffect, useState } from 'react'
 import StudentTable from '../../components/StudentTable'
-import { STUDENTS } from '../../data/dummyData'
+import { studentsApi } from '../../api/studentsApi'
+import { getApiError } from '../../api/client'
+import Icon from '../../components/Icon'
+
+function mapStudent(student) {
+  return {
+    id: student.studentId,
+    studentId: student.studentId,
+    name: student.fullName,
+    rollNumber: student.rollNo,
+    className: student.className,
+    department: student.departmentName,
+    email: student.email || '',
+    enrolled: student.faceRegistered,
+    status: student.status,
+  }
+}
 
 export default function UserStudents() {
+  const [students, setStudents] = useState([])
   const [modal, setModal] = useState(null)
-  const departmentStudents = STUDENTS.filter(student => student.department === 'Computer Science')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+
+  const loadStudents = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      setStudents(await studentsApi.list())
+    } catch (err) {
+      setError(getApiError(err, 'Unable to load department students.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadStudents()
+  }, [])
+
+  const disableOrEnable = async student => {
+    try {
+      if (student.status === 'Disabled') {
+        await studentsApi.enable(student.studentId)
+        setMessage('Student enabled.')
+      } else {
+        await studentsApi.disable(student.studentId)
+        setMessage('Student disabled.')
+      }
+      setModal(null)
+      await loadStudents()
+    } catch (err) {
+      setError(getApiError(err, 'Unable to update student.'))
+    }
+  }
 
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
@@ -14,31 +64,27 @@ export default function UserStudents() {
         <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Department Students</p>
         <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Students</h1>
       </div>
-      <FilterBar
-        searchPlaceholder="Search department students"
-        showDeptFilter={false}
-        showStatusFilter
-        actionButton={(
-          <Link to="/user/students/add" className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm text-white" style={{ backgroundColor: '#C4533A' }}>
-            <span className="material-symbols-outlined text-[18px]">person_add</span>
-            Add Student
-          </Link>
-        )}
-      />
+      {message && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#d1fae5', borderColor: '#86efac', color: '#065f46' }}>{message}</div>}
+      {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
+
+      <div className="fdas-card rounded-xl p-4 flex justify-end">
+        <Link to="/user/students/add" className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm text-white" style={{ backgroundColor: '#C4533A' }}>
+          <Icon name="person_add" size={18} />
+          Add Student
+        </Link>
+      </div>
       <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#fff8f6', boxShadow: '0 4px 20px rgba(232,146,74,0.12)' }}>
-        <StudentTable students={departmentStudents} actionsEnabled onEdit={student => setModal({ type: 'edit', student })} onDelete={student => setModal({ type: 'archive', student })} />
+        {loading ? <div className="p-8 text-center" style={{ color: '#887369' }}>Loading students...</div> : <StudentTable students={students.map(mapStudent)} actionsEnabled onDelete={student => setModal({ student })} />}
       </div>
       {modal && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40">
           <div className="w-full max-w-md rounded-xl p-5 fdas-card">
-            <h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>{modal.type === 'edit' ? 'Edit Student' : 'Archive Student'}</h2>
+            <h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>Change Student Status</h2>
             <p className="text-sm mt-1" style={{ color: '#55433b' }}>{modal.student.name} - {modal.student.rollNumber}</p>
-            <p className="mt-5 rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>
-              Placeholder modal only. Operator changes remain static in Phase 1.1.
-            </p>
+            <p className="mt-5 rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>This uses the backend enable/disable endpoint. Face enrollment remains dummy.</p>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setModal(null)} className="px-4 py-2 rounded-lg border font-bold" style={{ borderColor: '#dbc1b7', color: '#55433b' }}>Cancel</button>
-              <button onClick={() => setModal(null)} className="px-4 py-2 rounded-lg font-bold text-white" style={{ backgroundColor: '#C4533A' }}>Confirm</button>
+              <button onClick={() => disableOrEnable(modal.student)} className="px-4 py-2 rounded-lg font-bold text-white" style={{ backgroundColor: '#C4533A' }}>Confirm</button>
             </div>
           </div>
         </div>

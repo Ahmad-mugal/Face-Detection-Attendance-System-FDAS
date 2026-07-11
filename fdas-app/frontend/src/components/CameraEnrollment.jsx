@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Icon from './Icon'
 
 const SAMPLE_COLORS = ['#C4533A', '#D4A017', '#E8924A']
 
@@ -39,9 +40,7 @@ export default function CameraEnrollment({ onCapture }) {
       <div className="relative flex items-center justify-center min-h-[240px]" style={{ backgroundColor: '#221a16' }}>
         <div className="absolute inset-4 rounded-xl border-2 border-dashed" style={{ borderColor: cameraActive ? '#D4A017' : '#55433b' }} />
         <div className="text-center p-8 relative z-10">
-          <span className="material-symbols-outlined text-[64px] block mb-3" style={{ color: cameraActive ? '#D4A017' : '#887369' }}>
-            {cameraActive ? 'center_focus_strong' : 'videocam'}
-          </span>
+          <Icon name={cameraActive ? 'center_focus_strong' : 'videocam'} size={64} className="block mx-auto mb-3" style={{ color: cameraActive ? '#D4A017' : '#887369' }} />
           <p className="text-sm font-bold" style={{ color: cameraActive ? '#fff8f6' : '#887369' }}>
             {cameraActive ? 'Camera preview placeholder active' : 'Camera preview placeholder'}
           </p>
@@ -59,12 +58,12 @@ export default function CameraEnrollment({ onCapture }) {
             <div key={index} className="aspect-[4/3] rounded-xl border-2 flex flex-col items-center justify-center gap-1" style={{ backgroundColor: '#fff8f6', borderColor: sample ? sample.color : '#dbc1b7' }}>
               {sample ? (
                 <>
-                  <span className="material-symbols-outlined filled text-[28px]" style={{ color: sample.color }}>face</span>
+                  <Icon name="face" size={28} style={{ color: sample.color }} />
                   <span className="text-[11px] font-bold" style={{ color: '#4A2B0F' }}>Sample {index + 1}</span>
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-[24px]" style={{ color: '#887369' }}>add_a_photo</span>
+                  <Icon name="add_a_photo" size={24} style={{ color: '#887369' }} />
                   <span className="text-[11px] font-semibold" style={{ color: '#887369' }}>Empty slot</span>
                 </>
               )}
@@ -80,7 +79,7 @@ export default function CameraEnrollment({ onCapture }) {
           className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95"
           style={{ backgroundColor: '#C4533A', color: '#fff' }}
         >
-          <span className="material-symbols-outlined text-[18px]">videocam</span>
+          <Icon name="videocam" size={18} />
           Start Camera
         </button>
         <button
@@ -90,7 +89,7 @@ export default function CameraEnrollment({ onCapture }) {
           className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ backgroundColor: '#D4A017', color: '#fff' }}
         >
-          <span className="material-symbols-outlined text-[18px]">photo_camera</span>
+          <Icon name="photo_camera" size={18} />
           Capture Face Sample
         </button>
         <button

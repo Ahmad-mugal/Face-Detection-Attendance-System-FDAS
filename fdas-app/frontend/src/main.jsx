@@ -4,13 +4,16 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import { AttendanceSessionProvider } from './context/AttendanceSessionContext.jsx'
+import { AuthProvider } from './context/AuthContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <AttendanceSessionProvider>
-        <App />
-      </AttendanceSessionProvider>
+      <AuthProvider>
+        <AttendanceSessionProvider>
+          <App />
+        </AttendanceSessionProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
 )

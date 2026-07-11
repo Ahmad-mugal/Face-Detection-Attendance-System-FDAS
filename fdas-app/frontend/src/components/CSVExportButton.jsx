@@ -1,3 +1,5 @@
+import Icon from './Icon'
+
 /**
  * CSVExportButton — Triggers a CSV download from provided data
  * Phase 1: Client-side CSV generation from dummy data
@@ -41,7 +43,7 @@ export default function CSVExportButton({ data = [], filename = 'fdas_report.csv
       style={{ backgroundColor: '#D4A017', color: '#fff' }}
       title={!data.length ? 'No data to export' : `Export ${data.length} records`}
     >
-      <span className="material-symbols-outlined text-[18px]">download</span>
+      <Icon name="download" size={18} />
       {label}
     </button>
   )

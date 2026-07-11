@@ -1,3 +1,5 @@
+import Icon from './Icon'
+
 /**
  * StudentTable — Reusable student list table
  *
@@ -18,7 +20,7 @@ export default function StudentTable({
   if (students.length === 0) {
     return (
       <div className="text-center py-16" style={{ color: '#887369' }}>
-        <span className="material-symbols-outlined text-[48px] block mb-3" style={{ color: '#dbc1b7' }}>group_off</span>
+        <Icon name="group_off" size={48} className="block mx-auto mb-3" style={{ color: '#dbc1b7' }} />
         <p className="font-semibold">No students found</p>
         <p className="text-sm mt-1">Try adjusting your filters</p>
       </div>
@@ -74,7 +76,7 @@ export default function StudentTable({
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
                       style={{ backgroundColor: '#d1fae5', color: '#065f46' }}
                     >
-                      <span className="material-symbols-outlined text-[12px] filled">check_circle</span>
+                      <Icon name="check_circle" size={12} />
                       Enrolled
                     </span>
                   ) : (
@@ -82,7 +84,7 @@ export default function StudentTable({
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
                       style={{ backgroundColor: '#ffdad6', color: '#93000a' }}
                     >
-                      <span className="material-symbols-outlined text-[12px]">radio_button_unchecked</span>
+                      <Icon name="radio_button_unchecked" size={12} />
                       Not Enrolled
                     </span>
                   )}
@@ -97,7 +99,7 @@ export default function StudentTable({
                       style={{ color: '#C4533A' }}
                       title="Edit student"
                     >
-                      <span className="material-symbols-outlined text-[18px]">edit</span>
+                      <Icon name="edit" size={18} />
                     </button>
                     <button
                       onClick={() => onDelete?.(student)}
@@ -105,7 +107,7 @@ export default function StudentTable({
                       style={{ color: '#ba1a1a' }}
                       title="Archive student"
                     >
-                      <span className="material-symbols-outlined text-[18px]">archive</span>
+                      <Icon name="archive" size={18} />
                     </button>
                   </div>
                 </td>

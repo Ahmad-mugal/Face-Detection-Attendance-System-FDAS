@@ -523,3 +523,151 @@ Attendance Time Windows:
 - No real login UI integration yet.
 - No face enrollment upload, OpenCV/MediaPipe, attendance session backend, attendance marking, reports, or LAN deployment yet.
 - Face registered status is returned from existing `FaceTemplate` relationships and remains false/placeholder unless templates are added later.
+
+## Phase 5 - Frontend Integration with Backend Auth and Academic APIs
+
+### Goal
+Connect the React frontend to the existing FastAPI backend for authentication, role-based navigation, admin user approval/access management, departments, classes, students, and attendance time windows. Phase 5 intentionally does not implement face recognition, OpenCV/MediaPipe, real attendance marking, reports backend, LAN deployment, or Phase 6 work.
+
+### Frontend Files Created Or Modified
+- `frontend/src/api/client.js`
+- `frontend/src/api/authApi.js`
+- `frontend/src/api/adminUsersApi.js`
+- `frontend/src/api/departmentsApi.js`
+- `frontend/src/api/classesApi.js`
+- `frontend/src/api/studentsApi.js`
+- `frontend/src/api/attendanceTimeWindowsApi.js`
+- `frontend/src/context/authCore.js`
+- `frontend/src/context/AuthContext.jsx`
+- `frontend/src/context/useAuth.js`
+- `frontend/src/components/ProtectedRoute.jsx`
+- `frontend/src/main.jsx`
+- `frontend/src/App.jsx`
+- `frontend/src/layouts/AdminLayout.jsx`
+- `frontend/src/layouts/UserLayout.jsx`
+- `frontend/src/pages/LoginPage.jsx`
+- `frontend/src/pages/admin/AdminDashboard.jsx`
+- `frontend/src/pages/admin/AdminRequests.jsx`
+- `frontend/src/pages/admin/AdminUsers.jsx`
+- `frontend/src/pages/admin/AdminClasses.jsx`
+- `frontend/src/pages/admin/AdminStudents.jsx`
+- `frontend/src/pages/admin/AdminAddStudent.jsx`
+- `frontend/src/pages/admin/AdminTiming.jsx`
+- `frontend/src/pages/user/UserDashboard.jsx`
+- `frontend/src/pages/user/UserStudents.jsx`
+- `frontend/src/pages/user/UserAddStudent.jsx`
+- `frontend/README.md`
+- `docs/development_journey.md`
+
+### Backend Files Modified
+- `backend/app/main.py` - added local CORS for `http://127.0.0.1:5173` and `http://localhost:5173`.
+
+### API Layer Created
+- Axios client uses base URL `http://127.0.0.1:8000`.
+- Bearer token is attached from localStorage.
+- API error details are normalized for page-level messages.
+- Separate modules were created for auth, admin users, departments, classes, students, and attendance time windows.
+
+### Auth Integration
+- Login now calls `POST /api/auth/login`.
+- Auth state stores access token, current user, role, status, access scope, assigned department id, and assigned department name.
+- Auth state persists with localStorage for the Phase 5 demo.
+- Protected routes redirect unauthenticated users to `/login`.
+- Admin routes require Admin role.
+- User/operator routes require User role; admins are redirected back to the admin dashboard.
+- Logout clears the token and current user.
+
+### Pages Integrated
+- `/login`
+- `/admin/dashboard`
+- `/admin/requests`
+- `/admin/users`
+- `/admin/classes`
+- `/admin/students`
+- `/admin/students/add`
+- `/admin/timing`
+- `/user/dashboard`
+- `/user/students`
+- `/user/students/add`
+
+Live attendance, analytics, and reports remain dummy/static where backend APIs do not exist yet.
+
+### Backend Endpoints Used
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `GET /api/admin/user-requests`
+- `GET /api/admin/users`
+- `PATCH /api/admin/users/{userId}/approve`
+- `PATCH /api/admin/users/{userId}/reject`
+- `PATCH /api/admin/users/{userId}/disable`
+- `PATCH /api/admin/users/{userId}/enable`
+- `PATCH /api/admin/users/{userId}/access`
+- `GET /api/departments`
+- `GET /api/classes`
+- `POST /api/classes`
+- `PATCH /api/classes/{classId}`
+- `PATCH /api/classes/{classId}/archive`
+- `PATCH /api/classes/{classId}/activate`
+- `GET /api/students`
+- `POST /api/students`
+- `PATCH /api/students/{studentId}`
+- `PATCH /api/students/{studentId}/disable`
+- `PATCH /api/students/{studentId}/enable`
+- `GET /api/attendance-time-windows`
+- `POST /api/attendance-time-windows`
+- `PATCH /api/attendance-time-windows/{windowId}`
+- `PATCH /api/attendance-time-windows/{windowId}/activate`
+- `PATCH /api/attendance-time-windows/{windowId}/deactivate`
+
+### Commands Run
+- `.\.venv\Scripts\python.exe -m app.seed`
+- `.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000`
+- `.\.venv\Scripts\python.exe -m app.verify_phase3`
+- `.\.venv\Scripts\python.exe -m app.verify_phase4`
+- `npm.cmd run dev -- --host 127.0.0.1 --port 5173`
+- `npm.cmd run build`
+- `npm.cmd run lint`
+- `Invoke-WebRequest http://127.0.0.1:5173/login`
+- PowerShell API checks for admin login, operator login, wrong login rejection, admin protected data, and operator admin-endpoint blocking.
+
+### Testing Performed
+- Backend `/health` returned `database=connected`.
+- Admin login returned a bearer token and Admin profile.
+- Operator login returned a bearer token and User profile scoped to Computer Science.
+- Wrong admin password returned `401`.
+- Operator call to `/api/admin/users` returned `403`.
+- Admin token loaded users, classes, students, and attendance time windows.
+- Operator token loaded only one department: Computer Science.
+- `app.verify_phase3` passed.
+- `app.verify_phase4` passed.
+- Frontend `/login` route returned HTTP 200 from Vite.
+- `npm.cmd run build` passed with the existing non-blocking chunk-size warning.
+- `npm.cmd run lint` passed with no warnings.
+
+### Errors Found And Fixed
+- Browser-to-backend requests required CORS because Vite runs on port 5173 and FastAPI on port 8000; added FastAPI CORS middleware for local dev origins.
+- Oxlint found missing hook dependency warnings in admin student/class pages; fixed with `useCallback`.
+- The browser-control runtime had no available browser instances, so browser console inspection could not be completed in this session.
+
+### Remaining Issues
+- No browser console inspection was possible because the browser runtime reported no available browsers.
+- Vite build still reports the existing non-blocking large chunk warning.
+- Face enrollment remains frontend-only/dummy; no face upload/templates are sent.
+- Live attendance marking, attendance session backend, reports backend, OpenCV/MediaPipe, LAN deployment, and Phase 6 are not implemented.
+
+### Offline Font/Icon Fix
+- Removed Google Fonts and Material Symbols external links from `frontend/index.html`.
+- Replaced the `Plus Jakarta Sans` dependency with a local/system font stack: `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`.
+- Removed Material Symbols CSS from `frontend/src/index.css`.
+- Added `frontend/src/components/Icon.jsx`, a local Lucide icon wrapper that maps the old icon names to `lucide-react` icons.
+- Replaced remaining `material-symbols-outlined` icon-font spans in components, layouts, login, dashboard, student, class, timing, and attendance pages.
+- Added Playwright artifact paths to `frontend/.gitignore`: `output/`, `test-results/`, and `playwright-report/`.
+- Kept the Phase 5 Playwright smoke script for repeatable browser verification.
+- Kept `@tailwindcss/vite` because it is required by `vite.config.js`.
+
+### Offline Fix Verification
+- `npm.cmd run build` - passed with the existing non-blocking large chunk warning.
+- `npm.cmd run lint` - passed with no warnings.
+- `node .\scripts\phase5-smoke.mjs` - passed all smoke checks.
+- Confirmed no `fonts.googleapis.com`, `fonts.gstatic.com`, or Material Symbols console/resource errors remain.
+- Remaining console error is expected from the wrong-login test: `POST /api/auth/login` returned `401 Unauthorized`.

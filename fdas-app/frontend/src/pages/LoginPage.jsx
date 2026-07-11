@@ -1,32 +1,36 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/useAuth'
+import Icon from '../components/Icon'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ username: '', password: '' })
+  const location = useLocation()
+  const { login } = useAuth()
+  const [form, setForm] = useState({ email: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    // Phase 1: Static routing based on username
-    setTimeout(() => {
-      setLoading(false)
-      if (form.username === 'admin' && form.password === 'admin123') {
-        navigate('/admin/dashboard')
-      } else if (form.username === 'operator' && form.password === 'op123') {
-        navigate('/user/dashboard')
-      } else if (!form.username || !form.password) {
-        setError('Please enter your username and password.')
-      } else {
-        setError('Invalid username or password. Try: admin/admin123 or operator/op123')
+    try {
+      if (!form.email || !form.password) {
+        setError('Please enter your email and password.')
+        return
       }
-    }, 800)
+      const user = await login(form.email, form.password)
+      const fallbackPath = user.role === 'Admin' ? '/admin/dashboard' : '/user/dashboard'
+      navigate(location.state?.from || fallbackPath, { replace: true })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -48,7 +52,7 @@ export default function LoginPage() {
             <div className="w-80 h-80 rounded-full border-[2px]" style={{ borderColor: 'rgba(212,160,23,0.4)' }}>
               <div className="w-56 h-56 rounded-full border-[4px] m-auto mt-12" style={{ borderColor: 'rgba(212,160,23,0.5)' }}>
                 <div className="w-36 h-36 rounded-full border-[8px] m-auto mt-8 flex items-center justify-center" style={{ borderColor: 'rgba(196,83,58,0.5)', backgroundColor: 'rgba(212,160,23,0.1)' }}>
-                  <span className="material-symbols-outlined text-[64px]" style={{ color: '#C4533A' }}>face</span>
+                  <Icon name="face" size={64} style={{ color: '#C4533A' }} />
                 </div>
               </div>
             </div>
@@ -89,17 +93,17 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               {/* Username */}
               <div className="flex flex-col gap-1">
-                <label htmlFor="username" className="text-xs font-bold ml-1" style={{ color: '#55433b' }}>
-                  Username
+                <label htmlFor="email" className="text-xs font-bold ml-1" style={{ color: '#55433b' }}>
+                  Email
                 </label>
                 <div className="relative flex items-center">
-                  <span className="material-symbols-outlined filled absolute left-3 text-[20px]" style={{ color: '#ffc641' }}>person</span>
+                  <Icon name="person" size={20} className="absolute left-3" style={{ color: '#ffc641' }} />
                   <input
-                    id="username"
+                    id="email"
                     type="text"
-                    value={form.username}
-                    onChange={e => setForm({ ...form, username: e.target.value })}
-                    placeholder="Enter username"
+                    value={form.email}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
+                    placeholder="admin@fdas.local"
                     autoComplete="username"
                     className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm outline-none transition-all"
                     style={{ borderColor: '#dbc1b7', color: '#4A2B0F', backgroundColor: '#ffffff' }}
@@ -115,7 +119,7 @@ export default function LoginPage() {
                   Password
                 </label>
                 <div className="relative flex items-center">
-                  <span className="material-symbols-outlined filled absolute left-3 text-[20px]" style={{ color: '#ffc641' }}>lock</span>
+                  <Icon name="lock" size={20} className="absolute left-3" style={{ color: '#ffc641' }} />
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
@@ -135,9 +139,7 @@ export default function LoginPage() {
                     style={{ color: '#934619' }}
                     aria-label="Toggle password visibility"
                   >
-                    <span className="material-symbols-outlined text-[20px]">
-                      {showPassword ? 'visibility' : 'visibility_off'}
-                    </span>
+                    <Icon name={showPassword ? 'visibility' : 'visibility_off'} size={20} />
                   </button>
                 </div>
               </div>
@@ -165,7 +167,7 @@ export default function LoginPage() {
                   className="flex items-start gap-2 p-3 rounded-xl border text-xs"
                   style={{ backgroundColor: '#ffdad6', borderColor: 'rgba(186,26,26,0.2)', color: '#93000a' }}
                 >
-                  <span className="material-symbols-outlined filled text-[16px] flex-shrink-0 mt-0.5">error</span>
+                  <Icon name="error" size={16} className="flex-shrink-0 mt-0.5" />
                   <p>{error}</p>
                 </div>
               )}
@@ -184,12 +186,12 @@ export default function LoginPage() {
               >
                 {loading ? (
                   <>
-                    <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <Icon name="settings" size={18} className="animate-spin" />
                     Signing in...
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-outlined filled text-[18px]">login</span>
+                    <Icon name="login" size={18} />
                     Sign In
                   </>
                 )}
@@ -199,8 +201,8 @@ export default function LoginPage() {
             {/* Demo hint */}
             <div className="text-center text-xs rounded-xl p-3" style={{ backgroundColor: '#fff1eb', color: '#55433b' }}>
               <p className="font-bold mb-1" style={{ color: '#887369' }}>Demo Credentials</p>
-              <p>Admin: <span className="font-mono font-bold">admin / admin123</span></p>
-              <p>Operator: <span className="font-mono font-bold">operator / op123</span></p>
+              <p>Admin: <span className="font-mono font-bold">admin@fdas.local / Admin@12345</span></p>
+              <p>Operator: <span className="font-mono font-bold">operator.cs@fdas.local / Operator@12345</span></p>
             </div>
           </div>
         </section>

@@ -1,6 +1,8 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { useAttendanceSession } from '../context/useAttendanceSession'
+import { useAuth } from '../context/useAuth'
+import Icon from '../components/Icon'
 
 const sideNavLinks = [
   { to: '/user/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -10,13 +12,6 @@ const sideNavLinks = [
   { to: '/user/reports', label: 'Reports', icon: 'assessment' },
 ];
 
-// Simulated logged-in operator
-const OPERATOR = {
-  name: 'Muhammad Tariq',
-  department: 'Computer Science',
-  initials: 'MT',
-};
-
 export default function UserLayout() {
   const headerRef = useRef(null)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -25,6 +20,10 @@ export default function UserLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { confirmNavigation } = useAttendanceSession()
+  const { currentUser, logout } = useAuth()
+  const operatorName = currentUser?.fullName || 'Operator'
+  const operatorDepartment = currentUser?.assignedDepartmentName || (currentUser?.accessScope === 'AllDepartments' ? 'All Departments' : 'Assigned Department')
+  const operatorInitials = operatorName.split(' ').map(part => part.charAt(0)).join('').slice(0, 2).toUpperCase() || 'OP'
 
   const closeDropdowns = () => {
     setNotificationsOpen(false)
@@ -42,6 +41,7 @@ export default function UserLayout() {
 
   const guardedNavigate = to => {
     if (!confirmNavigation(to, location.pathname)) return
+    if (to === '/login') logout()
     closeDropdowns()
     setMobileOpen(false)
     navigate(to)
@@ -77,8 +77,8 @@ export default function UserLayout() {
       <div className="px-6 mb-8 pt-2">
         <h2 className="text-2xl font-black" style={{ color: '#C4533A' }}>FDAS Operator</h2>
         <div className="flex items-center gap-1.5 mt-1">
-          <span className="material-symbols-outlined text-[14px]" style={{ color: '#D4A017' }}>domain</span>
-          <p className="text-xs font-semibold" style={{ color: '#887369' }}>Dept: {OPERATOR.department}</p>
+          <Icon name="domain" size={14} style={{ color: '#D4A017' }} />
+          <p className="text-xs font-semibold" style={{ color: '#887369' }}>Dept: {operatorDepartment}</p>
         </div>
       </div>
 
@@ -104,7 +104,7 @@ export default function UserLayout() {
               aria-current={isCurrentRoute ? 'page' : undefined}
             >
               <>
-                <span className={`material-symbols-outlined text-[20px] ${isCurrentRoute ? 'filled' : ''}`}>{link.icon}</span>
+                <Icon name={link.icon} size={20} />
                 {link.label}
               </>
             </NavLink>
@@ -116,10 +116,10 @@ export default function UserLayout() {
       <div className="px-2 pb-4 mt-auto space-y-1">
         <div className="mx-1 px-4 py-3 rounded-xl flex items-center gap-3" style={{ backgroundColor: '#fceae4' }}>
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: '#C4533A' }}>
-            {OPERATOR.initials}
+            {operatorInitials}
           </div>
           <div>
-            <div className="text-xs font-bold truncate" style={{ color: '#4A2B0F', maxWidth: 120 }}>{OPERATOR.name}</div>
+            <div className="text-xs font-bold truncate" style={{ color: '#4A2B0F', maxWidth: 120 }}>{operatorName}</div>
             <div
               className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold inline-block mt-0.5"
               style={{ backgroundColor: '#D4A017', color: '#fff' }}
@@ -133,7 +133,7 @@ export default function UserLayout() {
           className="flex items-center gap-3 mx-1 px-4 py-3 rounded-xl font-medium text-sm w-full text-left transition-all hover:bg-red-50"
           style={{ color: '#ba1a1a' }}
         >
-          <span className="material-symbols-outlined text-[20px]">logout</span>
+          <Icon name="logout" size={20} />
           Logout
         </button>
       </div>
@@ -174,7 +174,7 @@ export default function UserLayout() {
         >
           <div className="flex items-center gap-3">
             <button className="md:hidden p-1.5 rounded-lg" style={{ color: '#C4533A' }} onClick={() => setMobileOpen(true)}>
-              <span className="material-symbols-outlined">menu</span>
+              <Icon name="menu" size={20} />
             </button>
             <span className="font-bold text-lg truncate" style={{ color: '#C4533A' }}>FDAS Portal</span>
           </div>
@@ -189,7 +189,7 @@ export default function UserLayout() {
                 style={{ color: '#887369' }}
                 aria-label="Open notifications"
               >
-                <span className="material-symbols-outlined">notifications</span>
+                <Icon name="notifications" size={20} />
                 <span className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ backgroundColor: '#D4A017' }} />
               </button>
               {notificationsOpen && (
@@ -207,7 +207,7 @@ export default function UserLayout() {
               style={{ color: '#887369' }}
               aria-label="Settings"
             >
-              <span className="material-symbols-outlined">settings</span>
+              <Icon name="settings" size={20} />
             </button>
             <div className="relative">
               <button
@@ -220,13 +220,13 @@ export default function UserLayout() {
                 style={{ backgroundColor: '#C4533A', borderColor: '#D4A017' }}
                 aria-label="Open profile menu"
               >
-                {OPERATOR.initials}
+                {operatorInitials}
               </button>
               {profileOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-50" style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', boxShadow: '0 8px 24px rgba(232,146,74,0.2)' }}>
                   <div className="px-3 py-2 border-b mb-1" style={{ borderColor: '#f0dfd8' }}>
-                    <p className="text-sm font-bold" style={{ color: '#4A2B0F' }}>{OPERATOR.name}</p>
-                    <p className="text-xs" style={{ color: '#887369' }}>{OPERATOR.department}</p>
+                    <p className="text-sm font-bold" style={{ color: '#4A2B0F' }}>{operatorName}</p>
+                    <p className="text-xs" style={{ color: '#887369' }}>{operatorDepartment}</p>
                   </div>
                   <button className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>Profile</button>
                   <button onClick={() => guardedNavigate('/login')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-red-50" style={{ color: '#ba1a1a' }}>Logout</button>

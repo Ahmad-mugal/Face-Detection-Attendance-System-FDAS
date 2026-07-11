@@ -1,3 +1,5 @@
+import Icon from './Icon'
+
 /**
  * AttendanceLogSidebar — Live scrollable attendance log
  *
@@ -35,7 +37,7 @@ export default function AttendanceLogSidebar({ records = [], title = "Today's Lo
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
         {records.length === 0 ? (
           <div className="text-center py-12" style={{ color: '#887369' }}>
-            <span className="material-symbols-outlined text-[40px] block mb-2" style={{ color: '#dbc1b7' }}>hourglass_empty</span>
+            <Icon name="hourglass_empty" size={40} className="block mx-auto mb-2" style={{ color: '#dbc1b7' }} />
             <p className="text-sm font-medium">Waiting for students...</p>
           </div>
         ) : (
@@ -78,7 +80,7 @@ export default function AttendanceLogSidebar({ records = [], title = "Today's Lo
           style={{ color: '#C4533A' }}
         >
           View Full History
-          <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+          <Icon name="arrow_forward" size={16} />
         </button>
       </div>
     </div>
