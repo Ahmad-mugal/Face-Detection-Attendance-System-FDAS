@@ -17,6 +17,7 @@ export default function AdminAddStudent() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [enrollmentStudent, setEnrollmentStudent] = useState(null)
 
   useEffect(() => {
     async function loadData() {
@@ -72,7 +73,7 @@ export default function AdminAddStudent() {
     setError('')
     setMessage('')
     try {
-      await studentsApi.create({
+      const createdStudent = await studentsApi.create({
         fullName: form.fullName,
         rollNo: form.rollNo,
         email: form.email || null,
@@ -83,8 +84,8 @@ export default function AdminAddStudent() {
         section: form.section,
         status: form.status,
       })
-      setMessage('Student profile saved. Face enrollment remains frontend-only in Phase 5.')
-      setForm(current => ({ ...emptyForm, departmentId: current.departmentId, classId: current.classId, yearSemester: current.yearSemester, section: current.section, status: 'Active' }))
+      setEnrollmentStudent(createdStudent)
+      setMessage('Student profile saved. Start face registration to automatically capture 25 samples.')
     } catch (err) {
       setError(getApiError(err, 'Unable to save student.'))
     } finally {
@@ -97,7 +98,7 @@ export default function AdminAddStudent() {
       <div>
         <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Enrollment</p>
         <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Add New Student</h1>
-        <p className="text-sm mt-1" style={{ color: '#55433b' }}>Student profile saves to the backend. Face enrollment is still a Phase 5 dummy preview.</p>
+        <p className="text-sm mt-1" style={{ color: '#55433b' }}>Save the student profile, then start one automatic 25-sample face registration.</p>
       </div>
 
       {message && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#d1fae5', borderColor: '#86efac', color: '#065f46' }}>{message}</div>}
@@ -124,7 +125,15 @@ export default function AdminAddStudent() {
               {saving ? 'Saving...' : 'Save Student Profile'}
             </button>
           </form>
-          <CameraEnrollment />
+          <CameraEnrollment
+            studentId={enrollmentStudent?.studentId}
+            studentName={enrollmentStudent?.fullName}
+            onCompleted={result => {
+              setMessage(`Face enrollment completed. Saved samples: ${result.uploadedSamples?.length || 0}.`)
+              setForm(current => ({ ...emptyForm, departmentId: current.departmentId, classId: current.classId, yearSemester: current.yearSemester, section: current.section, status: 'Active' }))
+              setEnrollmentStudent(null)
+            }}
+          />
         </div>
       )}
     </section>

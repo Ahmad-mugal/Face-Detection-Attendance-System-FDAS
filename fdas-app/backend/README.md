@@ -48,6 +48,8 @@ Required backend packages:
 - `pydantic==2.10.4`
 - `PyJWT==2.10.1`
 - `python-multipart==0.0.20`
+- `numpy==2.2.6`
+- `opencv-python==4.12.0.88`
 
 ## Initialize And Seed Database
 
@@ -269,7 +271,7 @@ Upload behavior:
 - Requires an approved Admin/User token.
 - Admin and AllDepartments users can enroll face samples for any student.
 - Department-only operators can enroll samples only for students in their assigned department.
-- Accepts multipart form field `files` with one or more `.jpg`, `.jpeg`, or `.png` files.
+- Accepts multipart form field `files` with exactly 25 `.jpg`, `.jpeg`, or `.png` files.
 - Rejects unsupported extensions, empty files, and images over the local 5 MB upload limit.
 - Uses generated safe filenames and stores only relative paths in the database.
 
@@ -284,7 +286,7 @@ fdas-app/backend/storage/face_enrollments/{studentId}/sample_YYYYMMDD_HHMMSS_mic
 Face template behavior:
 
 - Each uploaded image creates a `FaceTemplate` row with `templatePath`, `sampleIndex`, `status=Stored`, `isActive=True`, and `createdByUserId`.
-- `Student.faceRegistered` is returned as true only when the student has at least one active face template.
+- `Student.faceRegistered` is returned as true only when the student has at least 25 active face templates from the fixed enrollment batch.
 - Deactivate and clear operations soft-deactivate templates by setting `isActive=False` and `status=Inactive`; image files are not physically deleted in Phase 6B.
 
 ## Verify Phase 6B
@@ -306,8 +308,85 @@ Recommended backend regression sequence:
 .\.venv\Scripts\python.exe -m app.verify_phase6b
 ```
 
+## Phase 7A Face Processing And Embedding Foundation
+
+Phase 7A adds backend-only processing for stored face enrollment samples. It decodes uploaded images with OpenCV, detects a face region with OpenCV's built-in Haar cascade, crops the largest detected face, normalizes it to a small equalized grayscale descriptor, and stores the descriptor JSON in `FaceTemplate.encodingData`.
+
+Current encoding provider:
+
+```text
+provider: OpenCV
+encodingVersion: opencv_basic_v1
+descriptor: 16x16 equalized grayscale crop flattened and L2-normalized
+```
+
+This is a lightweight foundation descriptor, not final production face recognition. Actual live recognition matching, liveness detection, attendance marking, reports, and LAN deployment are still not implemented.
+
+Face template processing fields:
+
+- `encodingData`
+- `encodingVersion`
+- `faceBoxJson`
+- `processedAt`
+- `status`
+
+Statuses used by Phase 7A:
+
+- `Encoded` when a face is detected and descriptor data is stored.
+- `NoFaceDetected` when the image is valid but no face is found.
+- `ProcessingFailed` when a stored image cannot be processed later.
+
+Endpoints:
+
+- `POST /api/face-templates/{templateId}/process`
+- `POST /api/students/{studentId}/face-enrollment/process-all`
+- `GET /api/face-processing/info`
+
+Existing Phase 6B endpoints continue to work:
+
+- `POST /api/students/{studentId}/face-enrollment/upload`
+- `GET /api/students/{studentId}/face-enrollment`
+- `GET /api/face-templates/{templateId}`
+- `PATCH /api/face-templates/{templateId}/deactivate`
+- `PATCH /api/students/{studentId}/face-enrollment/clear`
+
+Upload behavior after Phase 7A:
+
+- Exactly 25 image files are required for a new enrollment upload.
+- Unsupported extensions and empty files are still rejected.
+- Invalid image bytes are rejected.
+- Valid images are stored even when no face is detected.
+- Successful face detection sets `status=Encoded`, `encodingVersion=opencv_basic_v1`, `faceBoxJson`, `processedAt`, and `encodingData`.
+- No-face samples are kept active with `status=NoFaceDetected` and no `encodingData`.
+
+Access rules remain department-scoped:
+
+- Admin and AllDepartments users can process any student's templates.
+- Department-only operators can process only templates for students in their assigned department.
+
+## Verify Phase 7A
+
+Start Uvicorn first, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.verify_phase7a
+```
+
+Recommended backend regression sequence:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m app.seed
+.\.venv\Scripts\python.exe -m app.verify_phase3
+.\.venv\Scripts\python.exe -m app.verify_phase4
+.\.venv\Scripts\python.exe -m app.verify_phase6a
+.\.venv\Scripts\python.exe -m app.verify_phase6b
+.\.venv\Scripts\python.exe -m app.verify_phase7a
+```
+
 ## Current Limitations
 
-- Face enrollment upload/storage exists, but no real face matching exists yet.
-- No OpenCV, MediaPipe, liveness detection, real embedding generation, attendance marking logic, or report endpoints yet.
+- Face enrollment upload/storage uses a fixed 25-sample automatic registration batch, and OpenCV basic descriptor generation exists, but no real face matching exists yet.
+- Generated verifier images do not contain a real human face, so a manual real-face upload test is still needed to verify detected-face encoding on actual enrollment samples.
+- No MediaPipe, liveness detection, attendance marking logic, or report endpoints yet.
 - LAN-based central local server deployment remains a future enhancement.

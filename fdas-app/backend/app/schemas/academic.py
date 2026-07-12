@@ -87,6 +87,7 @@ class StudentRead(BaseModel):
     section: str
     status: str
     faceRegistered: bool = False
+    hasEncodedFaceTemplates: bool = False
     createdAt: datetime
     updatedAt: datetime
 

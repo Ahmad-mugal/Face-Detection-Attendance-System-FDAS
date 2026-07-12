@@ -41,6 +41,9 @@ def ensure_sqlite_compatibility_columns():
         "sampleIndex": "INTEGER",
         "isActive": "BOOLEAN NOT NULL DEFAULT 1",
         "createdByUserId": "INTEGER",
+        "encodingVersion": "VARCHAR(80)",
+        "faceBoxJson": "TEXT",
+        "processedAt": "DATETIME",
     }
 
     with engine.begin() as connection:

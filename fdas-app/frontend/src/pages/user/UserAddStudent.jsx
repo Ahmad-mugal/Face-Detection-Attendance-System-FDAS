@@ -19,6 +19,7 @@ export default function UserAddStudent() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [enrollmentStudent, setEnrollmentStudent] = useState(null)
 
   useEffect(() => {
     async function loadData() {
@@ -64,7 +65,7 @@ export default function UserAddStudent() {
     setError('')
     setMessage('')
     try {
-      await studentsApi.create({
+      const createdStudent = await studentsApi.create({
         fullName: form.fullName,
         rollNo: form.rollNo,
         email: form.email || null,
@@ -75,8 +76,8 @@ export default function UserAddStudent() {
         section: form.section,
         status: form.status,
       })
-      setMessage('Student profile saved to backend. Face enrollment remains dummy in Phase 5.')
-      setForm(current => ({ ...emptyForm, departmentId: current.departmentId, classId: current.classId, yearSemester: current.yearSemester, section: current.section, status: 'Active' }))
+      setEnrollmentStudent(createdStudent)
+      setMessage('Student profile saved. Start face registration to automatically capture 25 samples.')
     } catch (err) {
       setError(getApiError(err, 'Unable to save student.'))
     } finally {
@@ -115,7 +116,15 @@ export default function UserAddStudent() {
               {saving ? 'Saving...' : 'Save Student Profile'}
             </button>
           </form>
-          <CameraEnrollment />
+          <CameraEnrollment
+            studentId={enrollmentStudent?.studentId}
+            studentName={enrollmentStudent?.fullName}
+            onCompleted={result => {
+              setMessage(`Face enrollment completed. Saved samples: ${result.uploadedSamples?.length || 0}.`)
+              setForm(current => ({ ...emptyForm, departmentId: current.departmentId, classId: current.classId, yearSemester: current.yearSemester, section: current.section, status: 'Active' }))
+              setEnrollmentStudent(null)
+            }}
+          />
         </div>
       )}
     </section>

@@ -7,6 +7,7 @@ from app.dependencies import require_operator_or_admin
 from app.models.student import Student
 from app.models.user import User
 from app.schemas.academic import StudentCreate, StudentRead, StudentUpdate
+from app.services.face_enrollment import FACE_ENROLLMENT_SAMPLE_COUNT, has_encoded_templates
 from app.services.departments import ensure_department_access
 from app.services.students import (
     ensure_student_access,
@@ -36,7 +37,8 @@ def to_student_read(student: Student) -> StudentRead:
         yearSemester=student.yearSemester,
         section=student.section,
         status=student.status,
-        faceRegistered=active_template_count > 0,
+        faceRegistered=active_template_count >= FACE_ENROLLMENT_SAMPLE_COUNT,
+        hasEncodedFaceTemplates=has_encoded_templates(student),
         createdAt=student.createdAt,
         updatedAt=student.updatedAt,
     )

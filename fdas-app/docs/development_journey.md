@@ -842,3 +842,172 @@ storage/face_enrollments/1/sample_20260711_235319_431953_001_a1b2c3d4.png
 ### Remaining Issues
 - Phase 6B stores samples and template metadata only.
 - Real face recognition, OpenCV/MediaPipe processing, liveness detection, embedding generation, attendance marking, reports backend, LAN deployment, and Phase 7 remain future work.
+
+## Phase 7A - Face Processing and Embedding Generation Foundation
+
+### Phase Goal
+Implement a backend-only face processing foundation for uploaded enrollment samples. Phase 7A decodes images, attempts OpenCV face detection, crops/normalizes the detected face, and stores a lightweight numeric descriptor for later phases. It intentionally does not implement live recognition matching, attendance marking, liveness detection, reports backend, LAN deployment, frontend UI changes, or Phase 7B.
+
+### Files Created Or Modified
+- `backend/requirements.txt` - added NumPy and OpenCV.
+- `backend/app/config.py` - updated app phase/version to Phase 7A.
+- `backend/app/database.py` - added SQLite compatibility columns for new face processing metadata.
+- `backend/app/models/face_template.py` - added `encodingVersion`, `faceBoxJson`, and `processedAt`.
+- `backend/app/schemas/academic.py` - added derived `hasEncodedFaceTemplates`.
+- `backend/app/schemas/face_enrollment.py` - added processing metadata, processing responses, and info schema.
+- `backend/app/services/face_processing.py` - created OpenCV decode/detect/crop/descriptor helpers.
+- `backend/app/services/face_enrollment.py` - connected upload and reprocess flows to the processing service.
+- `backend/app/routers/face_enrollment.py` - added processing endpoints and processing metadata in responses.
+- `backend/app/routers/students.py` - added derived encoded-template status to student reads.
+- `backend/app/verify_phase6b.py` - updated the generated test image to an OpenCV-decodable PNG so Phase 6B still passes after decode validation.
+- `backend/app/verify_phase7a.py` - created Phase 7A HTTP verifier.
+- `backend/README.md` - documented Phase 7A processing behavior and limitations.
+- `docs/development_journey.md` - added this Phase 7A record.
+
+### Dependencies Added
+- `numpy==2.2.6`
+- `opencv-python==4.12.0.88`
+
+### Processing Approach
+- Decode uploaded bytes with OpenCV `cv2.imdecode`.
+- Reject invalid image bytes during upload.
+- Convert decoded image to grayscale and histogram-equalize it.
+- Detect faces with OpenCV Haar cascade `haarcascade_frontalface_default.xml`.
+- Select the largest detected face when multiple faces exist.
+- Crop the face box from the source image.
+- Convert crop to grayscale, equalize, resize to `16x16`, flatten, mean-center, L2-normalize, and store the vector as JSON.
+
+### Encoding Version
+- `opencv_basic_v1`
+
+### Endpoints Created
+- `POST /api/face-templates/{templateId}/process`
+- `POST /api/students/{studentId}/face-enrollment/process-all`
+- `GET /api/face-processing/info`
+
+Existing Phase 6B endpoints continue to work:
+- `POST /api/students/{studentId}/face-enrollment/upload`
+- `GET /api/students/{studentId}/face-enrollment`
+- `GET /api/face-templates/{templateId}`
+- `PATCH /api/face-templates/{templateId}/deactivate`
+- `PATCH /api/students/{studentId}/face-enrollment/clear`
+
+### Access Rules
+- Approved Admin users can upload/process any student's templates.
+- Approved AllDepartments users can upload/process any student's templates.
+- Approved department-only operators can upload/process templates only for students in their assigned department.
+- Cross-department process attempts are blocked with `403`.
+
+### Upload And Processing Behavior
+- Valid image upload still creates active `FaceTemplate` records.
+- If a face is detected, the template is marked `Encoded` and receives `encodingData`, `encodingVersion`, `faceBoxJson`, and `processedAt`.
+- If no face is detected, the image is still stored and the template is marked `NoFaceDetected`.
+- If image bytes cannot be decoded, upload is rejected as an invalid image.
+- Unsupported file types and empty files are still rejected.
+- `faceRegistered` remains derived from active templates.
+- Encoded-template status is exposed separately through `hasEncodedTemplates` / `hasEncodedFaceTemplates`.
+
+### Commands Run
+- `.\.venv\Scripts\python.exe --version` - confirmed `Python 3.11.9`.
+- `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`
+- `.\.venv\Scripts\python.exe -m app.seed`
+- `.\.venv\Scripts\python.exe -c "from app.main import app; print(app.title); print(app.version); print([...face routes...])"`
+- `.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000`
+- `Invoke-WebRequest http://127.0.0.1:8000/health`
+- `.\.venv\Scripts\python.exe -m app.verify_phase3`
+- `.\.venv\Scripts\python.exe -m app.verify_phase4`
+- `.\.venv\Scripts\python.exe -m app.verify_phase6a`
+- `.\.venv\Scripts\python.exe -m app.verify_phase6b`
+- `.\.venv\Scripts\python.exe -m app.verify_phase7a`
+
+### Verification Results
+- `/health`: `{"status":"ok","service":"FDAS Backend","database":"connected"}`
+- Phase 3 verifier: passed.
+- Phase 4 verifier: `phase4_passed=True`.
+- Phase 6A verifier: `phase6a_passed=True`.
+- Phase 6B verifier: `phase6b_passed=True`.
+- Phase 7A verifier:
+  - `health=True`
+  - `phase3_still_passed=True`
+  - `phase4_still_passed=True`
+  - `phase6a_still_passed=True`
+  - `phase6b_still_passed=True`
+  - `admin_login=True`
+  - `operator_login=True`
+  - `valid_image_upload=True`
+  - `unsupported_file_rejected=True`
+  - `empty_file_rejected=True`
+  - `face_processing_info=True`
+  - `template_process_endpoint=True`
+  - `student_process_all_endpoint=True`
+  - `no_face_handled_gracefully=True`
+  - `operator_own_template_process=True`
+  - `operator_cross_department_blocked=True`
+  - `phase7a_passed=True`
+  - `detected_face_encoding=False`
+  - `manual_real_face_test_required=True`
+
+### Errors Fixed
+- Phase 6B's old hardcoded tiny PNG fixture was not decodable by OpenCV after Phase 7A image validation was added. Updated the verifier to generate a real PNG with OpenCV/NumPy.
+- Restarted the local Uvicorn process so verification used Phase 7A code instead of the previous Phase 6B process.
+
+### Remaining Issues
+- Actual detected-face encoding was not verified with a real face fixture in automation.
+- A manual real-face enrollment sample test is still required to confirm OpenCV Haar detection on realistic images.
+- Live recognition matching, liveness detection, attendance marking, reports backend, LAN deployment, and Phase 7B remain future work.
+
+## Automated 25-Sample Face Enrollment Requirement Update
+
+### Decision
+Face enrollment no longer uses manual one-by-one capture. Every new face registration now uses exactly 25 automatically captured images. The operator/admin clicks `Start Face Registration` once, the camera starts, a 3-second countdown runs, 25 frames are captured automatically, and the camera stops before the batch is uploaded.
+
+Manual capture was replaced because fixed automatic sampling is more consistent for operators, reduces missed sample counts, and gives the backend a predictable enrollment batch for later recognition phases.
+
+### Files Changed
+- `frontend/src/constants/faceEnrollment.js` - added `FACE_ENROLLMENT_SAMPLE_COUNT=25`, capture interval, and countdown constants.
+- `frontend/src/components/AutoFaceEnrollmentCapture.jsx` - added reusable automatic camera capture, countdown, progress, upload, retry, cancel, and cleanup behavior.
+- `frontend/src/components/CameraEnrollment.jsx` - replaced the old manual 3-sample dummy capture with the automatic capture component.
+- `frontend/src/api/studentsApi.js` - added multipart face enrollment upload helper.
+- `frontend/src/components/Icon.jsx` - added upload icon mapping.
+- `frontend/src/pages/admin/AdminAddStudent.jsx` - enables automatic face enrollment after student profile creation.
+- `frontend/src/pages/user/UserAddStudent.jsx` - enables automatic face enrollment after operator-created student profile creation.
+- `frontend/README.md` - documented the automatic 25-sample workflow.
+- `backend/app/services/face_enrollment.py` - added fixed `FACE_ENROLLMENT_SAMPLE_COUNT=25` and exact batch validation.
+- `backend/app/routers/students.py` - changed `faceRegistered` to require at least 25 active templates.
+- `backend/app/verify_phase6b.py` and `backend/app/verify_phase7a.py` - updated generated upload batches to 25 images.
+- `backend/README.md` - documented fixed 25-sample backend behavior.
+- `docs/development_journey.md` - added this requirement update.
+
+### Workflow Implemented
+- User saves the student profile first so the backend returns a `studentId`.
+- `Start Face Registration` requests camera access and starts preview.
+- A 3-second countdown is shown before capture.
+- Guidance text is shown: keep face in frame, slowly move slightly left/right, keep normal expression.
+- The browser captures exactly 25 JPEG frames at a 400 ms interval.
+- Progress is displayed as `Capturing n/25`.
+- The camera stops automatically after sample 25.
+- The 25 samples are uploaded to `POST /api/students/{studentId}/face-enrollment/upload`.
+- Successful upload shows completion and saved sample count.
+- Failed upload shows an error and allows retry with the captured batch.
+- `Cancel` stops the camera and clears unsaved samples.
+- Component cleanup stops camera tracks on unmount/navigation away.
+
+### Verification Performed
+- `npm.cmd run build` - passed with the existing non-blocking Vite chunk-size warning.
+- `npm.cmd run lint` - passed.
+- `node .\scripts\phase5-smoke.mjs` - passed after starting Vite as a PowerShell background job; the only console error was the expected wrong-login `401 Unauthorized`.
+- Custom Playwright mocked-camera check - passed:
+  - `admin_auto_25_enrollment=True`
+  - `operator_auto_25_enrollment=True`
+  - `cancel_stops_and_clears_capture=True`
+  - The check mocked camera APIs in-browser, captured 25 generated frames, uploaded to the real backend, verified completion text, and verified camera track cleanup.
+- `/health` - returned `{"status":"ok","service":"FDAS Backend","database":"connected"}`.
+- `.\.venv\Scripts\python.exe -m app.verify_phase3` - passed.
+- `.\.venv\Scripts\python.exe -m app.verify_phase4` - passed with `phase4_passed=True`.
+- `.\.venv\Scripts\python.exe -m app.verify_phase6a` - passed with `phase6a_passed=True`.
+- `.\.venv\Scripts\python.exe -m app.verify_phase6b` - could not be rerun in this session because the approval/usage guard blocked the backend Python invocation before execution. The verifier was updated to use 25-image batches.
+
+### Remaining Issues
+- Browser camera behavior could not be physically confirmed in this headless environment.
+- A real operator/admin camera test is still needed to visually confirm camera start, auto-stop after 25, and cancel behavior with actual hardware.
+- No live recognition, attendance marking, liveness detection, reports backend, or LAN deployment was added.
