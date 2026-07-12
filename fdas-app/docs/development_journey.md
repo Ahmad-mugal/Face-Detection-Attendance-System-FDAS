@@ -1369,3 +1369,70 @@ Verify the real attendance marking flow using the current backend: active attend
 - Closed-session marking was rejected correctly.
 - Backend Phase 7C.1 is complete.
 - It is safe to proceed to frontend live attendance integration when approved, while keeping liveness detection and threshold tuning as separate future work.
+
+## Phase 8A - Frontend Live Attendance Integration
+
+### Goal
+Connect the existing Admin and User live attendance pages to the backend attendance session, face attendance marking, duplicate prevention, and session records APIs. Phase 8A does not redesign the UI, implement liveness, add reports backend, add LAN deployment, change the matching threshold, change backend attendance marking logic, or start Phase 8B.
+
+### Pages Changed
+- `frontend/src/pages/admin/AdminLiveAttendance.jsx`
+- `frontend/src/pages/user/UserAttendance.jsx`
+- `frontend/src/components/LiveAttendanceStation.jsx`
+
+### API Clients Created
+- `frontend/src/api/attendanceSessionsApi.js`
+- `frontend/src/api/attendanceMarkingApi.js`
+
+### Session Start And Stop Behavior
+- Admin users can select a department and start/stop a backend attendance session.
+- Department-only operators use their assigned department without a cross-department selector.
+- AllDepartments users can select a department.
+- Active sessions are loaded from `GET /api/attendance-sessions/active`.
+- Session records are loaded from `GET /api/attendance-sessions/{sessionId}/records`.
+- Stop Session stops scanning, stops camera tracks, calls the backend stop endpoint, clears active session state, and keeps the last loaded records visible.
+
+### Camera And Scanning Behavior
+- Camera starts only when an active session exists.
+- Camera tracks are stopped when the user stops the camera, stops the session, changes department, or leaves the page through the existing attendance navigation cleanup pattern.
+- Scanning is controlled by explicit `Start Scanning` and `Stop Scanning` buttons.
+- Scan interval used: `2800 ms`.
+- An in-flight guard prevents overlapping attendance marking requests.
+- Each scan captures one video frame through a canvas and uploads a JPEG blob with `sessionId` to `POST /api/attendance/mark-by-face`.
+
+### Attendance Result Handling
+- `attendanceMarked=true`: shows the student name and successful attendance message, then refreshes records.
+- `DuplicateAttendance`: shows that attendance was already marked and refreshes records without treating it as an error.
+- `MatchBelowThreshold`: shows a safe rejection message with confidence and threshold when returned.
+- `NoFaceDetected`: asks the user to face the camera clearly.
+- `NoActiveSession` or closed session responses: shows no active attendance session.
+- Server/network errors show friendly API error messages.
+
+### Session Records Table
+- Shows student name, roll number, class, attendance status, recognition confidence, liveness status, and marked time.
+- Records refresh after `Present`, `DuplicateAttendance`, session start/load, and manual refresh.
+
+### Verification Results
+- `npm.cmd run build`: passed. Vite reported the existing large chunk warning.
+- `npm.cmd run lint`: passed.
+- `node .\scripts\phase5-smoke.mjs`: passed. The only console error was the expected wrong-login `401 Unauthorized`.
+- Focused headless browser live-page check: `admin_live_page=true`, `operator_attendance_page=true`.
+- `/health`: `{"status":"ok","service":"FDAS Backend","database":"connected"}`
+- Phase 3 verifier: passed.
+- Phase 4 verifier: `phase4_passed=True`.
+- Phase 6A verifier: `phase6a_passed=True`.
+- Phase 6B verifier: `phase6b_passed=True`.
+- Phase 7A verifier: `phase7a_passed=True`.
+- Phase 7B verifier: `phase7b_passed=True`.
+- Phase 7C verifier: `phase7c_passed=True`.
+
+### Manual Browser Verification Status
+- Admin live page integration was built and smoke-regression checked, but a real-camera attendance mark through the new frontend was not replayed in this environment because no real camera/image file was available to the browser automation.
+- Operator live page integration was built and smoke-regression checked, but a real-camera operator attendance mark was not replayed in this environment for the same reason.
+- Backend manual real-camera attendance marking remains verified from Phase 7C.1.
+- MatchBelowThreshold display handling is implemented; the black-suit image path was not replayed from the frontend because that image file was not present in the workspace.
+
+### Remaining Issues
+- A hands-on browser test with real camera permission is still needed for final frontend live attendance acceptance.
+- Liveness remains `NotChecked` and is intentionally not implemented.
+- Reports backend, LAN deployment, and Phase 8B remain future work.
