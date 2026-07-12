@@ -1255,9 +1255,117 @@ Implement backend attendance marking foundation by combining an active `Attendan
   - `closed_session_rejected=True`
   - `phase7c_passed=True`
 
+### Manual Testing And Matching Observations
+- Grey-suit/front-facing image:
+  - Attendance marked successfully.
+  - Duplicate attendance prevention also worked correctly.
+- Black-suit image:
+  - Attendance was not marked.
+  - Response status: `MatchBelowThreshold`.
+  - recognitionConfidence: `0.447575`.
+  - thresholdUsed: `0.75`.
+  - attendanceMarked: `false`.
+- Explanation:
+  - This is correct backend safety behavior because `0.447575` is below the configured threshold `0.75`.
+  - The image differs from enrollment samples due to pose, lighting, background brightness, distance, and face angle.
+  - The current Phase 7B matching system uses a basic OpenCV descriptor, so it is sensitive to lighting and pose changes.
+- Important conclusion:
+  - Do not reduce the threshold blindly.
+  - Lowering threshold may accept uncertain or wrong-person matches.
+  - Future enhancement should evaluate multiple same-person and different-person images before threshold tuning.
+- Future enhancement:
+  - Add face matching robustness evaluation.
+  - Compare same-person and different-person score ranges.
+  - Consider stronger face embeddings/deep-learning model later.
+  - Improve enrollment guidance to capture face variation.
+  - Keep below-threshold matches rejected unless evidence supports threshold change.
+
 ### Still Not Implemented
 - Frontend live attendance integration.
 - Liveness detection.
 - Reports backend.
 - LAN deployment.
 - Phase 7D.
+
+## Phase 7C.1 - Manual Real Camera Attendance Marking Test
+
+### Goal
+Verify the real attendance marking flow using the current backend: active attendance session, real face image, face matching, `AttendanceRecord` creation, duplicate prevention, session records, below-threshold rejection, and closed-session rejection. Phase 7C.1 does not add frontend live attendance integration, liveness detection, reports backend, LAN deployment, threshold changes, or Phase 7D work.
+
+### Student And Enrollment
+- studentId tested: `25`
+- student name: `ahmad`
+- rollNo: `it-2022-57`
+- departmentId: `2`
+- departmentName: `IT`
+- classId: `2`
+- className: `BSIT Semester 3 - A`
+- faceRegistered: `true`
+- Active face templates: `25`
+- Encoded templates: `24`
+- NoFaceDetected templates: `1`
+
+### Attendance Session
+- sessionId: `219`
+- departmentId: `2`
+- initial manual-test session status: `Active`
+- final session status after stop test: `Closed`
+
+### Grey-Suit Attendance Result
+- Image type: real browser/camera face image, front-facing grey-suit image.
+- Attendance marked successfully.
+- studentId: `25`
+- status: `Present`
+- recognitionConfidence: `0.766942`
+- thresholdUsed: `0.75`
+- livenessStatus: `NotChecked`
+- attendanceRecordId: `2`
+
+### Duplicate Attendance Result
+- Duplicate attendance prevention worked correctly.
+- Session records check showed one record for student `25` in session `219`.
+- No second `AttendanceRecord` was created for the duplicate attempt.
+
+### Session Records Result
+- `GET /api/attendance-sessions/219/records` returned one record.
+- Record studentId: `25`
+- Record status: `Present`
+- Record recognitionConfidence: `0.766942`
+- Record livenessStatus: `NotChecked`
+
+### Black-Suit Below-Threshold Result
+- Image type: real face image with black suit, different pose/lighting/background/distance/angle from enrollment samples.
+- attendanceMarked: `false`
+- status: `MatchBelowThreshold`
+- recognitionConfidence: `0.447575`
+- thresholdUsed: `0.75`
+- No attendance record was created for this below-threshold match.
+- This is correct safety behavior and does not justify lowering the threshold by itself.
+
+### Closed-Session Rejection Result
+- `POST /api/attendance-sessions/219/stop` returned `status=Closed`.
+- A later `POST /api/attendance/mark-by-face` against session `219` returned HTTP `409` with `detail=NoActiveSession`.
+- Session record count remained `1`; no new attendance record was created.
+
+### Verification Notes
+- The grey-suit and black-suit image uploads were manual real-camera tests.
+- The image files were not present in the workspace during this documentation/verifier run, so they were not replayed from disk.
+- API state checks confirmed student enrollment metadata, existing attendance record, one-record duplicate outcome, and closed-session rejection.
+- Matching threshold remained unchanged at `0.75`.
+
+### Verifier Results
+- Phase 3 verifier: passed.
+- Phase 4 verifier: `phase4_passed=True`.
+- Phase 6A verifier: `phase6a_passed=True`.
+- Phase 6B verifier: `phase6b_passed=True`.
+- Phase 7A verifier: `phase7a_passed=True`.
+- Phase 7B verifier: `phase7b_passed=True`.
+- Phase 7C verifier: `phase7c_passed=True`.
+
+### Final Conclusion
+- Real camera attendance marking was verified for the grey-suit/front-facing image.
+- Duplicate prevention was verified.
+- The black-suit image was correctly rejected below threshold.
+- Closed-session marking was rejected correctly.
+- Backend Phase 7C.1 is complete.
+- It is safe to proceed to frontend live attendance integration when approved, while keeping liveness detection and threshold tuning as separate future work.
