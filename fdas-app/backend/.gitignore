@@ -2,6 +2,5 @@
 __pycache__/
 *.py[cod]
 fdas_local.db
-fdas_local.db
 storage/
 uvicorn*.log
