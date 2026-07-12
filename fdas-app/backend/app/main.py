@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import APP_NAME, APP_PHASE, APP_VERSION
 from app.routers.admin_users import router as admin_users_router
+from app.routers.attendance_marking import router as attendance_marking_router
 from app.routers.attendance_sessions import router as attendance_sessions_router
 from app.routers.auth import router as auth_router
 from app.routers.attendance_time_windows import router as attendance_time_windows_router
@@ -38,3 +39,4 @@ app.include_router(attendance_time_windows_router)
 app.include_router(attendance_sessions_router)
 app.include_router(face_enrollment_router)
 app.include_router(face_matching_router)
+app.include_router(attendance_marking_router)

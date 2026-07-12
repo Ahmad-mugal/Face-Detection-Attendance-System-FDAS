@@ -1115,3 +1115,149 @@ Implement backend-only face matching APIs that compare a newly uploaded face ima
 - Real detected-face matching was not verified because no real face fixture exists in the automated test environment.
 - A manual real-face enrollment and match test is required to evaluate Haar detection and descriptor matching on actual human face images.
 - Attendance marking, `AttendanceRecord` creation, liveness detection, reports backend, LAN deployment, frontend attendance integration, and Phase 7C remain future work.
+
+## Phase 7B.1 - Manual Real-Face Enrollment and Matching Verification
+
+### Goal
+Verify the complete real-face path from browser camera enrollment through 25 uploaded samples, template processing/encoding, `faceRegistered=True`, and a successful match through the Phase 7B matching API. This phase is verification and tuning only; no attendance marking, `AttendanceRecord`, liveness detection, reports backend, LAN deployment, frontend redesign, or Phase 7C work was added.
+
+### Commands Run
+- `.\.venv\Scripts\python.exe -m app.verify_phase3`
+- `.\.venv\Scripts\python.exe -m app.verify_phase4`
+- `.\.venv\Scripts\python.exe -m app.verify_phase6a`
+- `.\.venv\Scripts\python.exe -m app.verify_phase6b`
+- `.\.venv\Scripts\python.exe -m app.verify_phase7a`
+- `.\.venv\Scripts\python.exe -m app.verify_phase7b`
+- `npm.cmd run dev -- --host 127.0.0.1 --port 5173`
+- `npm.cmd run build`
+- `npm.cmd run lint`
+- `Invoke-WebRequest http://127.0.0.1:8000/health`
+
+### Automated Verification Results
+- `/health`: `{"status":"ok","service":"FDAS Backend","database":"connected"}`
+- Frontend dev server: started successfully on `127.0.0.1:5173` during verification.
+- Phase 3 verifier: passed.
+- Phase 4 verifier: `phase4_passed=True`.
+- Phase 6A verifier: `phase6a_passed=True`.
+- Phase 6B verifier: `phase6b_passed=True`.
+- Phase 7A verifier: `phase7a_passed=True`.
+- Phase 7B verifier: `phase7b_passed=True`.
+- Frontend build: passed.
+- Frontend lint: passed.
+
+### Real Camera Enrollment Result
+- Real camera opened: not verified in this environment.
+- Auto capture 25/25: not verified with a physical camera in this environment.
+- Camera auto-stop: not verified with a physical camera in this environment.
+- Upload 25 success from real camera: not verified in this environment.
+- Active template count for a real camera test student: not available.
+- Encoded template count for a real camera test student: not available.
+- `NoFaceDetected` count for a real camera test student: not available.
+- `faceRegistered` for a real camera test student: not available.
+
+### Manual Real-Face Verification Result
+- Test studentId: 25
+- Face registration method: real browser camera
+- Enrollment samples captured: 25
+- Active face templates saved: 25
+- Encoded templates: 24
+- NoFaceDetected templates: 1
+- faceRegistered: true
+- Student-specific endpoint tested:
+  `POST /api/students/25/face-matching/test`
+  Result: matched=true
+- Department matching endpoint tested:
+  `POST /api/face-matching/match`
+  Result: matched=true
+- similarityScore: 0.766942
+- thresholdUsed: 0.75
+- Conclusion:
+  Real camera enrollment, OpenCV encoding, and backend face matching were successfully verified. The system is now ready to proceed to backend attendance marking foundation.
+
+### Matching Result
+- `/api/face-matching/match` real-face result: verified manually with `matched=true`.
+- `/api/students/{studentId}/face-matching/test` real-face result: verified manually for student `25` with `matched=true`.
+- Correct student matched: verified manually.
+- Similarity score: `0.766942`.
+- Threshold used: `0.75`.
+- Threshold adjustment: not changed. The verified score was above the configured threshold.
+
+### Issues Found
+- Automated verifiers still do not include a real human face fixture, so manual real-face checks remain important for future tuning.
+- A direct Phase 6B and Phase 7A verifier run was initially executed in parallel and produced a transient Phase 6B aggregate failure while individual checks were true. Sequential rerun passed, so no code change was made.
+
+### Readiness For Phase 7C
+- Ready to proceed to backend attendance marking foundation based on the completed manual real-camera enrollment and matching verification.
+- Frontend live attendance integration and liveness detection remain future work.
+
+## Phase 7C - Attendance Marking API Foundation
+
+### Goal
+Implement backend attendance marking foundation by combining an active `AttendanceSession`, the Phase 7B face matching result, duplicate attendance prevention, and `AttendanceRecord` creation. Phase 7C does not change frontend UI, implement liveness detection, add reports backend, deploy LAN support, or start Phase 7D.
+
+### Files Created Or Modified
+- `backend/app/config.py` - updated backend phase/version metadata to Phase 7C.
+- `backend/app/main.py` - registered the attendance marking router.
+- `backend/app/schemas/attendance_marking.py` - created attendance marking and session-record response schemas.
+- `backend/app/services/attendance_marking.py` - created active-session validation, match-to-record conversion, duplicate prevention, and session record listing.
+- `backend/app/routers/attendance_marking.py` - created Phase 7C attendance marking routes.
+- `backend/app/verify_phase7c.py` - created Phase 7C verification script.
+- `backend/README.md` - documented Phase 7C endpoints and limitations.
+- `docs/development_journey.md` - added this Phase 7C record.
+
+### Endpoints Created
+- `POST /api/attendance/mark-by-face`
+- `GET /api/attendance-sessions/{sessionId}/records`
+
+### Attendance Marking Rules
+- A session must exist and have `status=Active`.
+- The current approved user must have access to the session department.
+- Matching is performed only within the session department.
+- A matched student must be active, belong to the session department, and have at least 25 active face templates.
+- A face match must be above the configured matching threshold before an attendance record is created.
+- `AttendanceRecord.status` is saved as `Present`.
+- `recognitionConfidence` is saved from the face matching `similarityScore`.
+
+### Duplicate Prevention Rule
+- Attendance is unique for the same `sessionId` and `studentId`.
+- A duplicate attempt returns the existing attendance record with `status=DuplicateAttendance` and does not create a second row.
+
+### Liveness Placeholder
+- Liveness is not implemented in Phase 7C.
+- Created attendance records use `livenessStatus=NotChecked`.
+
+### Verification Results
+- `/health`: `{"status":"ok","service":"FDAS Backend","database":"connected"}`
+- Phase 3 verifier: passed.
+- Phase 4 verifier: `phase4_passed=True`.
+- Phase 6A verifier: `phase6a_passed=True`.
+- Phase 6B verifier: `phase6b_passed=True`.
+- Phase 7A verifier: `phase7a_passed=True`.
+- Phase 7B verifier: `phase7b_passed=True`.
+- Phase 7C verifier:
+  - `health=True`
+  - `phase3_still_passed=True`
+  - `phase4_still_passed=True`
+  - `phase6a_still_passed=True`
+  - `phase6b_still_passed=True`
+  - `phase7a_still_passed=True`
+  - `phase7b_still_passed=True`
+  - `admin_login=True`
+  - `operator_login=True`
+  - `start_session=True`
+  - `no_active_session_rejected=True`
+  - `access_control=True`
+  - `no_face_no_attendance=True`
+  - `match_below_threshold_no_attendance=True`
+  - `successful_match_creates_record=True`
+  - `duplicate_attendance_prevented=True`
+  - `session_records_endpoint=True`
+  - `closed_session_rejected=True`
+  - `phase7c_passed=True`
+
+### Still Not Implemented
+- Frontend live attendance integration.
+- Liveness detection.
+- Reports backend.
+- LAN deployment.
+- Phase 7D.

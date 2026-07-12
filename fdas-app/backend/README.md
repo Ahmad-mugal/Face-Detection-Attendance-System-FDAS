@@ -454,10 +454,76 @@ Recommended backend regression sequence:
 .\.venv\Scripts\python.exe -m app.verify_phase7b
 ```
 
+## Phase 7C Attendance Marking API Foundation
+
+Phase 7C adds backend attendance marking from a valid face match inside an active attendance session. It creates `AttendanceRecord` rows only after the Phase 7B matcher returns a valid above-threshold match for an eligible student in the session department. This phase does not add frontend live attendance integration, liveness detection, reports backend, LAN deployment, or Phase 7D behavior.
+
+Endpoints:
+
+- `POST /api/attendance/mark-by-face`
+- `GET /api/attendance-sessions/{sessionId}/records`
+
+`POST /api/attendance/mark-by-face` request:
+
+- Multipart form field `sessionId`: active attendance session id.
+- Multipart form field `file`: one `.jpg`, `.jpeg`, or `.png` image.
+
+Attendance marking rules:
+
+- The session must exist and have `status=Active`.
+- The current approved user must have access to the session department.
+- Matching is scoped to the session department only.
+- The matched student must be active and belong to the session department.
+- The matched student must be registered with at least 25 active face templates.
+- The face match must be above the configured threshold.
+- No attendance record is created for `NoFaceDetected`, `MatchBelowThreshold`, `NoEligibleStudents`, `NoEncodedTemplates`, invalid sessions, closed sessions, or department access denial.
+
+Attendance record fields saved by Phase 7C:
+
+- `sessionId`
+- `studentId`
+- `departmentId`
+- `classId`
+- `markedAt`
+- `status=Present`
+- `recognitionConfidence`
+- `livenessStatus=NotChecked`
+
+Duplicate prevention:
+
+- Attendance is unique by `sessionId` and `studentId`.
+- Duplicate attempts return the existing record with `status=DuplicateAttendance` and do not create another row.
+
+`GET /api/attendance-sessions/{sessionId}/records` returns the session attendance records with student name, roll number, class, department, marked time, confidence, attendance status, and liveness placeholder.
+
+Liveness is not implemented yet. Frontend live attendance integration is also not implemented yet.
+
+## Verify Phase 7C
+
+Start Uvicorn first, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.verify_phase7c
+```
+
+Recommended backend regression sequence:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.seed
+.\.venv\Scripts\python.exe -m app.verify_phase3
+.\.venv\Scripts\python.exe -m app.verify_phase4
+.\.venv\Scripts\python.exe -m app.verify_phase6a
+.\.venv\Scripts\python.exe -m app.verify_phase6b
+.\.venv\Scripts\python.exe -m app.verify_phase7a
+.\.venv\Scripts\python.exe -m app.verify_phase7b
+.\.venv\Scripts\python.exe -m app.verify_phase7c
+```
+
 ## Current Limitations
 
 - Face enrollment upload/storage uses a fixed 25-sample automatic registration batch.
 - OpenCV basic descriptor generation and foundation-level matching APIs exist, but final production face recognition accuracy is not claimed.
-- Generated verifier images do not contain a real human face, so a manual real-face upload/match test is still needed to verify detected-face matching on actual enrollment samples.
-- No MediaPipe, liveness detection, attendance marking logic, or report endpoints yet.
+- Manual real-face enrollment and matching were verified separately, but generated verifier images still do not contain a real human face.
+- Backend attendance marking foundation exists, but frontend live attendance integration is not implemented yet.
+- No MediaPipe, liveness detection, or report endpoints yet.
 - LAN-based central local server deployment remains a future enhancement.
