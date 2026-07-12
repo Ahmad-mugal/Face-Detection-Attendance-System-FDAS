@@ -8,6 +8,7 @@ from app.routers.auth import router as auth_router
 from app.routers.attendance_time_windows import router as attendance_time_windows_router
 from app.routers.classes import router as classes_router
 from app.routers.departments import router as departments_router
+from app.routers.face_enrollment import router as face_enrollment_router
 from app.routers.foundation import router as foundation_router
 from app.routers.students import router as students_router
 
@@ -34,3 +35,4 @@ app.include_router(classes_router)
 app.include_router(students_router)
 app.include_router(attendance_time_windows_router)
 app.include_router(attendance_sessions_router)
+app.include_router(face_enrollment_router)

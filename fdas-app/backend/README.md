@@ -40,13 +40,14 @@ PowerShell activation may be blocked by execution policy, so the direct venv exe
 .\.venv\Scripts\python.exe -m pip list
 ```
 
-Required Phase 2 packages:
+Required backend packages:
 
 - `fastapi==0.115.6`
 - `uvicorn[standard]==0.34.0`
 - `SQLAlchemy==2.0.36`
 - `pydantic==2.10.4`
 - `PyJWT==2.10.1`
+- `python-multipart==0.0.20`
 
 ## Initialize And Seed Database
 
@@ -205,14 +206,6 @@ Start Uvicorn first, then run:
 
 The verifier checks department scoping, admin-only academic mutations, class archive behavior, student creation/update/status changes, roll number uniqueness, attendance time window creation, and cross-department blocking for department-only operators.
 
-## Current Limitations
-
-- No face enrollment or face recognition yet.
-- No attendance marking logic yet.
-- No report endpoints yet.
-- No face recognition or liveness implementation yet.
-- LAN-based central local server deployment remains a future enhancement.
-
 ## Phase 6A Attendance Session Endpoints
 
 Attendance sessions are department-based. Admin and AllDepartments users can work with any department; department-only operators can work only with their assigned department.
@@ -258,3 +251,63 @@ Recommended backend regression sequence:
 ```
 
 The Phase 6A verifier checks health, admin/operator login, duplicate active-session blocking, stop/cancel behavior, department-only operator scoping, AllDepartments access, and attendance time window usage.
+
+## Phase 6B Face Enrollment Upload And Storage Endpoints
+
+Face enrollment is stored as local image samples linked to `Student` through `FaceTemplate` records. Phase 6B does not perform real face recognition, OpenCV/MediaPipe processing, liveness detection, embedding generation, attendance marking, or report generation.
+
+Endpoints:
+
+- `POST /api/students/{studentId}/face-enrollment/upload`
+- `GET /api/students/{studentId}/face-enrollment`
+- `GET /api/face-templates/{templateId}`
+- `PATCH /api/face-templates/{templateId}/deactivate`
+- `PATCH /api/students/{studentId}/face-enrollment/clear`
+
+Upload behavior:
+
+- Requires an approved Admin/User token.
+- Admin and AllDepartments users can enroll face samples for any student.
+- Department-only operators can enroll samples only for students in their assigned department.
+- Accepts multipart form field `files` with one or more `.jpg`, `.jpeg`, or `.png` files.
+- Rejects unsupported extensions, empty files, and images over the local 5 MB upload limit.
+- Uses generated safe filenames and stores only relative paths in the database.
+
+Storage structure:
+
+```text
+fdas-app/backend/storage/face_enrollments/{studentId}/sample_YYYYMMDD_HHMMSS_micro_001_xxxxxxxx.png
+```
+
+`backend/storage/` is ignored by Git and uploaded images should not be committed.
+
+Face template behavior:
+
+- Each uploaded image creates a `FaceTemplate` row with `templatePath`, `sampleIndex`, `status=Stored`, `isActive=True`, and `createdByUserId`.
+- `Student.faceRegistered` is returned as true only when the student has at least one active face template.
+- Deactivate and clear operations soft-deactivate templates by setting `isActive=False` and `status=Inactive`; image files are not physically deleted in Phase 6B.
+
+## Verify Phase 6B
+
+Start Uvicorn first, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.verify_phase6b
+```
+
+Recommended backend regression sequence:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m app.seed
+.\.venv\Scripts\python.exe -m app.verify_phase3
+.\.venv\Scripts\python.exe -m app.verify_phase4
+.\.venv\Scripts\python.exe -m app.verify_phase6a
+.\.venv\Scripts\python.exe -m app.verify_phase6b
+```
+
+## Current Limitations
+
+- Face enrollment upload/storage exists, but no real face matching exists yet.
+- No OpenCV, MediaPipe, liveness detection, real embedding generation, attendance marking logic, or report endpoints yet.
+- LAN-based central local server deployment remains a future enhancement.

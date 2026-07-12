@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -13,9 +13,11 @@ class FaceTemplate(Base):
     studentId: Mapped[int] = mapped_column(ForeignKey("students.studentId"), nullable=False, index=True)
     templatePath: Mapped[str | None] = mapped_column(String(255), nullable=True)
     encodingData: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sampleIndex: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="Pending", nullable=False)
+    isActive: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    createdByUserId: Mapped[int | None] = mapped_column(ForeignKey("users.userId"), nullable=True)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     student = relationship("Student", back_populates="faceTemplates")
-

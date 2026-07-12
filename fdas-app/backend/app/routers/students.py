@@ -22,6 +22,7 @@ router = APIRouter(prefix="/api/students", tags=["students"])
 
 
 def to_student_read(student: Student) -> StudentRead:
+    active_template_count = sum(1 for template in student.faceTemplates if getattr(template, "isActive", True))
     return StudentRead(
         studentId=student.studentId,
         rollNo=student.rollNo,
@@ -35,7 +36,7 @@ def to_student_read(student: Student) -> StudentRead:
         yearSemester=student.yearSemester,
         section=student.section,
         status=student.status,
-        faceRegistered=bool(student.faceTemplates),
+        faceRegistered=active_template_count > 0,
         createdAt=student.createdAt,
         updatedAt=student.updatedAt,
     )

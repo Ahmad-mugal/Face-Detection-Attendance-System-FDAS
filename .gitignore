@@ -1,0 +1,5 @@
+fdas-app/backend/.venv/
+fdas-app/backend/fdas_local.db
+fdas-app/backend/storage/
+__pycache__/
+*.pyc
