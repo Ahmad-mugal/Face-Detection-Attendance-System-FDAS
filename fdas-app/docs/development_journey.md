@@ -1011,3 +1011,107 @@ Manual capture was replaced because fixed automatic sampling is more consistent 
 - Browser camera behavior could not be physically confirmed in this headless environment.
 - A real operator/admin camera test is still needed to visually confirm camera start, auto-stop after 25, and cancel behavior with actual hardware.
 - No live recognition, attendance marking, liveness detection, reports backend, or LAN deployment was added.
+
+## Phase 7B - Face Matching API Foundation
+
+### Goal
+Implement backend-only face matching APIs that compare a newly uploaded face image against already enrolled and encoded templates, then return the best matching student candidate. Phase 7B intentionally does not mark attendance, create `AttendanceRecord` rows, start/stop attendance sessions, implement liveness detection, add reports backend, change frontend UI, or start Phase 7C.
+
+### Files Created Or Modified
+- `backend/app/config.py` - added `FACE_MATCH_THRESHOLD=0.75` and updated app phase/version metadata.
+- `backend/app/main.py` - registered the face matching router.
+- `backend/app/schemas/face_matching.py` - created match result and info response schemas.
+- `backend/app/services/face_matching.py` - created descriptor parsing, candidate loading, similarity comparison, best-match selection, and match response helpers.
+- `backend/app/routers/face_matching.py` - created Phase 7B matching routes.
+- `backend/app/verify_phase7b.py` - created Phase 7B verification script.
+- `backend/README.md` - documented Phase 7B endpoints, matching behavior, threshold, and limitations.
+- `docs/development_journey.md` - added this Phase 7B record.
+
+### Dependencies Added
+- None. Phase 7B reuses existing FastAPI, SQLAlchemy, NumPy, and OpenCV dependencies.
+
+### Endpoints Created
+- `POST /api/face-matching/match`
+- `POST /api/students/{studentId}/face-matching/test`
+- `GET /api/face-matching/info`
+
+### Matching Algorithm
+- Validate one uploaded `.jpg`, `.jpeg`, or `.png` image.
+- Decode and process the query image through the Phase 7A `opencv_basic_v1` pipeline.
+- If no face is detected, return `matched=false` with `status=NoFaceDetected`.
+- Parse stored `FaceTemplate.encodingData` JSON descriptors.
+- Compare query and stored descriptors with cosine similarity / normalized dot product.
+- Keep each student's strongest template score, then select the highest-scoring student candidate.
+- Return `Matched` only when the best score is greater than or equal to the configured threshold.
+
+### Threshold
+- `FACE_MATCH_THRESHOLD = 0.75`
+
+### Candidate Filtering Rules
+- Department-scoped matching only.
+- Active students only.
+- Active face templates only.
+- Templates must have `status=Encoded`.
+- Templates must have non-null, parseable `encodingData`.
+- Students must have `faceRegistered=True`, represented by at least 25 active templates.
+
+### Access Rules
+- Approved Admin users can match within any supplied department.
+- Approved AllDepartments users can match within any supplied department.
+- Approved department-only operators can match only within their assigned department.
+- Cross-department matching attempts return `403`.
+
+### Failure And Safety Behavior
+- Unsupported file types return `422`.
+- Empty files return `422`.
+- No-face images return `NoFaceDetected` without crashing.
+- Empty departments or departments with no registered students return `NoEligibleStudents`.
+- Registered students without encoded templates return `NoEncodedTemplates`.
+- Below-threshold candidates return `MatchBelowThreshold`.
+- Bad stored encodings are skipped rather than crashing the request.
+
+### Commands Run
+- `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`
+- `.\.venv\Scripts\python.exe -m app.seed`
+- `.\.venv\Scripts\python.exe -c "from app.main import app; print(app.version); print([...face-matching routes...])"`
+- `.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000`
+- `Invoke-WebRequest http://127.0.0.1:8000/health`
+- `.\.venv\Scripts\python.exe -m app.verify_phase3`
+- `.\.venv\Scripts\python.exe -m app.verify_phase4`
+- `.\.venv\Scripts\python.exe -m app.verify_phase6a`
+- `.\.venv\Scripts\python.exe -m app.verify_phase6b`
+- `.\.venv\Scripts\python.exe -m app.verify_phase7a`
+- `.\.venv\Scripts\python.exe -m app.verify_phase7b`
+
+### Verification Results
+- `/health`: `{"status":"ok","service":"FDAS Backend","database":"connected"}`
+- Phase 3 verifier: passed.
+- Phase 4 verifier: `phase4_passed=True`.
+- Phase 6A verifier: `phase6a_passed=True`.
+- Phase 6B verifier: `phase6b_passed=True`.
+- Phase 7A verifier: `phase7a_passed=True`.
+- Phase 7B verifier:
+  - `health=True`
+  - `phase3_still_passed=True`
+  - `phase4_still_passed=True`
+  - `phase6a_still_passed=True`
+  - `phase6b_still_passed=True`
+  - `phase7a_still_passed=True`
+  - `admin_login=True`
+  - `operator_login=True`
+  - `face_matching_info=True`
+  - `no_face_handled_gracefully=True`
+  - `invalid_file_rejected=True`
+  - `empty_file_rejected=True`
+  - `operator_own_department_match=True`
+  - `operator_cross_department_blocked=True`
+  - `descriptor_comparison_logic=True`
+  - `student_test_match_endpoint=True`
+  - `phase7b_passed=True`
+  - `detected_face_match_verified=False`
+  - `manual_real_face_match_required=True`
+
+### Remaining Issues
+- Real detected-face matching was not verified because no real face fixture exists in the automated test environment.
+- A manual real-face enrollment and match test is required to evaluate Haar detection and descriptor matching on actual human face images.
+- Attendance marking, `AttendanceRecord` creation, liveness detection, reports backend, LAN deployment, frontend attendance integration, and Phase 7C remain future work.

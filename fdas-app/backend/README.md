@@ -384,9 +384,80 @@ Recommended backend regression sequence:
 .\.venv\Scripts\python.exe -m app.verify_phase7a
 ```
 
+## Phase 7B Face Matching API Foundation
+
+Phase 7B adds backend-only face matching APIs. The matcher accepts one uploaded image, processes it through the existing `opencv_basic_v1` descriptor pipeline, compares it with eligible enrolled templates, and returns the best matching student candidate. It does not mark attendance, create `AttendanceRecord` rows, start/stop attendance sessions, run liveness checks, update reports, or change frontend attendance behavior.
+
+Matching provider:
+
+```text
+provider: OpenCV
+encodingVersion: opencv_basic_v1
+threshold: 0.75
+similarity: cosine similarity / normalized dot product
+```
+
+Endpoints:
+
+- `POST /api/face-matching/match`
+- `POST /api/students/{studentId}/face-matching/test`
+- `GET /api/face-matching/info`
+
+Matching request:
+
+- Multipart form field `file`: one `.jpg`, `.jpeg`, or `.png` image.
+- Multipart form field `departmentId`: required for `/api/face-matching/match`.
+
+Candidate filtering:
+
+- Department-scoped only.
+- Active students only.
+- Active face templates only.
+- `FaceTemplate.status=Encoded`.
+- `FaceTemplate.encodingData` must be present and parseable.
+- Student must be registered with at least 25 active templates.
+
+Access rules:
+
+- Admin users can match within any provided department.
+- AllDepartments users can match within any provided department.
+- Department-only operators can match only within their assigned department.
+- Cross-department access is blocked with `403`.
+
+Failure/status handling:
+
+- Unsupported file types and empty files are rejected.
+- No-face images return `matched=false` with `status=NoFaceDetected`.
+- Empty departments/no eligible students return `NoEligibleStudents`.
+- Registered students without encoded templates return `NoEncodedTemplates`.
+- Scores below threshold return `MatchBelowThreshold`.
+- Bad stored template encodings are skipped instead of crashing.
+
+## Verify Phase 7B
+
+Start Uvicorn first, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.verify_phase7b
+```
+
+Recommended backend regression sequence:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m app.seed
+.\.venv\Scripts\python.exe -m app.verify_phase3
+.\.venv\Scripts\python.exe -m app.verify_phase4
+.\.venv\Scripts\python.exe -m app.verify_phase6a
+.\.venv\Scripts\python.exe -m app.verify_phase6b
+.\.venv\Scripts\python.exe -m app.verify_phase7a
+.\.venv\Scripts\python.exe -m app.verify_phase7b
+```
+
 ## Current Limitations
 
-- Face enrollment upload/storage uses a fixed 25-sample automatic registration batch, and OpenCV basic descriptor generation exists, but no real face matching exists yet.
-- Generated verifier images do not contain a real human face, so a manual real-face upload test is still needed to verify detected-face encoding on actual enrollment samples.
+- Face enrollment upload/storage uses a fixed 25-sample automatic registration batch.
+- OpenCV basic descriptor generation and foundation-level matching APIs exist, but final production face recognition accuracy is not claimed.
+- Generated verifier images do not contain a real human face, so a manual real-face upload/match test is still needed to verify detected-face matching on actual enrollment samples.
 - No MediaPipe, liveness detection, attendance marking logic, or report endpoints yet.
 - LAN-based central local server deployment remains a future enhancement.

@@ -6,8 +6,9 @@ DATABASE_FILE = BASE_DIR / "fdas_local.db"
 DATABASE_URL = f"sqlite:///{DATABASE_FILE.as_posix()}"
 
 APP_NAME = "FDAS Backend"
-APP_VERSION = "0.7.0"
-APP_PHASE = "Phase 7A - Face Processing and Embedding Generation Foundation"
+APP_VERSION = "0.7.1"
+APP_PHASE = "Phase 7B - Face Matching API Foundation"
+FACE_MATCH_THRESHOLD = 0.75
 
 # Local FYP demo secret only. Production deployments should load this from environment variables.
 SECRET_KEY = "fdas-local-demo-change-before-production"
