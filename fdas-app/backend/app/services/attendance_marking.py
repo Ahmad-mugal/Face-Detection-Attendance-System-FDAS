@@ -69,7 +69,7 @@ def record_to_mark_result(
     }
 
 
-def no_attendance_result(session: AttendanceSession, match_result: dict) -> dict:
+def no_attendance_result(session: AttendanceSession, match_result: dict, liveness_status: str | None = None) -> dict:
     return {
         "attendanceMarked": False,
         "status": str(match_result.get("status") or "NoAttendanceCreated"),
@@ -86,13 +86,18 @@ def no_attendance_result(session: AttendanceSession, match_result: dict) -> dict
         "markedAt": None,
         "recognitionConfidence": match_result.get("similarityScore"),
         "thresholdUsed": match_result.get("thresholdUsed", FACE_MATCH_THRESHOLD),
-        "livenessStatus": LIVENESS_STATUS_NOT_CHECKED,
+        "livenessStatus": liveness_status or LIVENESS_STATUS_NOT_CHECKED,
     }
 
 
-def create_attendance_from_match_result(db: Session, session: AttendanceSession, match_result: dict) -> dict:
+def create_attendance_from_match_result(
+    db: Session,
+    session: AttendanceSession,
+    match_result: dict,
+    liveness_status: str | None = None,
+) -> dict:
     if match_result.get("matched") is not True:
-        return no_attendance_result(session, match_result)
+        return no_attendance_result(session, match_result, liveness_status=liveness_status)
 
     student_id = match_result.get("studentId")
     if not isinstance(student_id, int):
@@ -103,6 +108,7 @@ def create_attendance_from_match_result(db: Session, session: AttendanceSession,
                 "status": "StudentNotEligible",
                 "message": "Matched result did not include a valid student.",
             },
+            liveness_status=liveness_status,
         )
 
     student = db.query(Student).filter(Student.studentId == student_id).one_or_none()
@@ -119,6 +125,7 @@ def create_attendance_from_match_result(db: Session, session: AttendanceSession,
                 "status": "StudentNotEligible",
                 "message": "Matched student is not eligible for this attendance session.",
             },
+            liveness_status=liveness_status,
         )
 
     existing = get_existing_record(db, session.sessionId, student.studentId)
@@ -139,7 +146,7 @@ def create_attendance_from_match_result(db: Session, session: AttendanceSession,
         markedAt=datetime.utcnow(),
         status=PRESENT_STATUS,
         recognitionConfidence=match_result.get("similarityScore"),
-        livenessStatus=LIVENESS_STATUS_NOT_CHECKED,
+        livenessStatus=liveness_status or LIVENESS_STATUS_NOT_CHECKED,
     )
     db.add(record)
     db.commit()

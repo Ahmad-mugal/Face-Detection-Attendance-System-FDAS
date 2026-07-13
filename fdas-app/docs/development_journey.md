@@ -1551,3 +1551,148 @@ Connect attendance record viewing and basic reports to real backend attendance d
 - Advanced analytics and report charts remain future work.
 - Liveness remains `NotChecked`.
 - Phase 8C remains future work.
+
+## Phase 8C Planning - Spoofing Risk and Lightweight Liveness Decision
+
+### Manual Spoofing Test Observation
+- A photo of the enrolled student displayed on a mobile phone was placed in front of the webcam.
+- The system marked attendance as `Present`.
+- This happened because the current system performs face similarity matching only.
+- `livenessStatus` was `NotChecked`.
+- The system could not verify whether the source was a real live human or a photo/screen.
+
+### Correct Technical Name
+- This is a presentation attack / replay attack / spoofing attack.
+- It is not a normal matching bug.
+
+### Research Background
+- NIST FATE PAD describes presentation attacks including replay attacks where an attacker presents a photo or video of a face to the camera.
+- ISO/IEC 30107 defines the framework and terminology for biometric presentation attack detection.
+- Face presentation attack detection research commonly discusses attacks such as printed photos, replayed videos, 3D masks, and partial masks.
+- Privacy and fairness concerns in educational face recognition systems should also be documented carefully because biometric use in schools can raise privacy/civil-rights concerns.
+
+### User Concerns
+- Adding liveness can make the system more complex.
+- Student may perform the action correctly, but the system may fail to detect it.
+- Poor lighting, low camera quality, blur, side angle, or slow FPS may cause false rejection.
+- For large classes such as 300 students, multi-step liveness can slow the attendance process.
+- Full liveness can create long queues and operator frustration.
+- A strict system may reject real students.
+- A weak system may still be fooled by a video or moved phone image.
+- Therefore, liveness must be lightweight, configurable, and carefully tested.
+
+### Chosen Solution
+- Implement Basic Liveness Mode only.
+- Use one quick random challenge per scan attempt.
+- Keep it simple and fast.
+- Do not use multi-step strict liveness.
+- Do not lower matching threshold to solve spoofing.
+- Attendance should be marked only when liveness passes, face matching passes, an active session exists, and the duplicate rule passes.
+
+### Large-Class Strategy
+- Use Basic Liveness with one short challenge.
+- Keep challenge duration around 2-3 seconds.
+- Avoid repeated unnecessary actions.
+- Provide retry on failure.
+- Keep Strict Liveness as future work.
+- Keep threshold tuning as future work.
+
+### Limitation
+- This is a lightweight FYP anti-spoofing foundation.
+- It reduces simple static photo/screen spoofing.
+- It is not a certified production-grade PAD system.
+- Advanced PAD/deep learning can be future work.
+
+## Phase 8C - Lightweight Liveness / Anti-Spoofing Foundation
+
+### Goal
+Add a lightweight challenge-response liveness gate before frontend live attendance marking. Phase 8C does not redesign UI, implement advanced deep-learning liveness, change the face matching threshold, change reports/export behavior, implement LAN deployment, or start Phase 8D.
+
+### Spoofing Issue Discovered
+- A mobile-phone photo of the enrolled student was accepted before liveness because the system only performed face similarity matching.
+- This was a presentation/replay/spoofing attack, not a normal face-matching bug.
+- The previous attendance records used `livenessStatus=NotChecked`.
+
+### Design Decision
+- Use Basic Liveness Mode only.
+- Use one random movement challenge per scan attempt.
+- Keep challenge duration around 2-3 seconds.
+- Keep the matching threshold unchanged at `0.75`.
+- Mark attendance only when liveness passes, face matching passes, an active session exists, and duplicate prevention allows the mark.
+
+### Challenge Types
+- `MOVE_LEFT`
+- `MOVE_RIGHT`
+- `MOVE_CLOSER`
+
+### Backend Endpoint
+- `POST /api/attendance/mark-by-face-live`
+- `GET /api/liveness/info`
+
+### Frontend Behavior
+- Existing live attendance pages keep the same overall layout.
+- `Start Scanning` now shows one random liveness challenge.
+- The frontend captures 5 frames over about 2-3 seconds.
+- Frames are sent to `POST /api/attendance/mark-by-face-live`.
+- If liveness fails, attendance is not marked and a spoof-warning style message is shown.
+- If liveness passes, backend matching and attendance creation continue through the existing rules.
+
+### Config Values
+- `LIVENESS_MODE = "basic"`
+- `LIVENESS_FRAME_COUNT = 5`
+- `LIVENESS_MIN_CENTER_SHIFT_RATIO = 0.08`
+- `LIVENESS_MIN_AREA_CHANGE_RATIO = 0.12`
+- `LIVENESS_ALLOWED_CHALLENGES = ["MOVE_LEFT", "MOVE_RIGHT", "MOVE_CLOSER"]`
+
+### Files Created Or Modified
+- `backend/app/config.py`
+- `backend/app/main.py`
+- `backend/app/routers/attendance_marking.py`
+- `backend/app/routers/liveness.py`
+- `backend/app/schemas/liveness.py`
+- `backend/app/services/attendance_marking.py`
+- `backend/app/services/liveness.py`
+- `backend/app/verify_phase8c.py`
+- `frontend/src/api/attendanceMarkingApi.js`
+- `frontend/src/components/LiveAttendanceStation.jsx`
+- `backend/README.md`
+- `frontend/README.md`
+- `docs/development_journey.md`
+
+### Verification Results
+- Phase 8C verifier:
+  - `health=True`
+  - `phase3_still_passed=True`
+  - `phase4_still_passed=True`
+  - `phase6a_still_passed=True`
+  - `phase6b_still_passed=True`
+  - `phase7a_still_passed=True`
+  - `phase7b_still_passed=True`
+  - `phase7c_still_passed=True`
+  - `phase8b_still_passed=True`
+  - `admin_login=True`
+  - `operator_login=True`
+  - `mark_by_face_live_endpoint=True`
+  - `missing_frames_rejected=True`
+  - `invalid_challenge_rejected=True`
+  - `no_face_frames_handled_safely=True`
+  - `controlled_movement_liveness_passes=True`
+  - `static_repeated_frame_fails=True`
+  - `liveness_failed_no_attendance=True`
+  - `liveness_passed_successful_match_creates_record=True`
+  - `duplicate_attendance_prevented=True`
+  - `closed_session_rejected=True`
+  - `phase8c_passed=True`
+  - `real_camera_liveness_verified=False`
+  - `manual_real_camera_liveness_test_required=True`
+- `npm.cmd run build`: passed. Vite reported the existing large chunk warning.
+- `npm.cmd run lint`: passed.
+- `node .\scripts\phase5-smoke.mjs`: passed. The only console error was the expected wrong-login `401 Unauthorized`.
+- Focused headless browser live-page check: `admin_liveness_live_page=True`.
+
+### Limitations
+- Synthetic/control verifier data does not prove production-grade anti-spoofing.
+- A real-camera test is still required to tune challenge reliability.
+- Basic movement liveness may still be fooled by a replayed video or carefully moved phone image.
+- Poor lighting, blur, side angle, low camera quality, or low FPS can cause false rejection.
+- Advanced PAD/deep-learning liveness remains future work.

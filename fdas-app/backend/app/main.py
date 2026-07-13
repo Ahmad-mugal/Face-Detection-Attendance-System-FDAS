@@ -13,6 +13,7 @@ from app.routers.departments import router as departments_router
 from app.routers.face_enrollment import router as face_enrollment_router
 from app.routers.face_matching import router as face_matching_router
 from app.routers.foundation import router as foundation_router
+from app.routers.liveness import router as liveness_router
 from app.routers.students import router as students_router
 
 
@@ -42,3 +43,4 @@ app.include_router(face_enrollment_router)
 app.include_router(face_matching_router)
 app.include_router(attendance_marking_router)
 app.include_router(attendance_records_router)
+app.include_router(liveness_router)

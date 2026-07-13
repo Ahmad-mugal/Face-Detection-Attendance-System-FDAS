@@ -494,9 +494,49 @@ Duplicate prevention:
 - Attendance is unique by `sessionId` and `studentId`.
 - Duplicate attempts return the existing record with `status=DuplicateAttendance` and do not create another row.
 
-`GET /api/attendance-sessions/{sessionId}/records` returns the session attendance records with student name, roll number, class, department, marked time, confidence, attendance status, and liveness placeholder.
+`GET /api/attendance-sessions/{sessionId}/records` returns the session attendance records with student name, roll number, class, department, marked time, confidence, attendance status, and liveness status.
 
-Liveness is not implemented yet. Frontend live attendance integration is implemented separately in Phase 8A.
+The original `POST /api/attendance/mark-by-face` endpoint remains available for non-liveness compatibility and stores `livenessStatus=NotChecked`.
+
+## Phase 8C Lightweight Liveness / Anti-Spoofing Foundation
+
+Phase 8C adds a basic movement challenge-response liveness gate for live attendance. It is intended to reduce simple static photo/screen spoofing, but it is not certified production-grade presentation attack detection.
+
+Endpoints:
+
+- `POST /api/attendance/mark-by-face-live`
+- `GET /api/liveness/info`
+
+`POST /api/attendance/mark-by-face-live` request:
+
+- Multipart form field `sessionId`: active attendance session id.
+- Multipart form field `challengeType`: one of `MOVE_LEFT`, `MOVE_RIGHT`, `MOVE_CLOSER`.
+- Multipart form field `files`: 5 image frames captured during the challenge.
+
+Config:
+
+- `LIVENESS_MODE = "basic"`
+- `LIVENESS_FRAME_COUNT = 5`
+- `LIVENESS_MIN_CENTER_SHIFT_RATIO = 0.08`
+- `LIVENESS_MIN_AREA_CHANGE_RATIO = 0.12`
+- `LIVENESS_ALLOWED_CHALLENGES = ["MOVE_LEFT", "MOVE_RIGHT", "MOVE_CLOSER"]`
+
+Behavior:
+
+- The session must be active and accessible.
+- The backend detects a face box in submitted frames using the existing OpenCV face detector.
+- `MOVE_LEFT` and `MOVE_RIGHT` check horizontal face-center shift.
+- `MOVE_CLOSER` checks face-box area increase.
+- If liveness fails, no attendance record is created and `livenessStatus=Failed`.
+- If liveness passes, the backend runs existing face matching and attendance marking.
+- Created attendance records from the live endpoint store `livenessStatus=Passed`.
+- Duplicate attendance still returns the existing record and keeps the existing liveness status.
+
+Limitations:
+
+- Basic movement liveness can reduce static photo/screen spoofing but may still be fooled by replayed video or a moved phone image.
+- Poor lighting, blur, low FPS, camera quality, and pose can cause false rejection.
+- Advanced PAD/deep-learning liveness remains future work.
 
 ## Phase 8B Attendance Records And Reports
 
@@ -562,6 +602,14 @@ Start Uvicorn first, then run:
 .\.venv\Scripts\python.exe -m app.verify_phase8b
 ```
 
+## Verify Phase 8C
+
+Start Uvicorn first, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.verify_phase8c
+```
+
 Recommended backend regression sequence:
 
 ```powershell
@@ -574,6 +622,7 @@ Recommended backend regression sequence:
 .\.venv\Scripts\python.exe -m app.verify_phase7b
 .\.venv\Scripts\python.exe -m app.verify_phase7c
 .\.venv\Scripts\python.exe -m app.verify_phase8b
+.\.venv\Scripts\python.exe -m app.verify_phase8c
 ```
 
 ## Current Limitations
@@ -581,6 +630,6 @@ Recommended backend regression sequence:
 - Face enrollment upload/storage uses a fixed 25-sample automatic registration batch.
 - OpenCV basic descriptor generation and foundation-level matching APIs exist, but final production face recognition accuracy is not claimed.
 - Manual real-face enrollment and matching were verified separately, but generated verifier images still do not contain a real human face.
-- Backend attendance marking, frontend live attendance integration, and basic attendance reports are implemented.
-- No MediaPipe, liveness detection, advanced analytics, PDF export, or Excel export yet.
+- Backend attendance marking, frontend live attendance integration, basic attendance reports, and lightweight liveness foundation are implemented.
+- No MediaPipe, production-grade PAD, advanced analytics, PDF export, or Excel export yet.
 - LAN-based central local server deployment remains a future enhancement.

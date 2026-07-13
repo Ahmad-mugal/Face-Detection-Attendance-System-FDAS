@@ -9,6 +9,13 @@ import Icon from './Icon'
 import StatsCard from './StatsCard'
 
 const SCAN_INTERVAL_MS = 2800
+const LIVENESS_FRAME_COUNT = 5
+const LIVENESS_FRAME_DELAY_MS = 500
+const LIVENESS_CHALLENGES = [
+  { type: 'MOVE_LEFT', label: 'Move face slightly left' },
+  { type: 'MOVE_RIGHT', label: 'Move face slightly right' },
+  { type: 'MOVE_CLOSER', label: 'Move closer to camera' },
+]
 
 function formatDateTime(value) {
   if (!value) return '-'
@@ -60,6 +67,18 @@ function buildResultMessage(result) {
       text: 'No face detected. Please face the camera clearly.',
     }
   }
+  if (result.status === 'LivenessFailed') {
+    return {
+      tone: 'warning',
+      text: 'Liveness failed. Please try again with your real face in front of the camera. Possible photo/screen spoof detected.',
+    }
+  }
+  if (result.status === 'LivenessPassed') {
+    return {
+      tone: 'success',
+      text: 'Liveness passed, matching face...',
+    }
+  }
   if (result.status === 'NoActiveSession') {
     return {
       tone: 'error',
@@ -95,6 +114,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [message, setMessage] = useState({ tone: 'info', text: 'Select or start an attendance session.' })
   const [lastResult, setLastResult] = useState(null)
+  const [currentChallenge, setCurrentChallenge] = useState(null)
 
   const selectedDepartment = useMemo(() => {
     const selectedId = Number(departmentId)
@@ -270,19 +290,40 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85)
   })
 
+  const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
+
+  const captureLivenessFrames = async () => {
+    const frames = []
+    for (let index = 0; index < LIVENESS_FRAME_COUNT; index += 1) {
+      if (!scanningRef.current) break
+      const blob = await captureFrameBlob()
+      if (blob) frames.push(blob)
+      if (index < LIVENESS_FRAME_COUNT - 1) await wait(LIVENESS_FRAME_DELAY_MS)
+    }
+    return frames
+  }
+
+  const chooseChallenge = () => LIVENESS_CHALLENGES[Math.floor(Math.random() * LIVENESS_CHALLENGES.length)]
+
   const runScan = useCallback(async () => {
     if (!scanningRef.current || !activeSession || !cameraOn || scanInFlightRef.current) return
 
     scanInFlightRef.current = true
     try {
-      const blob = await captureFrameBlob()
-      if (!blob) {
-        setMessage({ tone: 'warning', text: 'Camera frame is not ready yet.' })
+      const challenge = chooseChallenge()
+      setCurrentChallenge(challenge)
+      setMessage({ tone: 'info', text: `Liveness challenge: ${challenge.label}` })
+
+      const frames = await captureLivenessFrames()
+      if (frames.length < LIVENESS_FRAME_COUNT) {
+        setMessage({ tone: 'warning', text: 'Camera frames are not ready yet. Please keep your face in view and retry.' })
         return
       }
-      const result = await attendanceMarkingApi.markByFace({
+      setMessage({ tone: 'info', text: 'Checking liveness...' })
+      const result = await attendanceMarkingApi.markByFaceLive({
         sessionId: activeSession.sessionId,
-        file: blob,
+        challengeType: challenge.type,
+        files: frames,
       })
       setLastResult(result)
       setMessage(buildResultMessage(result))
@@ -316,7 +357,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     }
     scanningRef.current = true
     setScanning(true)
-    setMessage({ tone: 'info', text: 'Scanning started. One frame is checked every 2.8 seconds.' })
+    setMessage({ tone: 'info', text: 'Scanning started. Complete one quick liveness challenge per scan.' })
     runScan()
   }
 
@@ -384,7 +425,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
           <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b" style={{ borderColor: '#f0dfd8' }}>
             <div>
               <h2 className="font-black" style={{ color: '#4A2B0F' }}>Live Camera Preview</h2>
-              <p className="text-xs" style={{ color: '#887369' }}>Scanning uses the active backend attendance session. Liveness is NotChecked.</p>
+              <p className="text-xs" style={{ color: '#887369' }}>Scanning uses one basic movement liveness challenge before matching.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={cameraOn ? stopCamera : startCamera} disabled={!activeSession} className="px-3 py-2 rounded-lg text-xs font-bold border disabled:opacity-60" style={{ borderColor: '#C4533A', color: '#C4533A' }}>
@@ -419,7 +460,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
                   Camera Active
                 </div>
                 <div className="absolute bottom-5 left-5 right-5 rounded-xl p-3 text-center font-bold text-sm" style={{ backgroundColor: scanning ? 'rgba(6,95,70,0.9)' : 'rgba(196,83,58,0.9)', color: '#fff' }}>
-                  {scanning ? 'Scanning every 2.8 seconds' : 'Camera ready. Start scanning to mark attendance.'}
+                  {scanning ? `Liveness challenge: ${currentChallenge?.label || 'Get ready'}` : 'Camera ready. Start scanning to mark attendance.'}
                 </div>
               </>
             )}

@@ -38,10 +38,12 @@ Live attendance usage:
 - Admin: open `/admin/attendance/live`, select a department, then start or load the active session.
 - Operator: open `/user/attendance`; department-only operators use their assigned department, while AllDepartments users can select a department.
 - Start the camera, allow browser camera permission, then click `Start Scanning`.
-- The page captures one frame about every 2.8 seconds and posts it to `POST /api/attendance/mark-by-face`.
+- The page shows one random basic liveness challenge per scan attempt: move face slightly left, move face slightly right, or move closer to camera.
+- The page captures 5 frames over about 2-3 seconds and posts them to `POST /api/attendance/mark-by-face-live`.
+- Attendance is marked only when liveness passes, face matching passes, the session is active, and duplicate rules pass.
 - Session records are loaded from `GET /api/attendance-sessions/{sessionId}/records`.
 - Stop scanning/camera/session when finished. Camera tracks are stopped when the page cleanup runs.
-- Liveness is not implemented yet; backend records currently use `livenessStatus=NotChecked`.
+- Liveness is basic challenge-response only. It reduces simple photo/screen spoofing but is not production-grade PAD.
 
 Reports usage:
 
@@ -51,7 +53,7 @@ Reports usage:
 - Use filters for department, class, date range, student, and status.
 - Summary cards show total records, present count, unique students, and average confidence.
 - CSV export downloads the filtered attendance records.
-- Liveness remains `NotChecked` until a future liveness phase.
+- Liveness may show `Passed`, `Failed`, or `NotChecked` depending on which attendance endpoint created the record.
 - PDF export and advanced analytics are future work.
 
 Face enrollment behavior:
@@ -60,7 +62,7 @@ Face enrollment behavior:
 - Click `Start Face Registration` once.
 - The camera shows a 3-second countdown, captures exactly 25 samples automatically at a 400 ms interval, stops itself, and uploads the batch to `POST /api/students/{studentId}/face-enrollment/upload`.
 - `Cancel` stops the camera and clears unsaved samples.
-- No liveness detection is implemented in this frontend flow.
+- Enrollment capture does not run liveness; liveness is used only during live attendance scanning.
 
 Verification:
 
