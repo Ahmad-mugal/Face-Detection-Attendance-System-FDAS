@@ -1432,7 +1432,122 @@ Connect the existing Admin and User live attendance pages to the backend attenda
 - Backend manual real-camera attendance marking remains verified from Phase 7C.1.
 - MatchBelowThreshold display handling is implemented; the black-suit image path was not replayed from the frontend because that image file was not present in the workspace.
 
+### Manual Frontend Live Attendance Testing Observations
+- Live attendance confidence/threshold observation:
+  - During frontend live attendance testing, the system showed:
+    `"Face detected but match confidence is below threshold. Confidence 0.729336 / Threshold 0.750000"`
+- Explanation:
+  - The system successfully detected a face.
+  - The backend compared the captured face descriptor with stored enrolled face templates.
+  - The best similarity/confidence score was `0.729336`.
+  - The configured acceptance threshold is `0.75`.
+  - Because `0.729336` is slightly below `0.75`, attendance was not marked.
+- Meaning of confidence:
+  - Confidence is the similarity score between the scanned face and the stored student face templates.
+  - Higher score means the scanned face is more similar to the enrolled student.
+- Meaning of threshold:
+  - Threshold is the minimum required confidence score for the system to accept the match.
+  - In this project, the current threshold is `0.75`.
+- Conclusion:
+  - This is correct safe behavior, not a bug.
+  - The system refused to mark attendance because the match was uncertain.
+  - This helps prevent false attendance marking.
+- Practical solution:
+  - User should face the camera clearly.
+  - Use better lighting.
+  - Keep face front-facing and closer to the camera.
+  - Avoid strong side angles or bright backlight.
+  - Retry scanning.
+- Important:
+  - Do not lower the threshold blindly.
+  - Threshold tuning should be done later using multiple same-person and different-person test images.
+
 ### Remaining Issues
 - A hands-on browser test with real camera permission is still needed for final frontend live attendance acceptance.
 - Liveness remains `NotChecked` and is intentionally not implemented.
-- Reports backend, LAN deployment, and Phase 8B remain future work.
+- LAN deployment and Phase 8B remained future work at the end of Phase 8A.
+
+## Phase 8B - Attendance Records and Reports Integration Foundation
+
+### Goal
+Connect attendance record viewing and basic reports to real backend attendance data so admins and operators can view attendance history clearly. Phase 8B does not redesign UI, implement liveness, change the matching threshold, implement LAN, or start Phase 8C.
+
+### Files Created Or Modified
+- `backend/app/config.py` - updated app phase/version metadata.
+- `backend/app/main.py` - registered attendance records router.
+- `backend/app/schemas/attendance_records.py` - created attendance record and summary response schemas.
+- `backend/app/services/attendance_records.py` - created filtered/scoped record queries, summary calculation, and CSV generation.
+- `backend/app/routers/attendance_records.py` - created record list, summary, and CSV endpoints.
+- `backend/app/verify_phase8b.py` - created Phase 8B backend verifier.
+- `frontend/src/api/attendanceRecordsApi.js` - created frontend records API client.
+- `frontend/src/components/AttendanceReportsPanel.jsx` - created shared backend-connected reports panel.
+- `frontend/src/pages/admin/AdminAnalytics.jsx` - connected admin analytics page to real attendance records.
+- `frontend/src/pages/user/UserReports.jsx` - connected operator reports page to real attendance records.
+- `backend/README.md` - documented Phase 8B APIs.
+- `frontend/README.md` - documented report page usage.
+- `docs/development_journey.md` - added this Phase 8B record.
+
+### Endpoints Added
+- `GET /api/attendance-records`
+- `GET /api/attendance-records/summary`
+- `GET /api/attendance-records/export.csv`
+
+### Filters Implemented
+- `departmentId`
+- `classId`
+- `studentId`
+- `dateFrom`
+- `dateTo`
+- `status`
+- Frontend also supports simple local student name/roll number search after records load.
+
+### Summary Cards
+- Total records.
+- Present count.
+- Unique students.
+- Average recognition confidence.
+
+### CSV Export
+- Implemented as CSV only through `GET /api/attendance-records/export.csv`.
+- Uses the same filters and department access rules as the list endpoint.
+
+### Frontend Pages Connected
+- `/admin/analytics`
+- `/user/reports`
+
+### Access Rules
+- Admin can view all departments or filter by department.
+- AllDepartments operator can view all accessible records or filter by department.
+- Department-only operator is scoped to assigned department and blocked from other department records.
+
+### Verification Results
+- `npm.cmd run build`: passed. Vite reported the existing large chunk warning.
+- `npm.cmd run lint`: passed.
+- `node .\scripts\phase5-smoke.mjs`: passed. The only console error was the expected wrong-login `401 Unauthorized`.
+- Focused headless browser report-page check: `admin_reports_page=true`, `operator_reports_page=true`.
+- `/health`: `{"status":"ok","service":"FDAS Backend","database":"connected"}`
+- Phase 3 verifier: passed.
+- Phase 4 verifier: `phase4_passed=True`.
+- Phase 6A verifier: `phase6a_passed=True`.
+- Phase 6B verifier: `phase6b_passed=True`.
+- Phase 7A verifier: `phase7a_passed=True`.
+- Phase 7B verifier: `phase7b_passed=True`.
+- Phase 7C verifier: `phase7c_passed=True`.
+- Phase 8B verifier:
+  - `health=True`
+  - `admin_login=True`
+  - `operator_login=True`
+  - `admin_list_attendance_records=True`
+  - `department_filter=True`
+  - `combined_filters=True`
+  - `summary_endpoint=True`
+  - `csv_export=True`
+  - `operator_department_scope=True`
+  - `operator_cross_department_blocked=True`
+  - `phase8b_passed=True`
+
+### Remaining Issues
+- PDF/Excel export is not implemented.
+- Advanced analytics and report charts remain future work.
+- Liveness remains `NotChecked`.
+- Phase 8C remains future work.

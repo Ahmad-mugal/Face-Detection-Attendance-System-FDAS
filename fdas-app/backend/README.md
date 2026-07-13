@@ -496,7 +496,55 @@ Duplicate prevention:
 
 `GET /api/attendance-sessions/{sessionId}/records` returns the session attendance records with student name, roll number, class, department, marked time, confidence, attendance status, and liveness placeholder.
 
-Liveness is not implemented yet. Frontend live attendance integration is also not implemented yet.
+Liveness is not implemented yet. Frontend live attendance integration is implemented separately in Phase 8A.
+
+## Phase 8B Attendance Records And Reports
+
+Phase 8B adds department-scoped attendance record viewing and basic report data APIs. These endpoints are intended for admin/operator report pages and do not implement liveness, advanced analytics, PDF export, LAN deployment, or threshold changes.
+
+Endpoints:
+
+- `GET /api/attendance-records`
+- `GET /api/attendance-records/summary`
+- `GET /api/attendance-records/export.csv`
+
+Supported filters:
+
+- `departmentId`
+- `classId`
+- `studentId`
+- `dateFrom`
+- `dateTo`
+- `status`
+
+Returned record fields:
+
+- `attendanceRecordId`
+- `sessionId`
+- `studentId`
+- `studentName`
+- `rollNo`
+- `departmentName`
+- `className`
+- `markedAt`
+- `status`
+- `recognitionConfidence`
+- `livenessStatus`
+
+Summary fields:
+
+- `totalRecords`
+- `presentCount`
+- `uniqueStudentsMarked`
+- `averageRecognitionConfidence`
+
+Access rules:
+
+- Admin users can view records across departments and filter by department.
+- AllDepartments users can view all accessible records and filter by department.
+- Department-only operators are scoped to their assigned department and are blocked from other departments.
+
+CSV export is intentionally basic and uses the same filters/access rules as the list endpoint.
 
 ## Verify Phase 7C
 
@@ -504,6 +552,14 @@ Start Uvicorn first, then run:
 
 ```powershell
 .\.venv\Scripts\python.exe -m app.verify_phase7c
+```
+
+## Verify Phase 8B
+
+Start Uvicorn first, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.verify_phase8b
 ```
 
 Recommended backend regression sequence:
@@ -517,6 +573,7 @@ Recommended backend regression sequence:
 .\.venv\Scripts\python.exe -m app.verify_phase7a
 .\.venv\Scripts\python.exe -m app.verify_phase7b
 .\.venv\Scripts\python.exe -m app.verify_phase7c
+.\.venv\Scripts\python.exe -m app.verify_phase8b
 ```
 
 ## Current Limitations
@@ -524,6 +581,6 @@ Recommended backend regression sequence:
 - Face enrollment upload/storage uses a fixed 25-sample automatic registration batch.
 - OpenCV basic descriptor generation and foundation-level matching APIs exist, but final production face recognition accuracy is not claimed.
 - Manual real-face enrollment and matching were verified separately, but generated verifier images still do not contain a real human face.
-- Backend attendance marking foundation exists, but frontend live attendance integration is not implemented yet.
-- No MediaPipe, liveness detection, or report endpoints yet.
+- Backend attendance marking, frontend live attendance integration, and basic attendance reports are implemented.
+- No MediaPipe, liveness detection, advanced analytics, PDF export, or Excel export yet.
 - LAN-based central local server deployment remains a future enhancement.

@@ -29,6 +29,7 @@ Connected in Phase 5:
 - Dashboard summary counts where backend APIs exist
 - Add Student face enrollment upload through the backend enrollment endpoint
 - Live attendance session controls and face attendance marking through the backend attendance APIs
+- Admin and operator attendance records/reports through backend report APIs
 
 Live attendance usage:
 
@@ -42,9 +43,16 @@ Live attendance usage:
 - Stop scanning/camera/session when finished. Camera tracks are stopped when the page cleanup runs.
 - Liveness is not implemented yet; backend records currently use `livenessStatus=NotChecked`.
 
-Still intentionally dummy/static:
+Reports usage:
 
-- Reports and analytics data
+- Start the backend first.
+- Admin: open `/admin/analytics` to view attendance records across departments.
+- Operator: open `/user/reports`; department-only users are scoped to their assigned department.
+- Use filters for department, class, date range, student, and status.
+- Summary cards show total records, present count, unique students, and average confidence.
+- CSV export downloads the filtered attendance records.
+- Liveness remains `NotChecked` until a future liveness phase.
+- PDF export and advanced analytics are future work.
 
 Face enrollment behavior:
 

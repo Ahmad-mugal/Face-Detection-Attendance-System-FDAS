@@ -1,0 +1,248 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { attendanceRecordsApi } from '../api/attendanceRecordsApi'
+import { classesApi } from '../api/classesApi'
+import { getApiError } from '../api/client'
+import { departmentsApi } from '../api/departmentsApi'
+import { useAuth } from '../context/useAuth'
+import StatsCard from './StatsCard'
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
+}
+
+function formatConfidence(value) {
+  if (typeof value !== 'number') return '-'
+  return value.toFixed(6)
+}
+
+function compactFilters(filters) {
+  const studentSearch = filters.studentSearch.trim()
+  return {
+    departmentId: filters.departmentId || undefined,
+    classId: filters.classId || undefined,
+    studentId: /^\d+$/.test(studentSearch) ? Number(studentSearch) : undefined,
+    dateFrom: filters.dateFrom || undefined,
+    dateTo: filters.dateTo || undefined,
+    status: filters.status || undefined,
+  }
+}
+
+export default function AttendanceReportsPanel({ title = 'Attendance Analytics', eyebrow = 'Reports', mode = 'admin' }) {
+  const { assignedDepartmentId, assignedDepartmentName, hasAllDepartmentsAccess } = useAuth()
+  const canChooseDepartment = mode === 'admin' || hasAllDepartmentsAccess()
+  const departmentLabel = mode === 'user' && !canChooseDepartment ? 'Assigned Department' : 'Department'
+  const [departments, setDepartments] = useState([])
+  const [classes, setClasses] = useState([])
+  const [records, setRecords] = useState([])
+  const [summary, setSummary] = useState({
+    totalRecords: 0,
+    presentCount: 0,
+    uniqueStudentsMarked: 0,
+    averageRecognitionConfidence: null,
+  })
+  const [filters, setFilters] = useState({
+    departmentId: canChooseDepartment ? '' : assignedDepartmentId || '',
+    classId: '',
+    studentSearch: '',
+    dateFrom: '',
+    dateTo: '',
+    status: '',
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    departmentsApi.list()
+      .then(items => {
+        setDepartments(items)
+        if (!canChooseDepartment && assignedDepartmentId) {
+          setFilters(current => ({ ...current, departmentId: assignedDepartmentId }))
+        }
+      })
+      .catch(err => setError(getApiError(err, 'Unable to load departments.')))
+  }, [assignedDepartmentId, canChooseDepartment])
+
+  useEffect(() => {
+    const params = filters.departmentId ? { departmentId: filters.departmentId } : undefined
+    classesApi.list(params)
+      .then(items => setClasses(items.filter(item => item.status !== 'Archived')))
+      .catch(err => setError(getApiError(err, 'Unable to load classes.')))
+  }, [filters.departmentId])
+
+  const loadReports = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    setMessage('')
+    const apiFilters = compactFilters(filters)
+    try {
+      const [recordsData, summaryData] = await Promise.all([
+        attendanceRecordsApi.list(apiFilters),
+        attendanceRecordsApi.summary(apiFilters),
+      ])
+      setRecords(recordsData)
+      setSummary(summaryData)
+      if (recordsData.length === 0) setMessage('No attendance records found for the selected filters.')
+    } catch (err) {
+      setError(getApiError(err, 'Unable to load attendance records.'))
+      setRecords([])
+    } finally {
+      setLoading(false)
+    }
+  }, [filters])
+
+  useEffect(() => {
+    loadReports()
+  }, [loadReports])
+
+  const displayedRecords = useMemo(() => {
+    const search = filters.studentSearch.trim().toLowerCase()
+    if (!search || /^\d+$/.test(search)) return records
+    return records.filter(record =>
+      record.studentName?.toLowerCase().includes(search)
+      || record.rollNo?.toLowerCase().includes(search)
+    )
+  }, [filters.studentSearch, records])
+
+  const updateFilter = (key, value) => {
+    setFilters(current => ({
+      ...current,
+      [key]: value,
+      ...(key === 'departmentId' ? { classId: '' } : {}),
+    }))
+  }
+
+  const exportCsv = async () => {
+    setError('')
+    try {
+      const blob = await attendanceRecordsApi.exportCsv(compactFilters(filters))
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'fdas_attendance_records.csv'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(getApiError(err, 'Unable to export attendance records.'))
+    }
+  }
+
+  return (
+    <section className="fdas-page space-y-5 animate-fade-in-up">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>{eyebrow}</p>
+          <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>{title}</h1>
+        </div>
+        <button onClick={exportCsv} disabled={records.length === 0} className="px-4 py-2.5 rounded-lg font-bold text-sm text-white disabled:opacity-50" style={{ backgroundColor: '#D4A017' }}>
+          Export CSV
+        </button>
+      </div>
+
+      <div className="rounded-xl p-4 fdas-card">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
+          <label>
+            <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>{departmentLabel}</span>
+            {canChooseDepartment ? (
+              <select value={filters.departmentId} onChange={event => updateFilter('departmentId', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }}>
+                <option value="">All Departments</option>
+                {departments.map(department => (
+                  <option key={department.departmentId} value={department.departmentId}>{department.departmentName}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="mt-1 rounded-lg border px-3 py-2.5 font-bold" style={{ borderColor: '#dbc1b7', color: '#4A2B0F', backgroundColor: '#fff' }}>
+                {assignedDepartmentName || 'Assigned Department'}
+              </div>
+            )}
+          </label>
+          <label>
+            <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Class</span>
+            <select value={filters.classId} onChange={event => updateFilter('classId', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }}>
+              <option value="">All Classes</option>
+              {classes.map(item => (
+                <option key={item.classId} value={item.classId}>{item.className}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Date From</span>
+            <input type="date" value={filters.dateFrom} onChange={event => updateFilter('dateFrom', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }} />
+          </label>
+          <label>
+            <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Date To</span>
+            <input type="date" value={filters.dateTo} onChange={event => updateFilter('dateTo', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }} />
+          </label>
+          <label>
+            <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Student</span>
+            <input value={filters.studentSearch} onChange={event => updateFilter('studentSearch', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }} placeholder="Name, roll no, or ID" />
+          </label>
+          <label>
+            <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Status</span>
+            <select value={filters.status} onChange={event => updateFilter('status', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }}>
+              <option value="">All Status</option>
+              <option value="Present">Present</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      {error && <div className="rounded-xl px-4 py-3 text-sm font-bold" style={{ backgroundColor: '#ffdad6', color: '#93000a' }}>{error}</div>}
+      {message && !error && <div className="rounded-xl px-4 py-3 text-sm font-bold" style={{ backgroundColor: '#FFF0E6', color: '#795900' }}>{message}</div>}
+
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <StatsCard title="Total Records" value={summary.totalRecords} icon="fact_check" iconColor="#D4A017" />
+        <StatsCard title="Present" value={summary.presentCount} icon="how_to_reg" iconColor="#065f46" />
+        <StatsCard title="Unique Students" value={summary.uniqueStudentsMarked} icon="groups" iconColor="#E8924A" />
+        <StatsCard title="Avg Confidence" value={summary.averageRecognitionConfidence === null ? '-' : summary.averageRecognitionConfidence.toFixed(3)} icon="verified" iconColor="#C4533A" />
+      </div>
+
+      <div className="rounded-xl fdas-card overflow-hidden">
+        <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: '#f0dfd8' }}>
+          <h2 className="font-black" style={{ color: '#4A2B0F' }}>Attendance Records</h2>
+          <button onClick={loadReports} disabled={loading} className="px-3 py-2 rounded-lg text-xs font-bold border disabled:opacity-60" style={{ borderColor: '#C4533A', color: '#C4533A' }}>
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+        <div className="fdas-table-wrap">
+          <table className="fdas-table">
+            <thead className="text-xs uppercase" style={{ color: '#C4533A', backgroundColor: '#fff1eb' }}>
+              <tr>
+                <th className="p-4">Student</th>
+                <th className="p-4">Department</th>
+                <th className="p-4">Class</th>
+                <th className="p-4">Marked At</th>
+                <th className="p-4">Status</th>
+                <th className="p-4">Confidence</th>
+                <th className="p-4">Liveness</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="7" className="p-8 text-center" style={{ color: '#887369' }}>Loading attendance records...</td></tr>
+              ) : displayedRecords.length === 0 ? (
+                <tr><td colSpan="7" className="p-8 text-center" style={{ color: '#887369' }}>No attendance records found.</td></tr>
+              ) : displayedRecords.map(record => (
+                <tr key={record.attendanceRecordId} className="border-t" style={{ borderColor: '#f0dfd8' }}>
+                  <td className="p-4">
+                    <div className="font-bold" style={{ color: '#4A2B0F' }}>{record.studentName}</div>
+                    <div className="font-mono text-xs" style={{ color: '#887369' }}>{record.rollNo}</div>
+                  </td>
+                  <td className="p-4">{record.departmentName}</td>
+                  <td className="p-4">{record.className}</td>
+                  <td className="p-4">{formatDateTime(record.markedAt)}</td>
+                  <td className="p-4 font-bold" style={{ color: record.status === 'Present' ? '#065f46' : '#92400e' }}>{record.status}</td>
+                  <td className="p-4 font-mono">{formatConfidence(record.recognitionConfidence)}</td>
+                  <td className="p-4">{record.livenessStatus || 'NotChecked'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  )
+}
