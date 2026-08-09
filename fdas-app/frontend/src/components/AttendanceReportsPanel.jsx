@@ -190,6 +190,15 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
         </div>
       </div>
 
+      <div className="rounded-xl p-3.5 text-xs border" style={{ backgroundColor: '#fff1eb', borderColor: '#f0dfd8', color: '#55433b' }}>
+        <p className="font-bold" style={{ color: '#4A2B0F' }}>Reports & Export Information:</p>
+        <p className="mt-0.5" style={{ color: '#887369' }}>
+          • <strong style={{ color: '#4A2B0F' }}>Liveness Status:</strong> Displayed directly from each stored attendance record (<code className="font-mono text-[11px]">Passed</code>, <code className="font-mono text-[11px]">Failed</code>, or <code className="font-mono text-[11px]">NotChecked</code>).
+          <br />
+          • <strong style={{ color: '#4A2B0F' }}>Export Availability:</strong> CSV Export is available for filtered records. PDF and Excel exports are planned as future enhancements.
+        </p>
+      </div>
+
       {error && <div className="rounded-xl px-4 py-3 text-sm font-bold" style={{ backgroundColor: '#ffdad6', color: '#93000a' }}>{error}</div>}
       {message && !error && <div className="rounded-xl px-4 py-3 text-sm font-bold" style={{ backgroundColor: '#FFF0E6', color: '#795900' }}>{message}</div>}
 

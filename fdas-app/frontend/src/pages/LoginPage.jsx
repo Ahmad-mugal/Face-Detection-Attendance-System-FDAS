@@ -86,7 +86,7 @@ export default function LoginPage() {
             }}
           >
             <header className="text-center">
-              <h2 className="text-3xl font-bold" style={{ color: '#934619' }}>Admin Access</h2>
+              <h2 className="text-3xl font-bold" style={{ color: '#934619' }}>System Access</h2>
               <p className="text-sm mt-1" style={{ color: '#55433b' }}>Sign in to manage attendance</p>
             </header>
 

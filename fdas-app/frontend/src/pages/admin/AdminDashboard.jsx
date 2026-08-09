@@ -35,7 +35,7 @@ export default function AdminDashboard() {
         <div>
           <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Admin Overview</p>
           <h1 className="text-4xl font-black mt-1" style={{ color: '#4A2B0F' }}>FDAS Dashboard</h1>
-          <p className="text-sm mt-2" style={{ color: '#55433b' }}>Backend-connected counts with dummy attendance charts until attendance APIs are added.</p>
+          <p className="text-sm mt-2" style={{ color: '#55433b' }}>Real-time overview of enrolled students, registered users, active classes, and attendance analytics.</p>
         </div>
         <div className="rounded-xl px-4 py-3 border" style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', color: '#55433b' }}>
           <Icon name="bolt" size={18} className="mr-1" style={{ color: '#D4A017' }} />

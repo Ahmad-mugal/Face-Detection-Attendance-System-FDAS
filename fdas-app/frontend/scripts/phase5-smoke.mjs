@@ -47,7 +47,7 @@ async function login(email, password, expectedPath) {
 
 await check('/login loads', async () => {
   await page.goto(`${baseUrl}/login`, { waitUntil: 'domcontentloaded' })
-  await page.getByRole('heading', { name: /admin access/i }).waitFor()
+  await page.getByRole('heading', { name: /(admin|system) access/i }).waitFor()
   await page.screenshot({ path: path.join(outputDir, '01-login.png'), fullPage: true })
 })
 

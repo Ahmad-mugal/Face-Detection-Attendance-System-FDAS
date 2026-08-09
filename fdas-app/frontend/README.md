@@ -2,11 +2,13 @@
 
 React + Vite frontend for the FDAS demo.
 
-Phase 5 connects the frontend to the local FastAPI backend at:
+- Frontend URL: `http://127.0.0.1:5173`
+- Backend API URL: `http://127.0.0.1:8000`
+- Interactive API Documentation: `http://127.0.0.1:8000/docs`
 
-```text
-http://127.0.0.1:8000
-```
+> [!IMPORTANT]
+> - **Backend Dependency:** The FastAPI backend server MUST be running at `http://127.0.0.1:8000` before opening the frontend.
+> - **Webcam Permission:** Browser camera permissions are required for face enrollment (25 auto-captures) and live attendance scanning.
 
 Run the frontend dev server:
 

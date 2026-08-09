@@ -11,7 +11,21 @@ This backend is intentionally local/offline for the current single-laptop demo:
 - Seed script for roles, departments, a default admin, and small relationship-check dummy data
 - JWT authentication and role-based access control
 
-The current backend remains local/offline for the single-laptop demo. It does not include frontend API integration, OpenCV, MediaPipe, real face recognition, attendance marking logic, or LAN deployment.
+The backend provides complete REST APIs for:
+- User authentication, JWT tokens, and RBAC (Admin and User/Operator roles)
+- Departments, classes, students, and user access management
+- Automated 25-sample face enrollment processing and OpenCV descriptor storage
+- OpenCV face processing and template matching
+- Attendance session creation, starting, stopping, and active session listing
+- Live face attendance marking with duplicate attendance prevention
+- Lightweight challenge-response liveness / anti-spoofing foundation (`livenessStatus`)
+- Attendance records, filtering, summary statistics, and CSV export
+
+> [!IMPORTANT]
+> **Prerequisite:** The backend server must be started before launching the frontend application.
+> - Backend URL: `http://127.0.0.1:8000`
+> - Interactive API Docs (Swagger UI): `http://127.0.0.1:8000/docs`
+> - Alternative API Docs (ReDoc): `http://127.0.0.1:8000/redoc`
 
 ## Create Virtual Environment
 

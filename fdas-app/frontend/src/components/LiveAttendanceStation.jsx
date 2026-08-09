@@ -420,6 +420,16 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         )}
       </div>
 
+      <div className="rounded-xl p-4 text-xs space-y-1.5 border" style={{ backgroundColor: '#fff1eb', borderColor: '#f0dfd8', color: '#55433b' }}>
+        <p className="font-bold text-sm" style={{ color: '#4A2B0F' }}>Live Attendance & Liveness Operational Rules</p>
+        <ul className="list-disc list-inside space-y-0.5" style={{ color: '#887369' }}>
+          <li><strong style={{ color: '#4A2B0F' }}>Liveness Mode:</strong> Basic Mode (lightweight challenge-response).</li>
+          <li><strong style={{ color: '#4A2B0F' }}>livenessStatus:</strong> Displays <code className="font-mono text-[11px]">Passed</code>, <code className="font-mono text-[11px]">Failed</code>, or <code className="font-mono text-[11px]">NotChecked</code> depending on endpoint and scan result.</li>
+          <li><strong style={{ color: '#4A2B0F' }}>Face Matching:</strong> If recognition confidence is below threshold, attendance is not marked.</li>
+          <li><strong style={{ color: '#4A2B0F' }}>Duplicate Prevention:</strong> Duplicate attendance is prevented for the active session and is not an error.</li>
+        </ul>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5 min-w-0">
         <div className="rounded-xl overflow-hidden border-2 fdas-card" style={{ borderColor: '#FFF0E6' }}>
           <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b" style={{ borderColor: '#f0dfd8' }}>

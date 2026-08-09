@@ -1696,3 +1696,96 @@ Add a lightweight challenge-response liveness gate before frontend live attendan
 - Basic movement liveness may still be fooled by a replayed video or carefully moved phone image.
 - Poor lighting, blur, side angle, low camera quality, or low FPS can cause false rejection.
 - Advanced PAD/deep-learning liveness remains future work.
+
+## Phase 9 - Final Polish, QA, and Viva Readiness
+
+### Goal
+Perform final system audit, UI text polish, wording standardization, documentation updates, viva presentation workflow definition, honest limitations documentation, future enhancements outline, test checklists, and final automated verifiers for demo and viva readiness.
+
+### Completed System Modules
+- **Authentication & Security:** JWT authentication, PBKDF2 password hashing, Role-Based Access Control (Admin and User/Operator).
+- **Academic Management:** Departments, classes, student profiles, attendance timing windows, operator access scopes.
+- **Automated Face Enrollment:** Automated browser-camera capture of 25 face samples per student with backend storage and state tracking (`faceRegistered`).
+- **OpenCV Face Processing:** Face detection, cropping, grayscale normalization, histogram equalization, descriptor template extraction.
+- **Face Matching Engine:** Multi-template distance comparison against session department enrolled templates, configured threshold enforcement (`0.75`).
+- **Attendance Session Management:** Create, start, query active, stop attendance sessions.
+- **Attendance Marking & Duplicate Prevention:** Real-time face marking, duplicate prevention within the same session, audit score tracking.
+- **Lightweight Liveness Detection:** Basic challenge-response anti-spoofing mode (`MOVE_LEFT`, `MOVE_RIGHT`, `MOVE_CLOSER`), multi-frame shift/area validation, status tracking (`Passed`, `Failed`, `NotChecked`).
+- **Attendance Records & Analytics:** Scoped record listing, summary statistics, CSV export.
+
+### Final FDAS Workflow (Viva Presentation Guide)
+1. **Admin Login:** Admin logs into the system using JWT authentication.
+2. **Academic Setup:** Admin creates departments, classes, and operator users.
+3. **Student Profile Creation:** Student metadata is entered into the system.
+4. **Face Registration Start:** Operator starts automated face registration for the student.
+5. **25-Sample Auto-Capture:** Frontend automatically captures 25 face images at 400ms intervals.
+6. **Backend Sample Storage:** Backend receives batch samples and creates template records.
+7. **OpenCV Face Encoding:** Backend OpenCV pipeline normalizes and encodes face descriptors.
+8. **Session Launch:** Admin or Operator starts an active attendance session for a class.
+9. **Camera Scanning:** Live camera scans student faces during the active session.
+10. **Liveness Challenge Check:** System checks basic movement liveness (left/right/closer).
+11. **Face Template Matching:** Backend compares scanned face descriptors with enrolled student templates.
+12. **Attendance Marking:** If match confidence meets or exceeds threshold (`0.75`) and liveness passes, attendance is marked `Present`.
+13. **Duplicate Prevention:** System prevents double marking for the same student in the same session.
+14. **Reports & Export:** System displays attendance records, summary metrics, and supports CSV export.
+
+### Honest System Limitations
+- **OpenCV Basic Descriptor:** Face matching relies on basic OpenCV visual descriptors rather than industrial deep-learning embeddings (such as FaceNet, ArcFace, or InsightFace).
+- **Environmental Sensitivity:** Matching accuracy can be affected by lighting variations, face angles, motion blur, distance, and camera sensor quality.
+- **Lightweight Anti-Spoofing Scope:** Basic movement liveness deters simple static-photo presentation attacks, but is not a certified production-grade Presentation Attack Detection (PAD) system.
+- **Replay Spoof Vulnerability:** Basic movement liveness may still be bypassed by replayed video or carefully moved smartphone screens.
+- **Camera Calibration Required:** Real-camera liveness acceptance requires manual tuning and testing across different physical webcams.
+- **Large-Class Speed Trade-Off:** Challenge-response liveness takes 2-3 seconds per student, which can slow down attendance lines for large classes (300+ students).
+- **Offline / Local Scope:** Designed and optimized for single-laptop demo; LAN or cloud multi-device deployment is not implemented.
+- **Export & Analytics Limits:** Only CSV export is implemented; PDF/Excel exports and advanced predictive analytics are future work.
+
+### Future Enhancements
+- **Deep Learning Embeddings:** Transition from OpenCV descriptors to deep-learning face recognition models (ArcFace / FaceNet).
+- **Advanced PAD:** Implement AI/deep-learning presentation attack detection, multi-spectral image analysis, or 3D depth sensing.
+- **Dataset Threshold Evaluation:** Systematically evaluate matching thresholds across benchmark datasets of same-person and different-person images.
+- **Camera Frame Quality Check:** Automatically reject blurry, dark, or overexposed camera frames prior to matching.
+- **Manual Attendance Override:** Allow operators to manually mark attendance with an audited override log.
+- **Expanded Export Formats:** Native PDF and formatted Excel (.xlsx) report generation.
+- **Advanced Analytics:** Historical attendance trends, absentee alerts, and predictive analytics dashboards.
+- **LAN & Cloud Deployment:** Multi-device network support and cloud database synchronization.
+- **System Audit Trail:** Detailed audit logging for all user actions, session state changes, and security events.
+
+### Final QA & Verification Checklist
+
+#### Backend Automated Test Status
+- Health check endpoint (`GET /health`): Verified
+- Auth & RBAC (`app.verify_phase3`): Passed
+- Academic & User APIs (`app.verify_phase4`): Passed
+- Face Enrollment (`app.verify_phase6a`): Passed
+- OpenCV Face Processing (`app.verify_phase6b`): Passed
+- Attendance Session Management (`app.verify_phase7a`): Passed
+- Face Matching Engine (`app.verify_phase7b`): Passed
+- Attendance Marking & Duplicate Prevention (`app.verify_phase7c`): Passed
+- Attendance Records & CSV Export (`app.verify_phase8b`): Passed
+- Lightweight Liveness Foundation (`app.verify_phase8c`): Passed
+
+#### Frontend Automated Test Status
+- Production Build (`npm.cmd run build`): Passed
+- Code Linting (`npm.cmd run lint`): Passed
+- End-to-End Smoke Test (`node .\scripts\phase5-smoke.mjs`): Passed
+
+#### Manual Testing Checklist
+- [x] Real Face Enrollment (25 auto-captured samples)
+- [x] Real Face Matching & Confidence Verification
+- [x] Real Attendance Session & Marking
+- [x] Duplicate Attendance Blocking
+- [x] MatchBelowThreshold Rejection Handling
+- [x] Static Photo Spoof Warning & Basic Liveness Challenge
+- [x] Attendance Reports & CSV Export Download
+
+### Git Safety Verification
+The following generated and runtime files are verified excluded from Git tracking:
+- `backend/.venv/`
+- `backend/fdas_local.db`
+- `backend/storage/`
+- `frontend/node_modules/`
+- `frontend/dist/`
+- `frontend/output/`
+- `__pycache__/`
+- `*.pyc`
+
