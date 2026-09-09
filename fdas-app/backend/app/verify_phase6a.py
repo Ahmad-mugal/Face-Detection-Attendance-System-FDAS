@@ -12,6 +12,7 @@ from app.models.role import Role
 from app.models.user import User
 from app.seed import seed_database
 from app.utils.security import hash_password
+from app.utils.time import utc_now_naive
 
 
 BASE_URL = "http://127.0.0.1:8000"
@@ -55,7 +56,7 @@ def seed_and_prepare() -> tuple[int, int, time, time]:
 
         for session in db.query(AttendanceSession).filter(AttendanceSession.status == "Active").all():
             session.status = "Cancelled"
-            session.actualEndTime = datetime.utcnow()
+            session.actualEndTime = utc_now_naive()
 
         all_departments_user = db.query(User).filter(User.email == ALL_DEPARTMENTS_EMAIL).one_or_none()
         if all_departments_user is None:

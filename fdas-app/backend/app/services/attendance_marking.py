@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -13,6 +11,7 @@ from app.models.user import User
 from app.services.attendance_sessions import ACTIVE_SESSION_STATUS, ensure_session_access, get_session_or_404
 from app.services.face_enrollment import FACE_ENROLLMENT_SAMPLE_COUNT
 from app.services.face_matching import match_face_bytes
+from app.utils.time import utc_now_naive
 
 
 PRESENT_STATUS = "Present"
@@ -143,7 +142,7 @@ def create_attendance_from_match_result(
         studentId=student.studentId,
         departmentId=session.departmentId,
         classId=student.classId,
-        markedAt=datetime.utcnow(),
+        markedAt=utc_now_naive(),
         status=PRESENT_STATUS,
         recognitionConfidence=match_result.get("similarityScore"),
         livenessStatus=liveness_status or LIVENESS_STATUS_NOT_CHECKED,

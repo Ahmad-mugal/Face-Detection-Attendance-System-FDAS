@@ -1,4 +1,3 @@
-from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -12,6 +11,7 @@ from app.models.student import Student
 from app.models.user import User
 from app.services.face_processing import load_image_bytes_from_path, process_image_bytes
 from app.services.students import ensure_student_access, get_student_or_404
+from app.utils.time import utc_now_naive
 
 
 ALLOWED_FACE_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
@@ -76,7 +76,7 @@ async def read_face_upload(file: UploadFile) -> tuple[str, bytes]:
 
 
 def build_sample_path(studentId: int, sample_index: int, suffix: str) -> tuple[Path, Path]:
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")
+    timestamp = utc_now_naive().strftime("%Y%m%d_%H%M%S_%f")
     filename = f"sample_{timestamp}_{sample_index:03d}_{uuid4().hex[:8]}{suffix}"
     relative_path = STORAGE_RELATIVE_ROOT / str(studentId) / filename
     absolute_path = BASE_DIR / relative_path
@@ -160,7 +160,7 @@ def reprocess_face_template(db: Session, user: User, templateId: int) -> FaceTem
         template.encodingData = None
         template.encodingVersion = None
         template.faceBoxJson = None
-        template.processedAt = datetime.utcnow()
+        template.processedAt = utc_now_naive()
 
     db.commit()
     db.refresh(template)
@@ -191,7 +191,7 @@ def reprocess_student_face_templates(db: Session, user: User, studentId: int) ->
             template.encodingData = None
             template.encodingVersion = None
             template.faceBoxJson = None
-            template.processedAt = datetime.utcnow()
+            template.processedAt = utc_now_naive()
             counts["failed"] += 1
     db.commit()
     return counts

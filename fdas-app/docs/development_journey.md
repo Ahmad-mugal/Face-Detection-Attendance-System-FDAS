@@ -1789,3 +1789,254 @@ The following generated and runtime files are verified excluded from Git trackin
 - `__pycache__/`
 - `*.pyc`
 
+## Phase 10.2 - Capability Truth and Dead/Demo Code Cleanup
+
+### Goal
+Make the published backend capability metadata match the implementation that already exists, remove confirmed dead/demo frontend code, reduce `dummyData.js` to its one remaining static dependency, and verify that Phase 10.1 behavior still works without changing recognition, liveness, authorization, storage, or UI design.
+
+### Starting State After The Antigravity Interruption
+Codex resumed from the existing working tree without resetting or discarding changes. The initial audit included `git status`, `git diff`, `git diff --staged`, modification timestamps, every Phase 10.2 target file, and project-wide searches for the requested symbols.
+
+The timestamps and diff show that Antigravity appears to have stopped after making the core Phase 10.2 source changes on August 31, 2026, but before updating this development journey or completing the required verification. The repository also contained ongoing Phase 10.1 dashboard changes and unrelated pre-existing staged changes in `.vscode/settings.json` and `frontend/src/index.css`; these were preserved.
+
+### Work Already Completed Before Codex Resumed
+- `backend/app/services/face_processing.py` already reported `recognitionMatchingImplemented=True` and `livenessImplemented=True` while retaining `provider=OpenCV` and `encodingVersion=opencv_basic_v1`.
+- `backend/app/services/face_matching.py` already reported matching, attendance marking, and liveness as implemented, retained the configured threshold, and described active-session marking, duplicate prevention, and challenge-response liveness.
+- `backend/app/verify_phase7a.py` and `backend/app/verify_phase7b.py` already expected the corrected `True` capability flags.
+- `frontend/src/components/CameraFrameUpload.jsx` was already deleted.
+- `frontend/src/App.css` was already deleted.
+- `frontend/src/data/dummyData.js` was already reduced to the `DEPARTMENTS` fallback constant.
+
+### Work Codex Completed
+- Confirmed all pre-existing Phase 10.2 edits were correct and did not undo or recreate them.
+- Confirmed `CameraEnrollment.jsx` is active through both Admin Add Student and User Add Student and correctly wraps `AutoFaceEnrollmentCapture`; it was kept unchanged.
+- Confirmed the visible Demo Credentials helper in `LoginPage.jsx` remains intentional and was kept unchanged.
+- Confirmed the remaining `Math.random()` in `LiveAttendanceStation.jsx` only selects a legitimate `MOVE_LEFT`, `MOVE_RIGHT`, or `MOVE_CLOSER` liveness challenge; it was kept unchanged.
+- Confirmed all removed fake arrays have no active frontend references.
+- Ran all required backend and frontend verification and final production-source searches.
+- Added this Phase 10.2 record to `docs/development_journey.md`.
+
+### Files Created
+No repository files were created for Phase 10.2.
+
+A disposable `.phase10_verify` backend copy was created outside `fdas-app` only for isolated verification, then its hidden Uvicorn process was stopped and the complete temporary directory was removed.
+
+### Files Modified
+Phase 10.2 source changes already present when Codex resumed:
+- `backend/app/services/face_processing.py`
+- `backend/app/services/face_matching.py`
+- `backend/app/verify_phase7a.py`
+- `backend/app/verify_phase7b.py`
+- `frontend/src/data/dummyData.js`
+
+Modified by Codex during this continuation:
+- `docs/development_journey.md`
+
+### Files Deleted
+Already deleted when Codex resumed and intentionally left deleted:
+- `frontend/src/components/CameraFrameUpload.jsx`
+- `frontend/src/App.css`
+
+Codex did not delete any additional repository file.
+
+### Why The Deletions Were Safe
+- `CameraFrameUpload.jsx` had zero active imports or references in `frontend/src`. Its implementation generated fake recognition results with `Math.random()`, `Demo Student`, and `DEMO-001`, while the real live attendance flow uses `LiveAttendanceStation.jsx` and backend APIs.
+- `App.css` had zero active imports or references and contained unused default Vite scaffold styling. Active application styling comes from `frontend/src/index.css` and component utility classes.
+
+### Capability Metadata Corrections
+- Face processing is implemented with OpenCV Haar cascade detection and the `opencv_basic_v1` descriptor pipeline.
+- Recognition matching is implemented with cosine similarity, department-scoped candidate selection, and `FACE_MATCH_THRESHOLD=0.75`.
+- Attendance marking is implemented for active attendance sessions.
+- Duplicate attendance prevention is implemented per session/student.
+- Basic challenge-response liveness is implemented for `MOVE_LEFT`, `MOVE_RIGHT`, and `MOVE_CLOSER`.
+- Metadata does not claim FaceNet, ArcFace, deep embeddings, blink/smile liveness, production-grade PAD, or LAN deployment.
+
+### Dead And Demo Code Audit
+- `CameraFrameUpload` is absent from production source and has no active reference.
+- `Demo Student` and `DEMO-001` are absent from production source.
+- Fake dashboard attendance arrays are absent from production source.
+- The intentional `Demo Credentials` login helper remains visible.
+- The legitimate liveness challenge randomization remains in `LiveAttendanceStation.jsx`.
+- `CameraEnrollment.jsx` and `AutoFaceEnrollmentCapture.jsx` remain active and unchanged.
+
+### `dummyData.js` Cleanup Result
+The unused exports `CLASSES`, `STUDENTS`, `USERS`, `PENDING_REQUESTS`, `TIMINGS`, `SESSIONS`, `ATTENDANCE_RECORDS`, `ANALYTICS_WEEKLY`, `ANALYTICS_MONTHLY`, `ADMIN_STATS`, `USER_STATS`, and `LIVE_LOG` are removed. `dummyData.js` now exports only `DEPARTMENTS`.
+
+### Remaining Static Dependency
+`frontend/src/components/FilterBar.jsx` still imports `DEPARTMENTS` as its default fallback. Replacing that fallback with a departments API refactor is intentionally deferred to a later phase and was not added to Phase 10.2.
+
+### Commands Executed
+- `git status --short --branch`
+- `git diff --stat`
+- `git diff`
+- `git diff --staged --stat`
+- `git diff --staged`
+- Target-file timestamp/content inspection with PowerShell `Get-Item` and `Get-Content`
+- Project-wide and production-source searches with `rg`
+- Health checks against `http://127.0.0.1:8000/health` and the isolated verifier backend at `http://127.0.0.1:8010/health`
+- `backend/.venv/Scripts/python.exe -m app.verify_phase10`
+- `backend/.venv/Scripts/python.exe -m app.verify_phase7a`
+- `backend/.venv/Scripts/python.exe -m app.verify_phase7b`
+- `backend/.venv/Scripts/python.exe -m app.verify_phase7c`
+- `backend/.venv/Scripts/python.exe -m app.verify_phase8b`
+- `backend/.venv/Scripts/python.exe -m app.verify_phase8c`
+- `npm.cmd run lint`
+- `npm.cmd run build`
+- `node .\scripts\phase5-smoke.mjs`
+
+### Verification Results
+- Backend health check: PASS, returned `status=ok` and `database=connected`.
+- Phase 10 dashboard verifier: PASS, including admin fields, department scoping, AllDepartments operational scope, dashboard update behavior, weekly chart, and recent-record data.
+- Phase 7A verifier: PASS with `face_processing_info=True` and `phase7a_passed=True`.
+- Phase 7B verifier: PASS with `face_matching_info=True`, descriptor comparison, department access, and `phase7b_passed=True`.
+- Phase 7C verifier: PASS with active-session validation, no-face/below-threshold safety, successful marking, duplicate prevention, session records, closed-session rejection, and `phase7c_passed=True`.
+- Phase 8B verifier: PASS with scoped record listing, filters, summary, CSV export, operator scoping, and `phase8b_passed=True`.
+- Phase 8C verifier: PASS with liveness endpoint metadata, frame/challenge validation, controlled movement pass, static-frame failure, no-attendance-on-failure, attendance-on-pass, duplicate prevention, closed-session rejection, and `phase8c_passed=True`.
+- Frontend lint: PASS with no warnings or errors.
+- Frontend production build: PASS. Vite emitted the existing non-blocking warning that the main JavaScript chunk exceeds 500 kB after minification.
+- Phase 5 smoke test: PASS for every login, dashboard, authorization, and page-navigation check; `page_errors=0`. The single console error was the expected `401 Unauthorized` from the deliberate wrong-password test.
+- Final production-source searches: PASS.
+
+### Failure Encountered And Fix
+The first isolated Phase 7A run timed out while waiting for a 25-image upload because the verifier's 10-second HTTP timeout was shorter than this machine's OpenCV batch-processing time. The backend remained healthy and completed requests normally. Only the disposable verifier copy was changed to use a 120-second HTTP timeout and longer nested-subprocess limits; repository verifier files were not changed. The Phase 7A rerun passed.
+
+Phase 8C normally reruns all prior verifier chains recursively. Because Phase 7A, 7B, 7C, and 8B had already passed independently and sequentially in the same isolated environment, only the disposable Phase 8C copy reused those recorded prerequisite PASS results; all Phase 8C-specific liveness and attendance assertions ran unchanged and passed.
+
+### Remaining Issues And Warnings
+- A manual real-face test is still required for realistic Haar detection and matching acceptance.
+- A manual real-camera liveness test is still required; the verifier explicitly reports `real_camera_liveness_verified=False` and `manual_real_camera_liveness_test_required=True`.
+- Basic movement liveness is not production-grade PAD and may still be vulnerable to sophisticated replay attacks.
+- `DEPARTMENTS` remains a static `FilterBar` fallback.
+- Vite continues to report a non-blocking large-chunk warning.
+
+### Safety Confirmations
+- `backend/fdas_local.db` was preserved. Its byte length and UTC modification timestamp were identical before and after verification.
+- `backend/storage` was preserved. File count, total bytes, and latest file timestamp were identical before and after verification.
+- Enrolled face image files and face templates were preserved.
+- Attendance records were preserved.
+- Backend verification used an isolated temporary database and storage directory, not the live local database.
+- `FACE_MATCH_THRESHOLD` remains exactly `0.75`.
+- The recognition algorithm and liveness behavior were not changed.
+- Department authorization was not changed.
+- No Stitch UI redesign was performed.
+- LAN deployment was not implemented.
+- FaceNet, ArcFace, deep embeddings, and production-grade PAD were not implemented or claimed.
+- Phase 10.3 was not started.
+
+### Final Phase 10.2 Status
+**PASS** - capability metadata is truthful, confirmed fake/dead frontend code is removed, `dummyData.js` contains only the documented `DEPARTMENTS` fallback, all required verification passed, protected local data was preserved, and Phase 10.3 was not started.
+
+## Phase 10.3 - Backend Time Handling and Configuration Hardening
+
+### Goal
+Remove safely replaceable deprecated UTC calls and harden backend secret configuration without changing recognition, liveness, attendance, authorization, database, storage, or local single-laptop behavior.
+
+### Starting State
+The worktree already contained Phase 10.1/10.2 dashboard/frontend changes. They were inspected and preserved; no reset or overwrite occurred.
+
+Live-data baseline before Phase 10.3:
+- backend/fdas_local.db: 1,556,480 bytes; SHA-256 9FD169AC55CCB2D4E09630FB6E127190B576B6371A0E613C182207F67FB36821; last write 2026-08-31T00:49:43.7563983Z.
+- backend/storage: 15,341 files, 15,653,491 bytes; latest enrolled-file write 2026-08-31T00:49:36.1073468Z.
+
+### Audit Findings
+- 40 datetime.utcnow references existed across 33 source lines: 24 model default/on-update callables, 7 service calls, and 9 verifier fixtures.
+- All persisted temporal fields used SQLAlchemy DateTime without timezone=True. Read-only SQLite samples were naive values without offsets.
+- Attendance/report/dashboard code filters stored timestamps with naive datetime.combine bounds; no Python path compares a loaded database timestamp to an aware current datetime.
+- JWT expiry already used datetime.now(timezone.utc), with HS256 and a 60-minute expiry.
+- SECRET_KEY was hardcoded in app/config.py. No .env, dotenv loader, or python-dotenv dependency existed.
+- CORS was already restricted to http://127.0.0.1:5173 and http://localhost:5173.
+- PBKDF2-SHA256 with 120,000 iterations, Pending/Disabled blocking, role checks, and department authorization were already intact.
+
+### Files Created
+- backend/.env.example
+- backend/app/utils/time.py
+
+### Files Modified
+- backend/.gitignore, backend/README.md, backend/app/config.py
+- backend/app/models/role.py, department.py, user.py, classroom.py, student.py, attendance_time_window.py, attendance_session.py, attendance_record.py, and face_template.py
+- backend/app/services/attendance_sessions.py, attendance_marking.py, face_enrollment.py, and face_processing.py
+- backend/app/verify_phase6a.py, verify_phase7c.py, verify_phase8b.py, verify_phase8c.py, and verify_phase10.py
+- docs/development_journey.md
+
+### Files Deleted
+None.
+
+### UTC/Datetime Changes
+- Added utc_now_naive(), which obtains modern aware UTC with datetime.now(timezone.utc) and removes tzinfo only for legacy SQLite DateTime compatibility.
+- Replaced every datetime.utcnow reference in models, services, and verifier fixtures with that helper.
+- Persisted/API timestamps and attendance-window/report comparisons remain naive UTC to preserve current SQLite storage and serialization behavior.
+- JWT expiration remains aware UTC. Final source audit found zero datetime.utcnow usages; none remain.
+
+### Secret Configuration Changes
+- SECRET_KEY now reads FDAS_SECRET_KEY from the process environment first.
+- If unset or empty, it retains the original clearly marked development/demo-only fallback, so no .env is required for the local demo.
+- Added backend/.env.example with FDAS_SECRET_KEY=replace-with-a-secure-secret and added .env to backend/.gitignore.
+- No dotenv dependency was added; standard os.getenv is used and .env is not automatically loaded.
+- Focused checks passed for both fallback and environment-override behavior.
+
+### JWT/Auth Audit
+- JWT remains HS256 with 60-minute expiration; focused token encode/decode passed.
+- PBKDF2-SHA256 with 120,000 iterations is unchanged.
+- Phase 3 auth verification passed admin/operator login, wrong-password rejection, Pending/Disabled blocking, protected-route behavior, roles, and department scope.
+- Read-only active-demo checks confirmed admin@fdas.local / Admin@12345 is an approved Admin and operator.cs@fdas.local / Operator@12345 is an approved User; both hashes verify successfully.
+
+### CORS Audit
+Final allowed origins remain:
+- http://127.0.0.1:5173
+- http://localhost:5173
+
+No wildcard, LAN, institutional, or cloud origin was added.
+
+### Commands Run
+- Read-only repository/configuration/model/router/service/schema/JWT/CORS/environment/SQLite/live-data audit.
+- Focused fallback-secret, environment-override, UTC-helper, JWT round-trip, and all-69-file syntax checks.
+- Isolated health check and sequential backend verification.
+- npm.cmd run lint
+- npm.cmd run build
+- node scripts/phase5-smoke.mjs
+- Final source audit and live database/storage fingerprint comparison.
+
+### Verification Results
+- GET /health: PASS.
+- python -m app.verify_phase3: PASS.
+- python -m app.verify_phase4: PASS.
+- python -m app.verify_phase6a: PASS.
+- python -m app.verify_phase6b: PASS (nested prerequisite).
+- python -m app.verify_phase7a: PASS.
+- python -m app.verify_phase7b: PASS.
+- python -m app.verify_phase7c: PASS.
+- python -m app.verify_phase8b: PASS.
+- python -m app.verify_phase8c: PASS.
+- python -m app.verify_phase10: PASS.
+- Frontend lint: PASS.
+- Frontend build: PASS; non-blocking plugin-timing and greater-than-500 kB chunk warnings remain.
+- Frontend smoke: PASS after starting local preview on port 5173. All login, navigation, authorization, and logout assertions passed; page_errors=0. Its one 401 console error was the expected wrong-password test.
+
+### Errors Found And Fixed
+- backend/.venv/Scripts/python.exe points to a removed Python 3.11 installation. The environment was not recreated or changed; verification used the existing local embedded Python 3.11 runtime and pinned installed packages.
+- Initial Phase 7A and nested Phase 6B 25-image OpenCV uploads exceeded a 10-second client timeout while the server remained healthy. Only disposable verifier copies received a 120-second timeout.
+- The disposable copy initially did not match Phase 6B's normal repository-layout Git-ignore assumption. Only its disposable verifier was adjusted to locate the real repository root.
+- The first smoke run had no server on port 5173. Starting a local preview server and rerunning the unchanged smoke test passed.
+
+### Remaining Issues
+- Manual real-face enrollment/matching remains required; synthetic-image fields report detected_face_encoding=False and detected_face_match_verified=False.
+- Manual real-camera liveness remains required; real_camera_liveness_verified=False.
+- Basic challenge-response liveness is not production-grade presentation-attack detection.
+- The Vite greater-than-500 kB chunk warning remains.
+- The local .venv launcher needs a user-managed Python 3.11 restoration or recreation; this was not changed in Phase 10.3.
+
+### Safety Confirmations
+- backend/fdas_local.db final size, SHA-256, and modification timestamp exactly match the starting baseline.
+- backend/storage final file count, total bytes, root timestamp, and latest enrolled-file timestamp exactly match the starting baseline.
+- Face templates, enrolled images, and attendance records were preserved.
+- Verification mutations occurred only in C:\Users\WELCOME\Desktop\FDAS Project\.phase10_3_verify_20260909, an isolated database/storage copy.
+- FACE_MATCH_THRESHOLD remains exactly 0.75.
+- Recognition algorithm unchanged.
+- Liveness behavior unchanged.
+- Department authorization unchanged.
+- PBKDF2 unchanged.
+- LAN deployment was not implemented.
+- Phase 10.4 was not started.
+
+### Final Phase 10.3 Status
+**PASS** - deprecated UTC handling is removed without changing legacy SQLite/API behavior, JWT secret configuration is environment-first with a development fallback, CORS/auth behavior remains safe and unchanged, all required verification passed, live database/storage are preserved, and Phase 10.4 was not started.

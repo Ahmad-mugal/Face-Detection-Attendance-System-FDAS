@@ -4,6 +4,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.utils.time import utc_now_naive
 
 
 class Student(Base):
@@ -19,11 +20,10 @@ class Student(Base):
     yearSemester: Mapped[str] = mapped_column(String(50), nullable=False)
     section: Mapped[str] = mapped_column(String(30), nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="Active", nullable=False)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
+    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
     department = relationship("Department", back_populates="students")
     classroom = relationship("ClassRoom", back_populates="students")
     faceTemplates = relationship("FaceTemplate", back_populates="student")
     attendanceRecords = relationship("AttendanceRecord", back_populates="student")
-

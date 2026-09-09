@@ -1,0 +1,7 @@
+python311.zip
+.
+C:\Users\WELCOME\Desktop\FDAS Project\.phase10_verify_20260909
+C:\Users\WELCOME\Desktop\FDAS Project\fdas-app\backend\.venv\Lib\site-packages
+
+# Uncomment to run site.main() automatically
+import site

@@ -4,6 +4,7 @@ from sqlalchemy import Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.utils.time import utc_now_naive
 
 
 class AttendanceSession(Base):
@@ -18,10 +19,9 @@ class AttendanceSession(Base):
     actualEndTime: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="Active", nullable=False)
     createdDate: Mapped[date] = mapped_column(Date, default=date.today, nullable=False)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
+    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
     department = relationship("Department", back_populates="sessions")
     startedByUser = relationship("User", back_populates="attendanceSessions")
     attendanceRecords = relationship("AttendanceRecord", back_populates="session")
-

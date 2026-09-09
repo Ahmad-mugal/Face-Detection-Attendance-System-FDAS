@@ -7,6 +7,8 @@ import cv2
 import numpy as np
 from fastapi import HTTPException, status
 
+from app.utils.time import utc_now_naive
+
 
 PROCESSING_PROVIDER = "OpenCV"
 ENCODING_VERSION = "opencv_basic_v1"
@@ -89,7 +91,7 @@ def generate_basic_descriptor(face_crop) -> list[float]:
 def process_image_bytes(image_bytes: bytes) -> FaceProcessingResult:
     image = decode_image_bytes(image_bytes)
     face_box = detect_largest_face(image)
-    processed_at = datetime.utcnow()
+    processed_at = utc_now_naive()
     if face_box is None:
         return FaceProcessingResult(status="NoFaceDetected", processedAt=processed_at)
 
@@ -108,6 +110,6 @@ def processing_info() -> dict:
     return {
         "provider": PROCESSING_PROVIDER,
         "encodingVersion": ENCODING_VERSION,
-        "recognitionMatchingImplemented": False,
-        "livenessImplemented": False,
+        "recognitionMatchingImplemented": True,
+        "livenessImplemented": True,
     }

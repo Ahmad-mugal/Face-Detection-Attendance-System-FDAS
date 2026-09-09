@@ -4,6 +4,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.utils.time import utc_now_naive
 
 
 class User(Base):
@@ -17,10 +18,9 @@ class User(Base):
     status: Mapped[str] = mapped_column(String(30), default="Pending", nullable=False)
     assignedDepartmentId: Mapped[int | None] = mapped_column(ForeignKey("departments.departmentId"), nullable=True)
     accessScope: Mapped[str] = mapped_column(String(40), default="Department", nullable=False)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
+    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
     role = relationship("Role", back_populates="users")
     assignedDepartment = relationship("Department", back_populates="users")
     attendanceSessions = relationship("AttendanceSession", back_populates="startedByUser")
-

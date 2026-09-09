@@ -61,7 +61,7 @@ export default function AttendanceChart({ type = 'bar', data = [], title, height
           <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0dfd8" />
             <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#887369' }} />
-            <YAxis tick={{ fontSize: 11, fill: '#887369' }} domain={[60, 100]} />
+            <YAxis tick={{ fontSize: 11, fill: '#887369' }} domain={[0, 100]} />
             <Tooltip content={<CustomTooltip />} />
             <Line type="monotone" dataKey="present" stroke="#D4A017" strokeWidth={2.5} dot={{ fill: '#D4A017', r: 4 }} />
           </LineChart>

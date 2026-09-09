@@ -2,31 +2,25 @@ import { useEffect, useState } from 'react'
 import AttendanceChart from '../../components/AttendanceChart'
 import AttendanceLogSidebar from '../../components/AttendanceLogSidebar'
 import StatsCard from '../../components/StatsCard'
-import { ANALYTICS_WEEKLY, LIVE_LOG, SESSIONS } from '../../data/dummyData'
-import { studentsApi } from '../../api/studentsApi'
-import { adminUsersApi } from '../../api/adminUsersApi'
-import { classesApi } from '../../api/classesApi'
 import Icon from '../../components/Icon'
+import { dashboardApi } from '../../api/dashboardApi'
 
 export default function AdminDashboard() {
-  const activeSession = SESSIONS.find(session => session.status === 'active')
-  const [counts, setCounts] = useState({ students: 0, users: 0, classes: 0 })
+  const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function loadCounts() {
+    async function loadDashboardData() {
       try {
-        const [students, users, classes] = await Promise.all([
-          studentsApi.list(),
-          adminUsersApi.listUsers(),
-          classesApi.list(),
-        ])
-        setCounts({ students: students.length, users: users.length, classes: classes.length })
+        const data = await dashboardApi.getSummary()
+        setSummary(data)
+      } catch (err) {
+        console.error('Failed to load admin dashboard data:', err)
       } finally {
         setLoading(false)
       }
     }
-    loadCounts()
+    loadDashboardData()
   }, [])
 
   return (
@@ -39,20 +33,48 @@ export default function AdminDashboard() {
         </div>
         <div className="rounded-xl px-4 py-3 border" style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', color: '#55433b' }}>
           <Icon name="bolt" size={18} className="mr-1" style={{ color: '#D4A017' }} />
-          Active session: <strong style={{ color: '#934619' }}>{activeSession?.className || 'None'}</strong>
+          Active session: <strong style={{ color: '#934619' }}>{summary?.activeSessionName || 'None'}</strong>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatsCard title="Total Students" value={loading ? '...' : counts.students} icon="groups" borderColor="#C4533A" filled />
-        <StatsCard title="Users" value={loading ? '...' : counts.users} icon="manage_accounts" iconColor="#D4A017" borderColor="#D4A017" filled />
-        <StatsCard title="Classes" value={loading ? '...' : counts.classes} icon="school" iconColor="#C4533A" borderColor="#C4533A" />
-        <StatsCard title="Attendance Accuracy" value="Demo" icon="verified" iconColor="#E8924A" borderColor="#E8924A" filled />
+        <StatsCard
+          title="Total Students"
+          value={loading ? '...' : (summary?.totalStudents ?? 0)}
+          icon="groups"
+          borderColor="#C4533A"
+          filled
+        />
+        <StatsCard
+          title="Present Today"
+          value={loading ? '...' : (summary?.presentToday ?? 0)}
+          subtitle={summary ? `Users: ${summary.totalUsers ?? 0}` : undefined}
+          icon="task_alt"
+          iconColor="#D4A017"
+          borderColor="#D4A017"
+          filled
+        />
+        <StatsCard
+          title="Classes"
+          value={loading ? '...' : (summary?.totalClasses ?? 0)}
+          subtitle={summary?.activeSessionCount ? `${summary.activeSessionCount} Active Session` : undefined}
+          icon="school"
+          iconColor="#C4533A"
+          borderColor="#C4533A"
+        />
+        <StatsCard
+          title="Attendance Rate"
+          value={loading ? '...' : `${summary?.attendanceRate ?? 0}%`}
+          icon="verified"
+          iconColor="#E8924A"
+          borderColor="#E8924A"
+          filled
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5 min-w-0">
-        <AttendanceChart data={ANALYTICS_WEEKLY} title="Weekly Attendance Trend" />
-        <AttendanceLogSidebar records={LIVE_LOG} title="Live Attendance Log" />
+        <AttendanceChart data={summary?.weeklyChart || []} title="Weekly Attendance Trend" />
+        <AttendanceLogSidebar records={summary?.recentRecords || []} title="Live Attendance Log" />
       </div>
     </section>
   )

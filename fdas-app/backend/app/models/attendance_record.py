@@ -4,6 +4,7 @@ from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, UniqueConst
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.utils.time import utc_now_naive
 
 
 class AttendanceRecord(Base):
@@ -17,14 +18,13 @@ class AttendanceRecord(Base):
     studentId: Mapped[int] = mapped_column(ForeignKey("students.studentId"), nullable=False)
     departmentId: Mapped[int] = mapped_column(ForeignKey("departments.departmentId"), nullable=False)
     classId: Mapped[int] = mapped_column(ForeignKey("classrooms.classId"), nullable=False)
-    markedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    markedAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     recognitionConfidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     livenessStatus: Mapped[str | None] = mapped_column(String(30), nullable=True)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
 
     session = relationship("AttendanceSession", back_populates="attendanceRecords")
     student = relationship("Student", back_populates="attendanceRecords")
     department = relationship("Department", back_populates="attendanceRecords")
     classroom = relationship("ClassRoom", back_populates="attendanceRecords")
-

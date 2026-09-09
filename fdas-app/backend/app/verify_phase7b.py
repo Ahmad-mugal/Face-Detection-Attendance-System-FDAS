@@ -252,8 +252,8 @@ def main() -> None:
             and info_body.get("provider") == "OpenCV"
             and info_body.get("encodingVersion") == ENCODING_VERSION
             and info_body.get("matchingImplemented") is True
-            and info_body.get("attendanceMarkingImplemented") is False
-            and info_body.get("livenessImplemented") is False
+            and info_body.get("attendanceMarkingImplemented") is True
+            and info_body.get("livenessImplemented") is True
             and info_body.get("threshold") == FACE_MATCH_THRESHOLD
         ),
         "no_face_handled_gracefully": (

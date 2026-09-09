@@ -4,6 +4,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.utils.time import utc_now_naive
 
 
 class FaceTemplate(Base):
@@ -20,7 +21,7 @@ class FaceTemplate(Base):
     isActive: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     createdByUserId: Mapped[int | None] = mapped_column(ForeignKey("users.userId"), nullable=True)
     processedAt: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
+    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
     student = relationship("Student", back_populates="faceTemplates")

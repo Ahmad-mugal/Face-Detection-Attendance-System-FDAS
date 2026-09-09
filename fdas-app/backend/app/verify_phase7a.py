@@ -236,8 +236,8 @@ def main() -> None:
             and isinstance(info_body, dict)
             and info_body.get("provider") == "OpenCV"
             and info_body.get("encodingVersion") == "opencv_basic_v1"
-            and info_body.get("recognitionMatchingImplemented") is False
-            and info_body.get("livenessImplemented") is False
+            and info_body.get("recognitionMatchingImplemented") is True
+            and info_body.get("livenessImplemented") is True
         ),
         "template_process_endpoint": process_status == 200 and process_template.get("status") in {"Encoded", *no_face_statuses},
         "student_process_all_endpoint": (

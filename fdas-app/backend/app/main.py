@@ -9,6 +9,7 @@ from app.routers.attendance_sessions import router as attendance_sessions_router
 from app.routers.auth import router as auth_router
 from app.routers.attendance_time_windows import router as attendance_time_windows_router
 from app.routers.classes import router as classes_router
+from app.routers.dashboard import router as dashboard_router
 from app.routers.departments import router as departments_router
 from app.routers.face_enrollment import router as face_enrollment_router
 from app.routers.face_matching import router as face_matching_router
@@ -44,3 +45,5 @@ app.include_router(face_matching_router)
 app.include_router(attendance_marking_router)
 app.include_router(attendance_records_router)
 app.include_router(liveness_router)
+app.include_router(dashboard_router)
+

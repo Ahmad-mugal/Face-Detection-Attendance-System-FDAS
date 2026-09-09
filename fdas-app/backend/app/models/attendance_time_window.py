@@ -4,6 +4,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.utils.time import utc_now_naive
 
 
 class AttendanceTimeWindow(Base):
@@ -15,8 +16,7 @@ class AttendanceTimeWindow(Base):
     endTime: Mapped[time] = mapped_column(Time, nullable=False)
     graceMinutes: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     status: Mapped[str] = mapped_column(String(30), default="Active", nullable=False)
-    createdAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    createdAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
+    updatedAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
     department = relationship("Department", back_populates="timeWindows")
-

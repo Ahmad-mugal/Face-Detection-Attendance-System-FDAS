@@ -8,6 +8,7 @@ from app.models.attendance_time_window import AttendanceTimeWindow
 from app.models.department import Department
 from app.models.user import User
 from app.services.departments import ensure_department_access, get_department_or_404
+from app.utils.time import utc_now_naive
 
 
 ACTIVE_SESSION_STATUS = "Active"
@@ -79,7 +80,7 @@ def start_attendance_session(db: Session, user: User, departmentId: int) -> Atte
             detail="Department already has an active attendance session",
         )
 
-    now = datetime.utcnow()
+    now = utc_now_naive()
     active_window = get_active_time_window_for_department(db, departmentId)
     scheduled_start, scheduled_end = build_scheduled_datetimes(now, active_window)
 
@@ -110,7 +111,7 @@ def close_attendance_session(db: Session, user: User, sessionId: int, final_stat
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only active sessions can be changed")
 
     session.status = final_status
-    session.actualEndTime = datetime.utcnow()
+    session.actualEndTime = utc_now_naive()
     db.commit()
     db.refresh(session)
     return session

@@ -20,6 +20,7 @@ from app.seed import seed_database
 from app.services.attendance_marking import create_attendance_from_match_result
 from app.services.face_enrollment import FACE_ENROLLMENT_SAMPLE_COUNT
 from app.services.face_processing import ENCODING_VERSION
+from app.utils.time import utc_now_naive
 
 
 BASE_URL = "http://127.0.0.1:8000"
@@ -122,7 +123,7 @@ def seed_and_prepare() -> tuple[int, int, int]:
 
         for session in db.query(AttendanceSession).filter(AttendanceSession.status == "Active").all():
             session.status = "Cancelled"
-            session.actualEndTime = datetime.utcnow()
+            session.actualEndTime = utc_now_naive()
 
         student = db.query(Student).filter(Student.rollNo == "P7C-MARK-001").one_or_none()
         if student is None:

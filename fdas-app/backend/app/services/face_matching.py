@@ -273,8 +273,8 @@ def matching_info() -> dict:
         "provider": PROCESSING_PROVIDER,
         "encodingVersion": ENCODING_VERSION,
         "matchingImplemented": True,
-        "attendanceMarkingImplemented": False,
-        "livenessImplemented": False,
+        "attendanceMarkingImplemented": True,
+        "livenessImplemented": True,
         "threshold": FACE_MATCH_THRESHOLD,
-        "notes": "Foundation-level OpenCV descriptor matching only; no attendance marking or liveness detection is implemented.",
+        "notes": "OpenCV descriptor matching with active session attendance marking, duplicate prevention, and challenge-response liveness verification.",
     }

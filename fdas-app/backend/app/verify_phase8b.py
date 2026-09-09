@@ -11,6 +11,7 @@ from app.models.classroom import ClassRoom
 from app.models.department import Department
 from app.models.student import Student
 from app.seed import seed_database
+from app.utils.time import utc_now_naive
 
 
 BASE_URL = "http://127.0.0.1:8000"
@@ -101,7 +102,7 @@ def seed_and_prepare() -> tuple[int, int, int, int, int, int, date]:
             synchronize_session=False
         )
 
-        now = datetime.utcnow()
+        now = utc_now_naive()
         cs_session = AttendanceSession(
             departmentId=cs.departmentId,
             startedByUserId=1,

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 
@@ -15,7 +16,7 @@ LIVENESS_MIN_CENTER_SHIFT_RATIO = 0.08
 LIVENESS_MIN_AREA_CHANGE_RATIO = 0.12
 LIVENESS_ALLOWED_CHALLENGES = ["MOVE_LEFT", "MOVE_RIGHT", "MOVE_CLOSER"]
 
-# Local FYP demo secret only. Production deployments should load this from environment variables.
-SECRET_KEY = "fdas-local-demo-change-before-production"
+# The fallback keeps the offline FYP demo easy to run; it is development/demo-only.
+SECRET_KEY = os.getenv("FDAS_SECRET_KEY") or "fdas-local-demo-change-before-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60

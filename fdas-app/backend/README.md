@@ -170,7 +170,7 @@ Admin user management:
 - `PATCH /api/admin/users/{userId}/enable`
 - `PATCH /api/admin/users/{userId}/access`
 
-JWT settings are currently stored in `app/config.py` for the local FYP demo. Production should load `SECRET_KEY` and token settings from environment variables.
+The JWT secret reads `FDAS_SECRET_KEY` from the process environment. If it is unset, the local FYP demo uses a clearly marked development-only fallback from `app/config.py`; `.env` files are ignored and `backend/.env.example` contains a non-secret example. The project does not add a dotenv dependency or automatically load `.env` files.
 
 ## Phase 4 Academic Management Endpoints
 
