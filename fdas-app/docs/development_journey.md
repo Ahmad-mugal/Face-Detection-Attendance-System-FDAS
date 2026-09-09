@@ -2177,3 +2177,164 @@ The normal backend startup and health check were read-only against the live data
 
 ### Final Status
 **PASS** — existing virtual environment recovered successfully after restoring Python 3.11.9.
+
+## Phase 10.4 - Registration Validation & Frontend Error Protection
+
+### Goal
+
+Strengthen local registration validation, present safe and useful API/network errors, and prevent unexpected React rendering failures from leaving a blank application, without redesigning the Stitch UI or changing authentication architecture, roles, protected-route behavior, recognition, liveness, or protected data.
+
+### Starting State
+
+- Registration accepted fullName, email, password, and requestedDepartmentId through POST /api/auth/register-request.
+- The backend already stored registration requests as Pending users with the User role and Department access scope.
+- Login already returned generic HTTP 401 responses for unknown users and wrong passwords, and explicit HTTP 403 business-status messages for Pending, Disabled, or other non-Approved users.
+- FastAPI used its standard {"detail": "..."} error form for HTTP exceptions and a detail array for request-validation errors. No global exception handler was present.
+- Admin approval, rejection, enable/disable, access-scope management, protected routes, and department authorization were already working.
+- The frontend had no registration page or /register route even though authApi exposed registerRequest.
+
+### Validation Audit Findings
+
+- Previous name validation: raw Pydantic min_length=2 and max_length=150 only. Surrounding whitespace was retained and two spaces could pass.
+- Previous email validation: plain string only. It was not trimmed, normalized, or checked for a reasonable address structure.
+- Previous password validation: raw length 8-128 only. Eight whitespace characters could pass.
+- Previous duplicate-email behavior: an exact-case lookup returned HTTP 409 with "Email is already registered"; case variants and an insert race were not handled deterministically.
+- Previous frontend validation: login checked only raw non-empty values. No registration UI or registration validation existed.
+- Previous Error Boundary state: none; an unexpected render failure could leave a blank application.
+- Previous backend-unavailable handling: getApiError could expose Axios "Network Error", while the Admin and User dashboards only logged load errors to the console and showed no user-facing failure message.
+
+### Files Created
+
+- backend/app/verify_phase10_4.py
+- frontend/src/components/ErrorBoundary.jsx
+- frontend/src/pages/RegisterPage.jsx
+- frontend/src/validation/authValidation.js
+
+### Files Modified
+
+- backend/app/routers/auth.py
+- backend/app/schemas/auth.py
+- frontend/scripts/phase5-smoke.mjs
+- frontend/src/App.jsx
+- frontend/src/api/authApi.js
+- frontend/src/api/client.js
+- frontend/src/main.jsx
+- frontend/src/pages/LoginPage.jsx
+- frontend/src/pages/admin/AdminDashboard.jsx
+- frontend/src/pages/user/UserDashboard.jsx
+- docs/development_journey.md
+
+### Files Deleted
+
+None. A controlled temporary Error Boundary test page and script were removed immediately after the test and were not retained as application files.
+
+### Backend Validation Changes
+
+- Full names are trimmed, must contain non-whitespace content, and must be 2-150 characters after trimming. Internal spaces and Unicode human names remain supported.
+- Emails are trimmed, normalized to lowercase, limited to 180 characters, and checked with an offline structure rule requiring one @ separator and a dotted domain without whitespace.
+- Local/demo addresses ending in .local remain valid; no DNS, public-domain, or network validation was added.
+- Registration passwords are preserved exactly rather than trimmed, but empty and whitespace-only values are rejected. Length remains 8-128 characters.
+- requestedDepartmentId must be a positive integer and must still reference an existing department.
+- Login emails now receive the same trim/lowercase normalization. Passwords remain exact and non-whitespace content is required.
+- Duplicate checks are case-insensitive. Existing matches and database uniqueness races return HTTP 409 with "An account with this email already exists." SQL exception text is not exposed.
+- Added GET /api/auth/registration-departments for the public registration form. It returns only active department IDs and names; existing protected department routes and authorization rules are unchanged.
+
+### Frontend Validation Changes
+
+- Added /register and a registration page using the existing FDAS colors, typography, spacing, controls, and error-banner patterns.
+- Added fields matching the backend contract: full name, email, password, and requested department.
+- The frontend mirrors the backend trimming, email structure, length, whitespace-only, and positive-department rules and displays field-level messages.
+- The password hint states the 8-character minimum and whitespace-only restriction.
+- Submitted full names and emails are normalized before the request; passwords are not silently altered.
+- The submit button is disabled while a request is pending, and the handler also guards against repeated submissions.
+- Duplicate and backend validation messages use the existing inline/banner style. No modal or UI framework was added.
+- Login now trims/lowercases email input, rejects whitespace-only required values, and retains the existing role-based destination behavior.
+
+### Error Boundary Implementation
+
+- Added a class-based React Error Boundary around BrowserRouter, AuthProvider, AttendanceSessionProvider, and App in main.jsx.
+- Unexpected render/lifecycle failures show a safe FDAS-styled fallback with "Something went wrong.", "Please reload the application.", and a Reload Application button.
+- No exception object, stack trace, token, path, or environment detail is rendered to users.
+- Development-only console diagnostics remain available. Normal API failures continue through ordinary page error handling rather than the Error Boundary.
+- A temporary controlled crashing child component verified the real fallback in Chromium. The harness was then deleted, and no deliberate crash code remains.
+
+### Network/API Error Handling
+
+- The shared API helper now maps network/no-response failures to "Unable to connect to the FDAS server. Please make sure the backend is running."
+- HTTP responses remain distinguishable: 401, 403, 409, and FastAPI validation details are not globally swallowed or redirected.
+- FastAPI validation arrays are converted to safe readable messages without echoing submitted values or internal exception text.
+- Login and registration display the friendly backend-unavailable message.
+- Admin Dashboard and User Dashboard now display existing-style error banners instead of only logging load failures.
+- Browser route-abort checks verified the friendly unavailable message in login, registration, Admin Dashboard, and User Dashboard.
+
+### Demo Credential Compatibility
+
+- admin@fdas.local / Admin@12345 remains valid and the account remains Approved.
+- operator.cs@fdas.local / Operator@12345 remains valid and the account remains Approved.
+- Mixed-case and surrounding whitespace around login email are normalized without changing password handling.
+- No demo password, hash, role, status, scope, or department assignment was changed.
+
+### Verification Commands
+
+- backend/.venv/Scripts/python.exe -m py_compile app/schemas/auth.py app/routers/auth.py app/verify_phase10_4.py
+- backend/.venv/Scripts/python.exe -m app.verify_phase3
+- backend/.venv/Scripts/python.exe -m app.verify_phase4
+- backend/.venv/Scripts/python.exe -m app.verify_phase10
+- backend/.venv/Scripts/python.exe -m app.verify_phase10_4
+- npm.cmd run lint
+- npm.cmd run build
+- node scripts/phase5-smoke.mjs
+- Controlled Chromium Error Boundary fallback test using a temporary Vite test entry.
+- Final source/error/configuration audit and live database/storage fingerprint comparison.
+
+### Backend Verification Results
+
+- GET /health on the isolated Phase 10.4 backend: PASS; database connected.
+- /api/info confirmed that Uvicorn used the isolated database copy.
+- Phase 3 verifier: PASS; all reported authentication, status, role, and department-scope checks were true.
+- Phase 4 verifier: PASS; phase4_passed=True and all 23 reported CRUD/scope checks were true.
+- Phase 10 verifier: PASS; all 6 dashboard and attendance-data checks passed.
+- Phase 10.4 verifier: PASS; all 21 reported checks passed, covering registration options, valid registration, trimming, .local email support, malformed input rejection, password rules, case-insensitive duplicate conflict, PBKDF2 storage, demo login, invalid credentials, Pending/Disabled blocking, authorization, and safe errors.
+
+### Frontend Verification Results
+
+- Final frontend lint: PASS.
+- Final frontend production build: PASS.
+- Phase 5 Playwright smoke: PASS; 22 checks passed, including registration, empty/malformed/short input, duplicate email, Admin/Operator login, wrong password, both dashboards, route authorization, and four controlled backend-unavailable flows.
+- Smoke page_errors=0.
+- Six browser console resource errors were expected from intentional HTTP 409, HTTP 401, and connection-refusal test cases; none produced an uncaught page error or unsafe UI text.
+- Controlled Error Boundary Chromium check: PASS; fallback heading, safe reload guidance, and Reload Application action rendered; controlled_page_errors=0.
+
+### Errors Encountered And Fixed
+
+- The first expanded smoke run waited for a select option to be visually visible. Native option elements are attached but not independently visible in Chromium, so only the /register-load harness assertion failed while all application-flow checks passed. The assertion was corrected to wait for attached state, the isolated browser test account was removed, and the complete smoke suite then passed.
+- No application regression was found in the sequential backend suites.
+
+### Remaining Issues
+
+- The production build retains the existing non-blocking warning that the main JavaScript chunk is larger than 500 kB after minification.
+- Error Boundaries intentionally do not replace ordinary API error handling and do not catch every event-handler or asynchronous JavaScript error; the requested major API flows now handle network errors directly.
+- Password reset, email verification, OTP, MFA, CAPTCHA, cloud login, rate limiting, LAN access, and other authentication expansion remain outside scope.
+
+### Safety Confirmations
+
+- All mutation-capable backend and browser checks used C:\Users\WELCOME\Desktop\FDAS Project\.phase10_4_verify_20260910, an isolated database/application/storage copy that was removed afterward.
+- Live backend/fdas_local.db retained SHA-256 9FD169AC55CCB2D4E09630FB6E127190B576B6371A0E613C182207F67FB36821, size 1,556,480 bytes, and UTC modification time 2026-08-31T00:49:43.7563983Z, exactly matching the starting baseline.
+- Live backend/storage retained 15,341 files and 15,653,491 bytes, with matching root and latest-file timestamps.
+- All 4,500 face templates and all enrolled images were preserved.
+- All 11 attendance records, sessions, departments, classes, and students were preserved.
+- The Approved Admin and Approved Operator demo accounts and their passwords were preserved and verified.
+- PBKDF2-SHA256 remains unchanged at 120,000 iterations.
+- JWT architecture remains unchanged: environment-first secret with the Phase 10.3 demo fallback, HS256, and 60-minute expiry.
+- FACE_MATCH_THRESHOLD remains exactly 0.75.
+- Recognition algorithm is unchanged.
+- Liveness behavior and thresholds are unchanged.
+- Existing Admin/User roles, protected routes, and department authorization are unchanged.
+- Stitch UI structure and visual system are preserved; no redesign was performed.
+- requirements.txt is unchanged.
+- LAN functionality was not implemented.
+- Phase 10.5 was not started.
+
+### Final Phase 10.4 Status
+
+**PASS** - registration validation, duplicate handling, frontend form protection, safe network errors, and React crash protection are implemented and verified without changing protected data or out-of-scope behavior.

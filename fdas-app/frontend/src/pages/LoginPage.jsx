@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import Icon from '../components/Icon'
 
@@ -19,11 +19,12 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      if (!form.email || !form.password) {
+      const email = form.email.trim().toLowerCase()
+      if (!email || !form.password.trim()) {
         setError('Please enter your email and password.')
         return
       }
-      const user = await login(form.email, form.password)
+      const user = await login(email, form.password)
       const fallbackPath = user.role === 'Admin' ? '/admin/dashboard' : '/user/dashboard'
       navigate(location.state?.from || fallbackPath, { replace: true })
     } catch (err) {
@@ -100,7 +101,7 @@ export default function LoginPage() {
                   <Icon name="person" size={20} className="absolute left-3" style={{ color: '#ffc641' }} />
                   <input
                     id="email"
-                    type="text"
+                    type="email"
                     value={form.email}
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     placeholder="admin@fdas.local"
@@ -197,6 +198,13 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
+
+            <p className="text-center text-xs" style={{ color: '#55433b' }}>
+              Need access?{' '}
+              <Link to="/register" className="font-bold underline underline-offset-2" style={{ color: '#934619' }}>
+                Request an account
+              </Link>
+            </p>
 
             {/* Demo hint */}
             <div className="text-center text-xs rounded-xl p-3" style={{ backgroundColor: '#fff1eb', color: '#55433b' }}>

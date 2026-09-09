@@ -4,18 +4,21 @@ import AttendanceLogSidebar from '../../components/AttendanceLogSidebar'
 import StatsCard from '../../components/StatsCard'
 import Icon from '../../components/Icon'
 import { dashboardApi } from '../../api/dashboardApi'
+import { getApiError } from '../../api/client'
 
 export default function AdminDashboard() {
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     async function loadDashboardData() {
       try {
+        setError('')
         const data = await dashboardApi.getSummary()
         setSummary(data)
       } catch (err) {
-        console.error('Failed to load admin dashboard data:', err)
+        setError(getApiError(err, 'Unable to load dashboard data.'))
       } finally {
         setLoading(false)
       }
@@ -25,6 +28,7 @@ export default function AdminDashboard() {
 
   return (
     <section className="fdas-page space-y-6 animate-fade-in-up">
+      {error && <div role="alert" className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
         <div>
           <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Admin Overview</p>

@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -6,7 +8,14 @@ from app.dependencies import require_approved_user
 from app.models.department import Department
 from app.models.role import Role
 from app.models.user import User
-from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, RegisterRequestResponse, UserProfile
+from app.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+    RegisterRequest,
+    RegisterRequestResponse,
+    RegistrationDepartmentOption,
+    UserProfile,
+)
 from app.utils.jwt import create_access_token
 from app.utils.security import hash_password, verify_password
 
@@ -39,7 +48,7 @@ def build_token_claims(user: User) -> dict:
 
 @router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).one_or_none()
+    user = db.query(User).filter(func.lower(User.email) == payload.email).one_or_none()
     if user is None or not verify_password(payload.password, user.passwordHash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
     if user.status != "Approved":
@@ -57,11 +66,24 @@ def me(current_user: User = Depends(require_approved_user)):
     return build_user_profile(current_user)
 
 
+@router.get("/registration-departments", response_model=list[RegistrationDepartmentOption])
+def registration_departments(db: Session = Depends(get_db)):
+    return (
+        db.query(Department)
+        .filter(Department.status == "Active")
+        .order_by(Department.departmentName)
+        .all()
+    )
+
+
 @router.post("/register-request", response_model=RegisterRequestResponse, status_code=status.HTTP_201_CREATED)
 def register_request(payload: RegisterRequest, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == payload.email).one_or_none()
+    existing_user = db.query(User).filter(func.lower(User.email) == payload.email).one_or_none()
     if existing_user is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists.",
+        )
 
     department = db.query(Department).filter(Department.departmentId == payload.requestedDepartmentId).one_or_none()
     if department is None:
@@ -81,7 +103,14 @@ def register_request(payload: RegisterRequest, db: Session = Depends(get_db)):
         accessScope="Department",
     )
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists.",
+        )
     db.refresh(user)
 
     return {

@@ -3,20 +3,23 @@ import AttendanceChart from '../../components/AttendanceChart'
 import AttendanceLogSidebar from '../../components/AttendanceLogSidebar'
 import StatsCard from '../../components/StatsCard'
 import { dashboardApi } from '../../api/dashboardApi'
+import { getApiError } from '../../api/client'
 import { useAuth } from '../../context/useAuth'
 
 export default function UserDashboard() {
   const { assignedDepartmentName, hasAllDepartmentsAccess } = useAuth()
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     async function loadDashboardData() {
       try {
+        setError('')
         const data = await dashboardApi.getSummary()
         setSummary(data)
       } catch (err) {
-        console.error('Failed to load user dashboard summary:', err)
+        setError(getApiError(err, 'Unable to load dashboard data.'))
       } finally {
         setLoading(false)
       }
@@ -26,6 +29,7 @@ export default function UserDashboard() {
 
   return (
     <section className="fdas-page space-y-6 animate-fade-in-up">
+      {error && <div role="alert" className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
       <div>
         <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Operator Overview</p>
         <h1 className="text-4xl font-black" style={{ color: '#4A2B0F' }}>Department Dashboard</h1>

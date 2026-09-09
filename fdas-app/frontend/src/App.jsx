@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 import AdminLayout from './layouts/AdminLayout'
@@ -27,6 +28,7 @@ export default function App() {
       {/* Public */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
       {/* Admin Routes */}
       <Route element={<ProtectedRoute role="admin" />}>
