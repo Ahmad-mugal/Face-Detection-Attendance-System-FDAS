@@ -2040,3 +2040,140 @@ No wildcard, LAN, institutional, or cloud origin was added.
 
 ### Final Phase 10.3 Status
 **PASS** - deprecated UTC handling is removed without changing legacy SQLite/API behavior, JWT secret configuration is environment-first with a development fallback, CORS/auth behavior remains safe and unchanged, all required verification passed, live database/storage are preserved, and Phase 10.4 was not started.
+
+## Phase 10.3A - Local Python Environment Repair & Startup Verification
+
+### Goal
+Repair the generated backend virtual environment and prove that the normal viva startup and minimum verifiers run from backend/.venv, without changing application logic, dependency versions, configuration, or protected data.
+
+### Problem Found
+The existing backend/.venv is broken because its pyvenv.cfg references Python 3.11.9 at C:\Users\WELCOME\AppData\Local\Programs\Python\Python311\python.exe. That base interpreter no longer exists, so backend/.venv/Scripts/python.exe reports that no Python is available at the configured path.
+
+### Environment Audit
+- Old expected Python: Python 3.11.9.
+- Old expected path: C:\Users\WELCOME\AppData\Local\Programs\Python\Python311\python.exe.
+- Currently available Python: 64-bit Python 3.14.6.
+- Available path: C:\Python314\python.exe; py --list reports only Python 3.14.
+- Candidate version evaluated: Python 3.14.6.
+- The old .venv contains only generated Include, Lib, Scripts, and pyvenv.cfg state. fdas_local.db and backend/storage are outside .venv.
+- requirements.txt covers all direct third-party imports: FastAPI, Uvicorn, SQLAlchemy, Pydantic, PyJWT, python-multipart, NumPy, and OpenCV. The project imports jwt from PyJWT and does not use python-jose.
+
+### Actions Taken
+- Created a disposable Python 3.14.6 candidate virtual environment outside backend/.venv.
+- Attempted installation using the unchanged command python -m pip install -r requirements.txt.
+- The first attempt was blocked by sandbox network policy; the approved retry reached PyPI.
+- Installation stopped at pinned numpy==2.2.6 because no Python 3.14 wheel was available. Pip downloaded the source archive, but metadata/build preparation failed because no supported C/C++ compiler was installed.
+- Per Phase 10.3A instructions, no broad dependency upgrade was attempted and requirements.txt was not changed.
+- The original .venv was not removed or replaced.
+- The disposable candidate environment was verified to contain no project data and was removed.
+
+### Files Modified
+- docs/development_journey.md
+
+No application source, configuration, requirements, database, storage, or generated .venv files were committed or modified.
+
+### Startup Verification
+- Candidate interpreter creation: PASS, Python 3.14.6.
+- Final backend/.venv interpreter repair: NOT COMPLETED because the pinned dependency set is incompatible with the only installed Python version.
+- Normal Uvicorn startup from backend/.venv: NOT RUN.
+- GET /health using repaired backend/.venv: NOT RUN.
+
+### Regression Verification
+- backend/.venv/Scripts/python.exe -m app.verify_phase3: NOT RUN.
+- backend/.venv/Scripts/python.exe -m app.verify_phase10: NOT RUN.
+- Regression verification could not start because dependency installation did not complete and the original .venv remains broken.
+
+### Requirements Reproducibility Check
+- requirements.txt is complete for the application's direct imports.
+- requirements.txt remains unchanged.
+- The exact pinned set is reproducible with the former compatible Python 3.11 environment, but not with the currently installed Python 3.14.6 because numpy==2.2.6 has no compatible wheel and cannot build locally without a compiler.
+- Safest next step: install a supported Python 3.11.x interpreter, preferably matching 3.11.9, then rerun Phase 10.3A. Dependency changes require separate explicit approval.
+
+### Git Safety
+- backend/.venv remains ignored.
+- backend/.env remains ignored.
+- backend/.env.example is not ignored and remains tracked.
+- backend/fdas_local.db remains ignored.
+- backend/storage remains ignored.
+- No generated environment files were added to Git.
+
+### Data Safety
+- fdas_local.db was preserved: size, SHA-256, and timestamp match the Phase 10.3 baseline.
+- backend/storage was preserved: file count, total bytes, root timestamp, and latest-file timestamp match the baseline.
+- Face templates and enrolled images were preserved.
+- Attendance records were preserved.
+- No database startup, initialization, seed, migration, or verifier was run.
+
+### Configuration Safety
+- FACE_MATCH_THRESHOLD remains 0.75.
+- SECRET_KEY / FDAS_SECRET_KEY behavior is unchanged.
+- Recognition is unchanged.
+- Liveness is unchanged.
+- Authentication and department authorization are unchanged.
+- Phase 10.4 was not started.
+
+### Warnings
+- pip reported that version 26.2.1 is available; pip was not upgraded because it was not required to diagnose the compatibility failure.
+- Installing a compiler alone would force a source build and is not recommended for the viva environment when restoring a compatible Python 3.11 interpreter is simpler and matches the original environment.
+
+### Final Status
+**FAIL** - Phase 10.3A cannot safely complete with only Python 3.14.6 installed and the existing pinned numpy==2.2.6 requirement. The original broken .venv and all project data remain preserved. Install a compatible Python 3.11.x interpreter and explicitly resume Phase 10.3A before attempting startup or verification.
+
+### Recovery Resume - 2026-09-09
+
+The earlier FAIL and safe-stop above remain part of the audit history. Phase 10.3A was resumed after Python 3.11.9 became available again at the path already recorded in backend/.venv/pyvenv.cfg. The existing virtual environment recovered successfully; it was not recreated, replaced, or modified.
+
+### Recovered Environment Verification
+
+- backend/.venv/Scripts/python.exe --version: PASS, Python 3.11.9.
+- Direct imports of FastAPI, Uvicorn, SQLAlchemy, Pydantic, PyJWT, python-multipart, OpenCV, and NumPy: PASS.
+- Existing .venv recovery: PASS.
+- Virtual environment recreation: not required and not performed.
+- Dependency reinstall: not required and not performed.
+- requirements.txt: unchanged.
+
+### Recovered Startup Verification
+
+- Normal command from backend: ./.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000.
+- Uvicorn startup: PASS; the backend listened on 127.0.0.1:8000 using the recovered .venv.
+- GET http://127.0.0.1:8000/health: PASS.
+- Health response: {"status":"ok","service":"FDAS Backend","database":"connected"}.
+- GET /api/info confirmed that the normal startup used backend/fdas_local.db.
+
+### Recovered Regression Verification
+
+The normal backend startup and health check were read-only against the live database. The mutation-capable verifier runs used the same recovered backend/.venv interpreter and an isolated copy of the application, database, and storage so that live data remained protected.
+
+- backend/.venv/Scripts/python.exe -m app.verify_phase3: PASS; all 20 reported authentication, account-state, role, and department-access checks were true.
+- backend/.venv/Scripts/python.exe -m app.verify_phase10: PASS; all 6 dashboard, scope-isolation, attendance-update, weekly-chart, and recent-log checks passed.
+- Additional verifier suites: not required; no additional suites were run.
+- The Phase 3 and Phase 10 commands were run sequentially against the same isolated verifier instance.
+- The isolated verifier copy and its Uvicorn logs were removed after verification.
+
+### Recovered Data Safety Confirmation
+
+- Live fdas_local.db SHA-256 remained 9FD169AC55CCB2D4E09630FB6E127190B576B6371A0E613C182207F67FB36821.
+- Live fdas_local.db remained 1,556,480 bytes with UTC modification time 2026-08-31T00:49:43.7563983Z, exactly matching the Phase 10.3 baseline.
+- Live backend/storage remained at 15,341 files and 15,653,491 bytes; root and latest-file timestamps exactly matched the Phase 10.3 baseline.
+- Face templates were preserved; the live database retained 4,500 face_templates rows.
+- Attendance records were preserved; the live database retained 11 attendance_records rows.
+- Enrolled face images and all other backend/storage content were preserved.
+
+### Recovered Configuration Safety Confirmation
+
+- FACE_MATCH_THRESHOLD remains exactly 0.75.
+- PBKDF2-SHA256 remains unchanged at 120,000 iterations.
+- JWT configuration remains unchanged from Phase 10.3: environment-first FDAS_SECRET_KEY with the same development fallback, HS256, and 60-minute expiry.
+- Recognition logic is unchanged.
+- Liveness logic and thresholds are unchanged.
+- Authentication and department authorization are unchanged.
+- Git diff confirmed no changes to requirements.txt or the checked configuration, JWT, password, recognition, liveness, and authorization source files.
+- Phase 10.4 was not started.
+
+### Recovery Warnings
+
+- The restricted command sandbox could not initially access the restored base interpreter under the user AppData directory. Verification was therefore repeated with approved host access; this was a tooling visibility limitation, not a defect in the recovered .venv.
+- No dependency, application, database, storage, recognition, liveness, authentication, or authorization warning remains for Phase 10.3A.
+
+### Final Status
+**PASS** — existing virtual environment recovered successfully after restoring Python 3.11.9.
