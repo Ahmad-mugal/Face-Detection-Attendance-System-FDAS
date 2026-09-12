@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -13,6 +13,13 @@ from app.schemas.face_enrollment import (
     FaceProcessingInfo,
     FaceTemplateRead,
     FaceTemplateProcessResponse,
+    DeepEnrollmentReadinessResponse,
+    DeepRecoveryUploadResponse,
+)
+from app.services.deep_enrollment_recovery import (
+    RecoveryUpload,
+    create_deep_recovery_enrollment,
+    deep_enrollment_readiness,
 )
 from app.services.face_enrollment import (
     clear_student_face_enrollment,
@@ -26,6 +33,8 @@ from app.services.face_enrollment import (
     reprocess_face_template,
     reprocess_student_face_templates,
     student_face_registered,
+    validate_face_upload_file,
+    MAX_FACE_IMAGE_BYTES,
 )
 from app.services.face_processing import processing_info
 from app.services.students import ensure_student_access, get_student_or_404
@@ -155,3 +164,57 @@ def process_student_face_enrollment(
 @router.get("/api/face-processing/info", response_model=FaceProcessingInfo)
 def get_face_processing_info(current_user: User = Depends(require_operator_or_admin)):
     return processing_info()
+
+
+@router.get(
+    "/api/students/{studentId}/deep-enrollment/readiness",
+    response_model=DeepEnrollmentReadinessResponse,
+)
+def get_deep_enrollment_readiness(
+    studentId: int,
+    current_user: User = Depends(require_operator_or_admin),
+    db: Session = Depends(get_db),
+):
+    return deep_enrollment_readiness(db, current_user, studentId)
+
+
+@router.post(
+    "/api/students/{studentId}/deep-enrollment/recovery",
+    response_model=DeepRecoveryUploadResponse,
+    status_code=201,
+)
+async def upload_deep_recovery_enrollment(
+    studentId: int,
+    files: list[UploadFile] = File(...),
+    current_user: User = Depends(require_operator_or_admin),
+    db: Session = Depends(get_db),
+):
+    uploads: list[RecoveryUpload] = []
+    for file in files:
+        suffix = validate_face_upload_file(file)
+        content = await file.read()
+        if not content:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Uploaded image is empty")
+        if len(content) > MAX_FACE_IMAGE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="Uploaded image is larger than the 5 MB limit",
+            )
+        uploads.append(RecoveryUpload(suffix=suffix, content=content))
+
+    result = create_deep_recovery_enrollment(db, current_user, studentId, uploads)
+    return DeepRecoveryUploadResponse(
+        studentId=result["studentId"],
+        studentName=result["studentName"],
+        rollNo=result["rollNo"],
+        deepCountBefore=result["deepCountBefore"],
+        deepCountAfter=result["deepCountAfter"],
+        requiredMinimum=result["requiredMinimum"],
+        additionalNeeded=result["additionalNeeded"],
+        readiness=result["readiness"],
+        recoverySamples=[to_face_template_read(template) for template in result["recoveryTemplates"]],
+        deepEmbeddingIds=result["deepEmbeddingIds"],
+        attendanceCreated=result["attendanceCreated"],
+        attendanceSafetyHold=result["attendanceSafetyHold"],
+        activeForAttendance=result["activeForAttendance"],
+    )

@@ -11,8 +11,19 @@ import Icon from './Icon'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 const SINGLE_FACE_STABLE_MS = 1000
 const SINGLE_FACE_POLL_MS = 250
+const RECOVERY_CAPTURE_INTERVAL_MS = 700
+const RECOVERY_VARIATIONS = [
+  'Look straight at the camera',
+  'Turn slightly left',
+  'Turn slightly right',
+  'Move slightly closer',
+  'Move slightly farther',
+  'Return to a normal front view',
+  'Tilt your head slightly upward',
+  'Tilt your head slightly downward',
+]
 
-export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCompleted }) {
+export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCompleted, recoveryMode = false }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
@@ -22,6 +33,8 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
   const [capturedSamples, setCapturedSamples] = useState([])
   const [savedSampleCount, setSavedSampleCount] = useState(0)
   const [error, setError] = useState('')
+  const [readiness, setReadiness] = useState(null)
+  const [targetCount, setTargetCount] = useState(FACE_ENROLLMENT_SAMPLE_COUNT)
   const [faceGuard, setFaceGuard] = useState({
     status: 'Unchecked',
     message: 'No face detected.',
@@ -55,6 +68,28 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
     stopCamera()
   }, [stopCamera])
 
+  useEffect(() => {
+    let active = true
+    if (!recoveryMode || !studentId) {
+      setReadiness(null)
+      setTargetCount(FACE_ENROLLMENT_SAMPLE_COUNT)
+      return () => { active = false }
+    }
+    studentsApi.getDeepEnrollmentReadiness(studentId)
+      .then(result => {
+        if (!active) return
+        setReadiness(result)
+        const deficit = Math.max(0, result.additionalNeeded || 0)
+        setTargetCount(Math.min(FACE_ENROLLMENT_SAMPLE_COUNT, Math.max(deficit, 8)))
+      })
+      .catch(err => {
+        if (active) setError(getApiError(err, 'Unable to load deep enrollment readiness.'))
+      })
+    return () => { active = false }
+  }, [recoveryMode, studentId])
+
+  const sampleCount = recoveryMode ? targetCount : FACE_ENROLLMENT_SAMPLE_COUNT
+
   const captureFrame = useCallback(() => new Promise((resolve, reject) => {
     const video = videoRef.current
     const canvas = canvasRef.current
@@ -77,13 +112,23 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
   }), [])
 
   const uploadSamples = useCallback(async samples => {
-    if (!studentId || samples.length !== FACE_ENROLLMENT_SAMPLE_COUNT) return
+    if (!studentId || samples.length !== sampleCount) return
     setStatus('uploading')
     setError('')
     try {
-      const result = await studentsApi.uploadFaceEnrollment(studentId, samples)
-      const savedCount = result.uploadedSamples?.length || 0
+      const result = recoveryMode
+        ? await studentsApi.uploadDeepRecovery(studentId, samples)
+        : await studentsApi.uploadFaceEnrollment(studentId, samples)
+      const savedCount = recoveryMode
+        ? result.recoverySamples?.length || 0
+        : result.uploadedSamples?.length || 0
       setSavedSampleCount(savedCount)
+      if (recoveryMode) setReadiness(current => ({
+        ...current,
+        validDeepEmbeddings: result.deepCountAfter,
+        additionalNeeded: result.additionalNeeded,
+        readiness: result.readiness,
+      }))
       setStatus('complete')
       onCompleted?.(result)
     } catch (err) {
@@ -91,13 +136,24 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
       const detail = err?.response?.data?.detail
       setError(detail?.message || getApiError(err, 'Unable to upload face enrollment samples.'))
     }
-  }, [onCompleted, studentId])
+  }, [onCompleted, recoveryMode, sampleCount, studentId])
 
   const inspectSingleFace = useCallback(async (sample, referenceFile = null) => {
-    const result = await faceMatchingApi.validateSingleFace({ file: sample, referenceFile })
+    const basicResult = await faceMatchingApi.validateSingleFace({ file: sample, referenceFile })
+    let result = basicResult
+    if (recoveryMode && basicResult.ready && basicResult.faceCount === 1 && basicResult.continuityPassed !== false) {
+      const deepResult = await studentsApi.validateDeepRecoverySample(sample)
+      result = {
+        ...basicResult,
+        ready: deepResult.success,
+        message: deepResult.success ? 'Face detected — deep-ready.' : deepResult.message,
+        deepStatus: deepResult.status,
+        deepFaceCount: deepResult.deepFaceCount,
+      }
+    }
     setFaceGuard(result)
     return result
-  }, [])
+  }, [recoveryMode])
 
   const waitForStableSingleFace = useCallback(async (referenceFile = null) => {
     let stableSince = null
@@ -144,9 +200,9 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
       const samples = [lockSample]
       setCapturedCount(1)
       setStatus('capturing')
-      while (samples.length < FACE_ENROLLMENT_SAMPLE_COUNT) {
+      while (samples.length < sampleCount) {
         if (cancelledRef.current) return
-        await sleep(FACE_ENROLLMENT_CAPTURE_INTERVAL_MS)
+        await sleep(recoveryMode ? RECOVERY_CAPTURE_INTERVAL_MS : FACE_ENROLLMENT_CAPTURE_INTERVAL_MS)
         if (cancelledRef.current) return
         const candidate = await captureFrame()
         const validation = await inspectSingleFace(candidate, lockSample)
@@ -170,7 +226,7 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
       setStatus('error')
       setError(getApiError(err, 'Unable to start camera or capture samples.'))
     }
-  }, [captureFrame, clearTemporarySamples, inspectSingleFace, stopCamera, studentId, uploadSamples, waitForStableSingleFace])
+  }, [captureFrame, clearTemporarySamples, inspectSingleFace, recoveryMode, sampleCount, stopCamera, studentId, uploadSamples, waitForStableSingleFace])
 
   const cancelRegistration = useCallback(() => {
     cancelledRef.current = true
@@ -186,14 +242,18 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
 
   const active = ['starting', 'stabilizing', 'capturing', 'paused', 'uploading'].includes(status)
   const progressLabel = status === 'capturing'
-    ? `Capturing ${capturedCount}/${FACE_ENROLLMENT_SAMPLE_COUNT}`
-    : `${capturedCount}/${FACE_ENROLLMENT_SAMPLE_COUNT} samples`
+    ? `Capturing ${capturedCount}/${sampleCount}`
+    : `${capturedCount}/${sampleCount} samples`
+  const variationIndex = Math.min(
+    RECOVERY_VARIATIONS.length - 1,
+    Math.floor((capturedCount / Math.max(sampleCount, 1)) * RECOVERY_VARIATIONS.length),
+  )
 
   return (
     <div className="rounded-xl border-2 overflow-hidden fdas-card" style={{ borderColor: '#dbc1b7' }}>
       <div className="px-5 py-4 border-b flex items-start justify-between gap-4" style={{ borderColor: '#f0dfd8' }}>
         <div>
-          <h4 className="font-bold text-sm" style={{ color: '#4A2B0F' }}>Face Enrollment</h4>
+          <h4 className="font-bold text-sm" style={{ color: '#4A2B0F' }}>{recoveryMode ? 'Deep Enrollment Recovery' : 'Face Enrollment'}</h4>
           <p className="text-xs mt-0.5" style={{ color: '#887369' }}>
             {studentId ? `Ready for ${studentName || 'saved student'}` : 'Save the student profile before registration.'}
           </p>
@@ -227,18 +287,43 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
           <p>Keep your face inside the frame</p>
           <p>Slowly move face slightly left and right</p>
           <p>Keep normal expression</p>
+          {recoveryMode && <p>Use small natural distance, vertical-head, and modest lighting variations. Avoid extreme side profiles.</p>}
+          {recoveryMode && <p className="font-bold" style={{ color: '#934619' }}>Current variation: {RECOVERY_VARIATIONS[variationIndex]}</p>}
           <p className="font-bold" style={{ color: faceGuard.ready ? '#15803d' : '#93000a' }}>{faceGuard.message}</p>
           <p>Capture starts or resumes after one face remains stable for approximately one second.</p>
+          {recoveryMode && <p>Every counted sample must also pass the local deep detector. Historical samples remain unchanged.</p>}
         </div>
 
-        {status === 'uploading' && <p className="text-sm font-bold" style={{ color: '#C4533A' }}>Uploading {FACE_ENROLLMENT_SAMPLE_COUNT} samples...</p>}
-        {status === 'complete' && <p className="text-sm font-bold" style={{ color: '#15803d' }}>Face enrollment completed. Saved samples: {savedSampleCount}</p>}
+        {recoveryMode && readiness && (
+          <div className="rounded-lg border p-3 text-xs" style={{ backgroundColor: '#fff', borderColor: '#dbc1b7', color: '#55433b' }}>
+            <p><strong>Current deep embeddings:</strong> {readiness.validDeepEmbeddings}/{readiness.requiredMinimum}</p>
+            <p><strong>Readiness:</strong> {readiness.readiness}</p>
+            {readiness.additionalNeeded > 0 && (
+              <label className="block mt-2">
+                <span className="font-bold">Recovery samples for this batch</span>
+                <input
+                  type="number"
+                  min={Math.max(1, readiness.additionalNeeded)}
+                  max={FACE_ENROLLMENT_SAMPLE_COUNT}
+                  value={targetCount}
+                  disabled={active}
+                  onChange={event => setTargetCount(Math.min(FACE_ENROLLMENT_SAMPLE_COUNT, Math.max(readiness.additionalNeeded, Number(event.target.value) || readiness.additionalNeeded)))}
+                  className="ml-2 w-20 rounded border px-2 py-1"
+                  style={{ borderColor: '#dbc1b7' }}
+                />
+              </label>
+            )}
+          </div>
+        )}
+
+        {status === 'uploading' && <p className="text-sm font-bold" style={{ color: '#C4533A' }}>Uploading {sampleCount} samples...</p>}
+        {status === 'complete' && <p className="text-sm font-bold" style={{ color: '#15803d' }}>{recoveryMode ? 'Deep recovery completed' : 'Face enrollment completed'}. Saved samples: {savedSampleCount}</p>}
         {error && <p className="text-sm font-bold" style={{ color: '#93000a' }}>{error}</p>}
 
         <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#f0dfd8' }}>
           <div
             className="h-full transition-all"
-            style={{ width: `${(capturedCount / FACE_ENROLLMENT_SAMPLE_COUNT) * 100}%`, backgroundColor: '#C4533A' }}
+            style={{ width: `${(capturedCount / sampleCount) * 100}%`, backgroundColor: '#C4533A' }}
           />
         </div>
       </div>
@@ -247,14 +332,14 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
         <button
           type="button"
           onClick={startRegistration}
-          disabled={!studentId || active}
+          disabled={!studentId || active || (recoveryMode && (!readiness || readiness.additionalNeeded === 0))}
           className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ backgroundColor: '#C4533A', color: '#fff' }}
         >
           <Icon name="videocam" size={18} />
-          Start Face Registration
+          {recoveryMode ? 'Start Deep Recovery' : 'Start Face Registration'}
         </button>
-        {status === 'error' && capturedSamples.length === FACE_ENROLLMENT_SAMPLE_COUNT && (
+        {status === 'error' && capturedSamples.length === sampleCount && (
           <button
             type="button"
             onClick={retryUpload}

@@ -58,3 +58,33 @@ class FaceProcessingInfo(BaseModel):
     encodingVersion: str
     recognitionMatchingImplemented: bool
     livenessImplemented: bool
+
+
+class DeepEnrollmentReadinessResponse(BaseModel):
+    studentId: int
+    studentName: str
+    rollNo: str
+    validDeepEmbeddings: int
+    requiredMinimum: int
+    additionalNeeded: int
+    readiness: str
+    existingHistoricalImages: int
+    missingHistoricalImages: int
+    attendanceSafetyHold: bool
+    activeForAttendance: bool
+
+
+class DeepRecoveryUploadResponse(BaseModel):
+    studentId: int
+    studentName: str
+    rollNo: str
+    deepCountBefore: int
+    deepCountAfter: int
+    requiredMinimum: int
+    additionalNeeded: int
+    readiness: str
+    recoverySamples: list[FaceTemplateRead]
+    deepEmbeddingIds: list[int]
+    attendanceCreated: bool
+    attendanceSafetyHold: bool
+    activeForAttendance: bool

@@ -16,4 +16,23 @@ export const studentsApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(response => response.data)
   },
+  getDeepEnrollmentReadiness: studentId => apiClient
+    .get(`/api/students/${studentId}/deep-enrollment/readiness`)
+    .then(response => response.data),
+  validateDeepRecoverySample: file => {
+    const formData = new FormData()
+    formData.append('file', file, `deep_recovery_check_${Date.now()}.jpg`)
+    return apiClient.post('/api/deep-face/validate-recovery-sample', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(response => response.data)
+  },
+  uploadDeepRecovery: (studentId, files) => {
+    const formData = new FormData()
+    files.forEach((file, index) => {
+      formData.append('files', file, `deep_recovery_${String(index + 1).padStart(2, '0')}.jpg`)
+    })
+    return apiClient.post(`/api/students/${studentId}/deep-enrollment/recovery`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(response => response.data)
+  },
 }

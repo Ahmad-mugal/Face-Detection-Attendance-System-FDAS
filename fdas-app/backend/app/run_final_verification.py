@@ -58,6 +58,9 @@ VERIFIERS: tuple[VerifierSpec, ...] = (
     VerifierSpec("Phase 10.6B Identity Integrity", "app.verify_phase10_6b"),
     VerifierSpec("Phase 10.7A Deep Recognition Foundation", "app.verify_phase10_7a", timeout_seconds=1200),
     VerifierSpec("Phase 10.7B Deep Embedding Migration", "app.verify_phase10_7b"),
+    VerifierSpec("Phase 10.7B.1 Enrollment Recovery", "app.verify_phase10_7b1"),
+    VerifierSpec("Phase 10.7C Deep Recognition Calibration", "app.verify_phase10_7c"),
+    VerifierSpec("Phase 10.7D Identity Record Integrity", "app.verify_phase10_7d"),
 )
 
 

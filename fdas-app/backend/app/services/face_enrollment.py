@@ -18,6 +18,7 @@ from app.utils.time import utc_now_naive
 ALLOWED_FACE_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 MAX_FACE_IMAGE_BYTES = 5 * 1024 * 1024
 FACE_ENROLLMENT_SAMPLE_COUNT = 25
+DEEP_RECOVERY_TEMPLATE_STATUS = "DeepRecovery"
 STORAGE_RELATIVE_ROOT = Path("storage") / "face_enrollments"
 STORAGE_ABSOLUTE_ROOT = BASE_DIR / STORAGE_RELATIVE_ROOT
 
@@ -34,7 +35,11 @@ def ensure_template_access(user: User, template: FaceTemplate) -> None:
 
 
 def student_face_registered(student: Student) -> bool:
-    active_template_count = sum(1 for template in student.faceTemplates if template.isActive)
+    active_template_count = sum(
+        1
+        for template in student.faceTemplates
+        if template.isActive and template.status != DEEP_RECOVERY_TEMPLATE_STATUS
+    )
     return active_template_count >= FACE_ENROLLMENT_SAMPLE_COUNT
 
 

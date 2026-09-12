@@ -18,4 +18,12 @@ export const faceMatchingApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(response => response.data)
   },
+  diagnoseDeep: ({ departmentId, expectedStudentId, file }) => {
+    const formData = new FormData()
+    formData.append('file', file, `deep_identity_query_${Date.now()}.jpg`)
+    return apiClient.post('/api/deep-face/match/diagnostic', formData, {
+      params: { departmentId, expectedStudentId },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(response => response.data)
+  },
 }

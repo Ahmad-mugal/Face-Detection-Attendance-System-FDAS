@@ -8,6 +8,8 @@ import Icon from './Icon'
  *   actionsEnabled - Show edit/archive action buttons
  *   onEdit        - Callback (student) => void
  *   onDelete      - Callback (student) => void
+ *   onRecover     - Callback (student) => void
+ *   onDiagnose    - Callback (student) => void
  *   showEnrollment - Show face enrollment status column
  */
 export default function StudentTable({
@@ -15,6 +17,8 @@ export default function StudentTable({
   actionsEnabled = false,
   onEdit,
   onDelete,
+  onRecover,
+  onDiagnose,
   showEnrollment = true,
 }) {
   if (students.length === 0) {
@@ -93,6 +97,28 @@ export default function StudentTable({
               {actionsEnabled && (
                 <td className="py-3 px-4 text-right">
                   <div className="flex items-center gap-1 justify-end">
+                    {onDiagnose && student.status === 'Active' && (
+                      <button
+                        onClick={() => onDiagnose(student)}
+                        className="p-1.5 rounded-lg transition-colors hover:bg-teal-50"
+                        style={{ color: '#0f766e' }}
+                        title="Independent deep recognition diagnostic"
+                        aria-label={`Independent deep recognition diagnostic for ${student.name}`}
+                      >
+                        <Icon name="biotech" size={18} />
+                      </button>
+                    )}
+                    {onRecover && (
+                      <button
+                        onClick={() => onRecover(student)}
+                        className="p-1.5 rounded-lg transition-colors hover:bg-amber-50"
+                        style={{ color: '#934619' }}
+                        title="Deep enrollment recovery"
+                        aria-label={`Deep enrollment recovery for ${student.name}`}
+                      >
+                        <Icon name="face_retouching_natural" size={18} />
+                      </button>
+                    )}
                     <button
                       onClick={() => onEdit?.(student)}
                       className="p-1.5 rounded-lg transition-colors hover:bg-orange-100"

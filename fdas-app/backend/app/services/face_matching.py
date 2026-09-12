@@ -16,7 +16,12 @@ from app.models.face_template import FaceTemplate
 from app.models.student import Student
 from app.models.user import User
 from app.services.departments import ensure_department_access
-from app.services.face_enrollment import ALLOWED_FACE_IMAGE_SUFFIXES, FACE_ENROLLMENT_SAMPLE_COUNT, MAX_FACE_IMAGE_BYTES
+from app.services.face_enrollment import (
+    ALLOWED_FACE_IMAGE_SUFFIXES,
+    DEEP_RECOVERY_TEMPLATE_STATUS,
+    FACE_ENROLLMENT_SAMPLE_COUNT,
+    MAX_FACE_IMAGE_BYTES,
+)
 from app.services.face_processing import ENCODING_VERSION, PROCESSING_PROVIDER, descriptor_similarity, process_image_bytes
 from app.services.students import ensure_student_access, get_student_or_404
 
@@ -88,7 +93,10 @@ def compare_descriptors(queryVector: list[float], storedVector: list[float]) -> 
 def registered_student_subquery(db: Session):
     return (
         db.query(FaceTemplate.studentId)
-        .filter(FaceTemplate.isActive.is_(True))
+        .filter(
+            FaceTemplate.isActive.is_(True),
+            FaceTemplate.status != DEEP_RECOVERY_TEMPLATE_STATUS,
+        )
         .group_by(FaceTemplate.studentId)
         .having(func.count(FaceTemplate.templateId) >= FACE_ENROLLMENT_SAMPLE_COUNT)
         .subquery()

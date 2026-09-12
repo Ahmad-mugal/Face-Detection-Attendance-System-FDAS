@@ -153,6 +153,14 @@ await check('admin students page opens', async () => {
   await page.getByRole('heading', { name: /all students/i }).waitFor()
 })
 
+await check('deep enrollment recovery is available for existing students', async () => {
+  await page.getByRole('button', { name: /deep enrollment recovery for/i }).first().click()
+  await page.getByRole('heading', { name: /deep enrollment recovery/i, level: 2 }).waitFor()
+  await page.getByText(/current deep embeddings/i).waitFor({ timeout: 10000 })
+  await page.getByText(/every counted sample must also pass the local deep detector/i).waitFor()
+  await page.getByRole('button', { name: /^close$/i }).click()
+})
+
 await check('admin add student page opens', async () => {
   await page.goto(`${baseUrl}/admin/students/add`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('heading', { name: /add new student/i }).waitFor()

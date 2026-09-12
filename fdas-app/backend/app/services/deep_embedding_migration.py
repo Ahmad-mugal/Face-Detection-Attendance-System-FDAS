@@ -19,6 +19,7 @@ from app.config import (
     DEEP_FACE_ENCODING_VERSION,
     DEEP_FACE_EXECUTION_PROVIDER,
     DEEP_FACE_MODEL_NAME,
+    DEEP_ENROLLMENT_MIN_EMBEDDINGS,
     IDENTITY_MATCHING_SAFETY_HOLD,
 )
 from app.models.attendance_record import AttendanceRecord
@@ -28,7 +29,6 @@ from app.models.student import Student
 from app.services.deep_face import DeepEncodingResult, get_deep_face_service, resolve_template_image_path
 
 
-DEEP_ENROLLMENT_MIN_EMBEDDINGS = 20
 MIGRATION_STATUSES = (
     "EncodedSuccessfully",
     "NoFaceDetected",

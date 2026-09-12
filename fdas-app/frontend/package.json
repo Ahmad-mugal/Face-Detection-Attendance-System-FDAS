@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "smoke:phase10.7d": "node scripts/phase10_7d-smoke.mjs"
   },
   "dependencies": {
     "axios": "^1.18.1",

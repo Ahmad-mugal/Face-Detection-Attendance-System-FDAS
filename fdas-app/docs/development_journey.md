@@ -3481,3 +3481,609 @@ The second production `--apply` found all 163 successful keys already present, c
 ### Final Phase 10.7B Status
 
 **PASS** - 163 valid enrollment images were migrated into an additive, versioned, idempotent `arcface_v1` table. All rejected/missing images failed closed, legacy rows and source images remained byte-for-byte preserved, the attendance safety hold remains active, and all 16 isolated regression suites passed. Deep matching and calibration remain intentionally unstarted.
+
+## Phase 10.7B.1 - Deep Enrollment Recovery & Readiness
+
+### Goal
+
+Provide a safe, additive recovery workflow that can collect new clean enrollment images for students below 20 valid `arcface_v1` embeddings, automatically persist a deep embedding for every accepted recovery sample, preserve all historical enrollment evidence, and keep deep matching and attendance disabled. The critical readiness targets remain Students #22, #27, and #28.
+
+### Starting Deep-Readiness Counts
+
+| Student | Valid deep embeddings | Minimum | Starting status |
+| ---: | ---: | ---: | --- |
+| 18 | 21 | 20 | Ready for calibration only |
+| 19 | 23 | 20 | Ready for calibration only |
+| 22 | 14 | 20 | NeedsAdditionalSamples (6 minimum) |
+| 23 | 19 | 20 | NeedsAdditionalSamples (1 minimum) |
+| 24 | 23 | 20 | Ready for calibration only |
+| 25 | 14 | 20 | NeedsAdditionalSamples (6 minimum) |
+| 26 | 0 | 20 | ContaminatedExistingEnrollment; full clean re-enrollment required |
+| 27 | 11 | 20 | NeedsAdditionalSamples (9 minimum) |
+| 28 | 18 | 20 | NeedsAdditionalSamples (2 minimum) |
+| 29 | 20 | 20 | Ready for calibration only |
+
+Students #1 and #3 also have zero valid deep embeddings and require clean enrollment. Students #6, #9, and #14 each have zero deep embeddings and 25 missing historical image files.
+
+The starting production state was 4,700 FaceTemplate rows, zero `DeepRecovery` rows, 163 `arcface_v1` rows, 21 attendance rows, database SHA-256 `9B36532268D28BA1FFFDBC5D43AD1D04C4FC0D2E216FC53410FC8810A2D66DF1`, and 15,541 storage files totalling 26,912,737 bytes.
+
+### Existing Enrollment Behavior Audit
+
+- The normal endpoint requires exactly 25 images.
+- A second normal enrollment appends a new 25-row batch using the next sample indexes. It does not overwrite, deactivate, or replace earlier rows and does not prevent repeat enrollment.
+- Every accepted normal row contains an `opencv_basic_v1` descriptor and can become another legacy matcher candidate.
+- Legacy registration eligibility historically counted all active FaceTemplate rows before candidate queries filtered by encoding version. Adding active unencoded recovery parents without distinguishing them could therefore inflate legacy registration counts even though they cannot be matched.
+- Existing Phase 10.6C behavior already provides an approximately one-second frontend stable-single-face gate, per-frame zero/one/many checks, a continuity reference, and backend validation of the complete upload.
+- Conclusion: normal repeat enrollment is non-destructive but unsuitable for deep-only recovery because it adds legacy descriptors and changes the legacy candidate set.
+
+### Recovery Storage Design
+
+- No new schema was required. Each accepted recovery image creates a new additive FaceTemplate parent with `status = DeepRecovery`, `encodingData = NULL`, and `encodingVersion = NULL`.
+- The recovery image is stored under `storage/face_enrollments/{studentId}/recovery/`; historical paths and files are never reused or changed.
+- A separate `face_template_embeddings` child is created simultaneously with `encodingVersion = arcface_v1`, dimension 512, model `buffalo_l`, the normalized vector, source-image SHA-256, and processing timing.
+- Legacy registration counting now explicitly excludes only `DeepRecovery` parents. Legacy matching continues to require `status = Encoded`, non-null legacy data, and `encodingVersion = opencv_basic_v1`.
+- Duplicate image bytes inside one batch or already represented for that student are rejected as `DuplicateRecoveryImage`. The existing unique `(faceTemplateId, encodingVersion)` constraint remains active.
+- The batch is all-or-nothing: every image must pass all guards before files or rows are written. A database failure rolls back the batch and removes newly written recovery files.
+
+### Single-Face Enrollment Safety
+
+- The existing camera guard still requires exactly one face continuously for approximately one second before capture starts or resumes.
+- Recovery mode adds local deep-detector pre-validation to every counted frame. `NoFaceDetected`, `MultipleFacesDetected`, `FaceDetectionMismatch`, failed continuity, unreadable input, and other invalid states do not increment the counter.
+- The backend independently reruns Haar exact-one-face validation, deep exact-one-face validation, and whole-batch face continuity before any persistence.
+- The UI recommends a batch based on the current deficit, with at least eight samples for small deficits. This makes #22 default to 8, #27 to 9, #28 to 8, and #26 to 20 rather than collecting only two nearly identical frames where the deficit is small.
+- Capture prompts rotate through front, slight-left, slight-right, closer, farther, normal-expression, small vertical-head, and modest-lighting variations. Extreme side profiles are explicitly discouraged.
+
+### Recovery Samples Added
+
+No genuine production recovery capture was performed because no new webcam image batch was supplied during this run. Therefore:
+
+- New production recovery images: `0`.
+- New production `DeepRecovery` FaceTemplate rows: `0`.
+- New production `arcface_v1` embeddings: `0`.
+- Rejected production attempts: `0`.
+
+The isolated verifier created two controlled recovery images and two deep rows only inside a disposable database/storage tree, confirmed the count moved from 18 to 20, and deleted that environment automatically. Those test rows are not production enrollment evidence.
+
+### Per-Student Results
+
+- **#22:** 14 before, 14 after. Still needs at least 6 valid images; the UI recommends 8 diverse samples. Status: `NeedsAdditionalSamples`.
+- **#27:** 11 before, 11 after. Still needs at least 9 valid images; the UI recommends 9. Status: `NeedsAdditionalSamples`.
+- **#28:** 18 before, 18 after. Still needs at least 2; the UI recommends an 8-image diverse batch rather than two nearly identical frames. Status: `NeedsAdditionalSamples`.
+- **#26:** 0 before and after. All 25 historic images remain rejected as multi-face. Status: `ContaminatedExistingEnrollment / ReEnrollmentRequired`; none were reused.
+- **#6:** 0 before and after. All 25 referenced source files remain missing. Status: `SourceImagesMissing / ReEnrollmentRequired`.
+- **#9:** 0 before and after. All 25 referenced source files remain missing. Status: `SourceImagesMissing / ReEnrollmentRequired`.
+- **#14:** 0 before and after. All 25 referenced source files remain missing. Status: `SourceImagesMissing / ReEnrollmentRequired`.
+
+The approved project-local backup search found only `backend/backups/phase10_7b_pre_migration_fdas_local.db`; it contains the database, not restored enrollment image files. No arbitrary filesystem recovery was attempted.
+
+### New arcface_v1 Counts
+
+The live count remains exactly `163`. Per-student live counts remain #18=21, #19=23, #22=14, #23=19, #24=23, #25=14, #27=11, #28=18, and #29=20. There are no deep rows for #1, #3, #6, #9, #14, or #26.
+
+### Students Ready for Calibration
+
+Only #18, #19, #24, and #29 meet the 20-embedding data-readiness gate. This means only that their enrollment sets may be considered in a future approved calibration phase; it does not approve their identities, matching policy, or attendance use.
+
+The required critical trio is not collectively ready, so Phase 10.7C must not begin.
+
+### Students Still Requiring Re-enrollment
+
+- `NeedsAdditionalSamples`: #22, #23, #25, #27, and #28.
+- `ReEnrollmentRequired`: #1 and #3 because their stored images produced no valid deep embeddings.
+- `ContaminatedExistingEnrollment / ReEnrollmentRequired`: #26.
+- `SourceImagesMissing / ReEnrollmentRequired`: #6, #9, and #14.
+
+No student was disabled or silently made eligible/ineligible for the existing legacy system.
+
+### Files Created
+
+- `backend/app/services/deep_enrollment_recovery.py`
+- `backend/app/verify_phase10_7b1.py`
+
+### Files Modified
+
+- `backend/app/config.py`
+- `backend/app/services/deep_embedding_migration.py`
+- `backend/app/services/face_enrollment.py`
+- `backend/app/services/face_matching.py`
+- `backend/app/routers/students.py`
+- `backend/app/routers/face_enrollment.py`
+- `backend/app/routers/deep_face.py`
+- `backend/app/schemas/face_enrollment.py`
+- `backend/app/schemas/deep_face.py`
+- `backend/app/run_final_verification.py`
+- `frontend/src/api/studentsApi.js`
+- `frontend/src/components/StudentTable.jsx`
+- `frontend/src/components/AutoFaceEnrollmentCapture.jsx`
+- `frontend/src/pages/admin/AdminStudents.jsx`
+- `frontend/src/pages/user/UserStudents.jsx`
+- `frontend/scripts/phase5-smoke.mjs`
+- `docs/development_journey.md`
+
+### Legacy Preservation
+
+- Production FaceTemplate count remains 4,700; no historical template was overwritten, deactivated, or deleted.
+- Production `DeepRecovery` count remains zero until genuine recovery is performed.
+- Existing `opencv_basic_v1` data and the 163 migrated ArcFace rows remain unchanged.
+- Original images remain 15,541 files and 26,912,737 bytes.
+- The recovery verifier proves that adding two recovery samples leaves 25 historical templates, 18 existing deep embeddings, and all old image bytes unchanged while legacy candidates remain exactly 25.
+- `FACE_MATCH_THRESHOLD = 0.75` and `MIN_IDENTITY_MARGIN = 0.05` remain legacy-only and unchanged.
+
+### Verification Results
+
+- `app.verify_phase10_7b1`: PASS. It uses a disposable database/storage tree and verifies additive rows, byte-preserved history, student-owned paths, exact-one-face enforcement, multi/no-face rejection, detector mismatch rejection, continuity failure, batch and prior-image duplicate rejection, 512-dimensional normalized ArcFace persistence, correct readiness counting, no attendance, the active hold, and inactive deep matching.
+- Required Phase 10.7B, Phase 10.7A, and Phase 10.6C verifiers: PASS within the sequential isolated runner.
+- Unified backend regression: PASS - all 17 sequential suites passed.
+- Frontend `npm.cmd run lint`: PASS.
+- Frontend `npm.cmd run build`: PASS, with the existing non-blocking large-chunk warning.
+- Isolated Playwright smoke: PASS - all 24 checks passed, including opening an existing student's recovery modal and loading its deep-readiness/safety guidance; `page_errors=0`.
+- The smoke's eight console resource errors are expected from deliberate conflict, invalid-login, unavailable-backend, and route-abort checks.
+- Post-change `pip check`: PASS.
+- Non-blocking backend warnings remain the InsightFace/scikit-image `estimate` deprecation and existing SQLAlchemy subquery-coercion warning.
+
+### Database / Storage Preservation
+
+- Production database SHA-256 remains `9B36532268D28BA1FFFDBC5D43AD1D04C4FC0D2E216FC53410FC8810A2D66DF1`.
+- Database size remains `4,292,608` bytes and its UTC mtime remains `2026-09-12T10:16:38.1261834Z`.
+- SQLite integrity check is `ok`.
+- FaceTemplate remains 4,700 rows, `arcface_v1` remains 163 rows, and attendance remains 21 rows.
+- Storage remains 15,541 files and 26,912,737 bytes with latest UTC timestamp `2026-09-11T19:11:38.0852652Z`.
+- No production recovery file or biometric row was created while automated tests ran.
+
+### Attendance Safety State
+
+`IDENTITY_MATCHING_SAFETY_HOLD` remains `True`. Recovery readiness reports `activeForAttendance = false`, the deep matcher remains absent from attendance, and no threshold or margin configuration was introduced. The recovery endpoint always returns `attendanceCreated = false` and has no attendance dependency.
+
+### Remaining Work
+
+- Capture genuine diverse recovery batches for #22, #27, and #28 and verify each reaches at least 20 valid embeddings.
+- Perform full clean enrollment for #26 if that student is available.
+- Restore source images for #6, #9, and #14 from an approved backup or re-enroll them manually.
+- Address the other incomplete students as documented.
+- Deep threshold calibration has not started.
+- Deep identity-margin calibration has not started.
+- Deep attendance is not enabled.
+- Phase 10.7C has not started.
+
+### Final Phase 10.7B.1 Status
+
+**PARTIAL** - the non-destructive recovery workflow, safety enforcement, automatic deep embedding persistence, readiness reporting, admin/operator UI, isolated verifier, all 17 backend regressions, and all frontend checks pass. No genuine recovery batch was captured, so critical Students #22, #27, and #28 remain below 20 and Phase 10.7C remains blocked.
+
+### Availability-Scoped Continuation - Student #22 Genuine Recovery
+
+This continuation records the later genuine-webcam work performed after the initial Phase 10.7B.1 safe stop. Only Student #22, Ahmad Mughal (`cs-2026-789`), was physically available. Students #27, #28, the other enrolled students, and a genuinely non-enrolled person were unavailable. The unavailable people were not used for fabricated live tests, and no stored-data result below is represented as real-webcam evidence for them.
+
+#### Real Live Genuine Test - Student #22
+
+- Verified starting `arcface_v1` count: `14`.
+- The recovery UI collected one natural-variation webcam batch for Ahmad under the existing stable-single-face and continuity guards.
+- Deep sample-validation requests observed: `11`.
+- Accepted and submitted recovery samples: `8`.
+- Candidate frames rejected before upload: `3`. Their transient response bodies/reason codes were not persisted; the access log records only successful HTTP transport responses, so no specific `NoFaceDetected`, `MultipleFacesDetected`, continuity, mismatch, duplicate, or unusable-frame reason is attributed without evidence.
+- Backend recovery upload: `201 Created`.
+- New `DeepRecovery` FaceTemplate rows: `8`.
+- New `arcface_v1` embedding rows: `8`.
+- Final Student #22 count: `22/20`.
+- Final readiness: `Ready` for future approved calibration only.
+- All eight recovery image files exist under `storage/face_enrollments/22/recovery/`, belong to Student #22, and match their recorded SHA-256 values.
+- No attendance record was created.
+
+This work is enrollment and embedding generation with the already-pretrained ArcFace/buffalo_l model. It is not model training.
+
+#### Offline Stored-Gallery Comparison of the Genuine #22 Queries
+
+The eight newly captured genuine webcam images were used as query embeddings only in an offline diagnostic. For every query, the exact embedding row and every gallery row with the same source-image SHA-256 were excluded. The score for each identity was the maximum cosine similarity among its remaining templates. No acceptance threshold or margin rule was selected or applied.
+
+| Genuine #22 query | #22 score | Best impostor | Best impostor score | #22 - impostor margin | Offline top identity |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 0.873486 | #19 | 0.753592 | 0.119894 | #22 |
+| 2 | 0.969541 | #19 | 0.823590 | 0.145951 | #22 |
+| 3 | 0.964617 | #19 | 0.809162 | 0.155455 | #22 |
+| 4 | 0.969541 | #19 | 0.829084 | 0.140457 | #22 |
+| 5 | 0.938797 | #19 | 0.836052 | 0.102744 | #22 |
+| 6 | 0.905979 | #19 | 0.776317 | 0.129662 | #22 |
+| 7 | 0.935071 | #19 | 0.845096 | 0.089974 | #22 |
+| 8 | 0.895037 | #19 | 0.787231 | 0.107806 | #22 |
+
+All eight offline comparisons ranked #22 first. The observed margin range was `0.089974` to `0.155455`. These results are preliminary identity-separation observations from one available person and an existing stored gallery. They are not a calibrated operating threshold, do not establish unknown-person rejection, and are not equivalent to live testing of #27, #28, or any other person.
+
+#### Offline Leave-One-Out Stored-Data Diagnostics
+
+The following internal validation used existing active `arcface_v1` enrollment embeddings only. Each stored query excluded its exact row and all gallery rows sharing its source-image SHA-256 before scoring. The table reports rank behavior under maximum per-identity cosine score; it does not apply or recommend an acceptance threshold.
+
+| Student | Offline queries | Correct top-1 | Minimum own-minus-impostor margin | Mean margin | Median margin |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| #18 | 21 | 21/21 | 0.021587 | 0.133795 | 0.134910 |
+| #19 | 23 | 23/23 | 0.086320 | 0.124190 | 0.120470 |
+| #22 | 22 | 22/22 | 0.089974 | 0.131365 | 0.131092 |
+| #24 | 23 | 23/23 | 0.458267 | 0.580929 | 0.594134 |
+| #27 | 11 | 11/11 | 0.432063 | 0.725712 | 0.737848 |
+| #28 | 18 | 18/18 | 0.412592 | 0.683231 | 0.722923 |
+| #29 | 20 | 20/20 | 0.037294 | 0.139003 | 0.135552 |
+
+These are offline internal stored-data results. In particular, the #27 and #28 rows are not real-webcam tests. Enrollment-image leave-one-out performance can overstate performance on independent future live queries, so these results do not clear either student for recognition or attendance.
+
+#### Availability and Pending Evidence
+
+- #27 remains at `11` and status `DeepEnrollmentIncomplete`; genuine recovery remains pending until that student is physically available.
+- #28 remains at `18` and status `DeepEnrollmentIncomplete`; genuine recovery remains pending until that student is physically available.
+- No genuinely non-enrolled person was available. Unknown-person live test: `NOT AVAILABLE`.
+- Ahmad was not reused or relabeled as an unknown person.
+- No claim of full multi-person real-webcam validation is made.
+- Full Phase 10.7C was not started.
+
+#### Database, Storage, and Regression Evidence
+
+- FaceTemplate rows changed only by the expected additive recovery set: `4,700 -> 4,708`.
+- `DeepRecovery` rows changed `0 -> 8`.
+- Active `arcface_v1` rows changed `163 -> 171`; #22 changed `14 -> 22` while every other per-student deep count remained unchanged.
+- Attendance rows remained exactly `21`.
+- Storage changed only by the eight recovery JPEGs: `15,541 -> 15,549` files and `26,912,737 -> 27,447,638` bytes. The new recovery images total `534,901` bytes.
+- The post-recovery database is `4,395,008` bytes with SHA-256 `C961D2ACFF43FA0509AC93D2F4E7F0AE0BDF1E915988A0934831F0097CFACC76`.
+- The dedicated `app.verify_phase10_7b1` verifier passed every assertion.
+- Unified backend regression passed all 17 sequential isolated suites.
+- Frontend lint and production build passed; the existing non-blocking large-chunk warning remains.
+- Post-recovery `pip check` passed with no broken requirements.
+- Existing historical face templates, migrated embeddings, attendance history, and source images were preserved. The only production biometric additions were the eight approved Student #22 recovery samples.
+
+#### Attendance Safety State After Recovery
+
+- `IDENTITY_MATCHING_SAFETY_HOLD = True`.
+- `FACE_MATCH_THRESHOLD = 0.75` remains unchanged and remains part of the legacy matcher only.
+- `MIN_IDENTITY_MARGIN = 0.05` remains unchanged and was not applied to the offline ArcFace results.
+- Deep recognition remains inactive for attendance.
+- Normal attendance was not enabled.
+- Phase 10.7C and Phase 10.8 were not started.
+
+### Updated Final Phase 10.7B.1 Status
+
+**PARTIAL - Student #22 Ready; Other Critical Identities Pending Availability.** Ahmad completed genuine-webcam deep enrollment recovery and now has 22 valid `arcface_v1` embeddings. The additive storage, exact-one-face protections, attendance safety hold, and all automated regressions remain intact. Students #27 and #28 have only offline stored-data diagnostics and remain incomplete until genuine recovery can be performed when they are physically available.
+
+## Phase 10.7C - Limited Deep Recognition Calibration & Identity Evaluation
+
+### Goal
+
+Perform a preliminary FYP calibration of the additive ArcFace/buffalo_l recognition foundation using the only available genuine webcam evidence, leakage-safe offline stored-data diagnostics, and conservative false-acceptance prioritization. This phase implements a protected diagnostic-only scoring policy; it does not connect deep matching to attendance.
+
+The available evidence shows materially better preliminary identity separation than the Phase 10.6B `opencv_basic_v1` maximum-template behavior: the old method produced a real Student #22-to-#28 false identity that passed its provisional threshold and margin, while the ArcFace evidence below produced no wrong top-1 identity. The test modes and sample sets are not identical, however, so this is promising comparative evidence rather than a production accuracy claim.
+
+### Availability Constraint
+
+Only Ahmad/Student #22 was physically available. The eight images captured during Phase 10.7B.1 are genuine webcam captures with natural variations and are the minimum live-query evidence permitted by this phase. They were replayed through the protected diagnostic matcher after capture; they are same-session recovery/enrollment images, not independent future attendance attempts.
+
+Students #27 and #28 were unavailable. Their results are offline stored-data diagnostics only. No genuinely non-enrolled person was available, and no live results were fabricated.
+
+### Live #22 Results
+
+Test type: **A. LIVE WEBCAM GENUINE**. Source images came from Ahmad's real webcam recovery session. Each preserved image was re-encoded by ArcFace and evaluated in no-attendance diagnostic mode using mean-of-top-3 scoring, threshold `0.85`, and margin `0.07`. Its exact embedding row/source hash was excluded from the gallery.
+
+| Query | #22 score | Top candidate | Top score | Second candidate | Second score | Margin | Classification |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | 0.862241 | #22 | 0.862241 | #19 | 0.748516 | 0.113725 | DiagnosticMatched |
+| 2 | 0.951978 | #22 | 0.951978 | #19 | 0.817201 | 0.134778 | DiagnosticMatched |
+| 3 | 0.941790 | #22 | 0.941790 | #19 | 0.804714 | 0.137076 | DiagnosticMatched |
+| 4 | 0.956410 | #22 | 0.956410 | #19 | 0.825409 | 0.131001 | DiagnosticMatched |
+| 5 | 0.926839 | #22 | 0.926839 | #19 | 0.833795 | 0.093044 | DiagnosticMatched |
+| 6 | 0.896813 | #22 | 0.896813 | #19 | 0.769569 | 0.127244 | DiagnosticMatched |
+| 7 | 0.925156 | #22 | 0.925156 | #19 | 0.840033 | 0.085123 | DiagnosticMatched |
+| 8 | 0.879058 | #22 | 0.879058 | #19 | 0.786466 | 0.092592 | DiagnosticMatched |
+
+- Genuine query count: `8`.
+- #22 score range: `0.862241-0.956410`.
+- Best competing score range: `0.748516-0.840033`.
+- Top-1/top-2 margin range: `0.085123-0.137076`.
+- Wrong top-1 identities: `0/8` in this limited set.
+- All eight results were `DiagnosticMatched` and returned `attendanceCreated = false` and `persistentWrite = false`.
+- Student #19 is also stored as `Ahmad Mughal` under roll number `CS-2022-58`, while #22 uses `cs-2026-789`. Whether this is a deliberate duplicate/test identity for the same physical person has not been independently resolved. It remains an identity-integrity limitation and is not represented as a confirmed different-person impostor.
+
+### Offline Leave-One-Out Results
+
+Test type: **B. OFFLINE STORED-DATA DIAGNOSTIC**. All nine identities with usable active `arcface_v1` rows were evaluated. Every query excluded its own embedding row and every gallery row sharing its exact source-image SHA-256. Scores below use the selected mean-of-top-3 method without applying the final acceptance threshold/margin, so they measure rank and score distributions only.
+
+| Student | Queries | Correct top-1 | Wrong top-1 | Genuine range | Best impostor range | Margin range |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| #18 | 21 | 21 | 0 | 0.770476-0.920018 | 0.639532-0.789027 | 0.035050-0.175797 |
+| #19 | 23 | 23 | 0 | 0.891621-0.956925 | 0.759045-0.841143 | 0.094422-0.149781 |
+| #22 | 22 | 22 | 0 | 0.862241-0.962594 | 0.748516-0.844463 | 0.084895-0.157887 |
+| #23 | 19 | 19 | 0 | 0.841485-0.956065 | 0.138466-0.219280 | 0.668676-0.780246 |
+| #24 | 23 | 23 | 0 | 0.661180-0.945220 | 0.195660-0.374835 | 0.465521-0.635418 |
+| #25 | 14 | 14 | 0 | 0.759025-0.935682 | 0.297708-0.382566 | 0.410699-0.609566 |
+| #27 | 11 | 11 | 0 | 0.553265-0.940081 | 0.110673-0.209192 | 0.417835-0.812506 |
+| #28 | 18 | 18 | 0 | 0.620900-0.948113 | 0.151926-0.231397 | 0.389503-0.755933 |
+| #29 | 20 | 20 | 0 | 0.815107-0.950756 | 0.709112-0.798565 | 0.050298-0.211761 |
+
+Aggregate rank result: `171/171` queries had the correct top-1 identity and `0` had a wrong top-1 identity in this internal stored-data evaluation. This is not stated as 100% recognition accuracy: enrollment-image leave-one-out testing is not independent real-world validation, #27/#28 were not tested live, and unknown-person behavior remains unmeasured.
+
+### Scoring Strategy Comparison
+
+All methods used the same 171 leakage-excluded stored queries and the same active galleries. The genuine and impostor columns show the full observed score ranges. “Zero-proxy-FAs threshold” is the first tested threshold at which all 171 correct-identity-removed impostor simulations were rejected before margin filtering.
+
+| Method | Correct/wrong top-1 | Genuine range | Best impostor range | Margin range | Zero-proxy-FAs threshold | Genuine accepts at that threshold |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Maximum | 171/0 | 0.577598-0.976423 | 0.129089-0.845125 | 0.021587-0.847334 | 0.85 | 158/171 |
+| Mean top 3 | 171/0 | 0.553265-0.962594 | 0.110673-0.844463 | 0.035050-0.812506 | 0.85 | 146/171 |
+| Mean top 5 | 171/0 | 0.545831-0.956374 | 0.102605-0.843145 | 0.033734-0.779711 | 0.85 | 139/171 |
+| Median top 5 | 171/0 | 0.537471-0.955547 | 0.093752-0.843815 | 0.041619-0.779033 | 0.85 | 132/171 |
+| Normalized prototype | 171/0 | 0.571127-0.970363 | 0.081458-0.860220 | 0.022241-0.832601 | 0.875 | 135/171 |
+
+Maximum retained the most genuine samples at `0.85`, but it depends on one template and had the smallest observed minimum margin. Mean top 3 slightly reduced the maximum impostor score, improved the minimum margin, retained all eight genuine #22 queries, and reduced single-template outlier dependence. Mean/median top 5 rejected more genuine samples without improving the zero-proxy-false-accept threshold. The prototype produced ten proxy impostor accepts at `0.85` and needed `0.875` for zero.
+
+### Selected Deep Scoring Method
+
+`DEEP_MATCH_SCORING_METHOD = mean_top_3`.
+
+The score for each student is the arithmetic mean of that student's three highest cosine similarities, or all available similarities when fewer than three exist. Diagnostic candidates are restricted to active students in the authorized department with at least 20 active `arcface_v1` embeddings. Incomplete #27/#28 galleries were included only in the offline calibration worksheet, not activated as live diagnostic candidates.
+
+### Genuine Score Range
+
+- All-method selected-policy leave-one-out genuine range: `0.553265-0.962594`.
+- Mean: `0.896264`.
+- Median: `0.913143`.
+- Genuine #22 webcam-query range: `0.862241-0.956410`.
+
+### Impostor Score Range
+
+- Leave-one-out best-impostor range: `0.110673-0.844463`.
+- Mean: `0.515850`.
+- Median: `0.639532`.
+- Correct-identity-removed simulations are an offline false-acceptance proxy only; they do not replace a real unknown-person test.
+
+### Preliminary Deep Threshold
+
+`DEEP_MATCH_THRESHOLD = 0.85`, labeled `preliminary_fyp_v1`. This is distinct from and does not modify the legacy `FACE_MATCH_THRESHOLD = 0.75`.
+
+| Threshold | Genuine accepts | Genuine rejects | Proxy impostor accepts | Proxy impostor rejects |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.75 | 167 | 4 | 67 | 104 |
+| 0.80 | 162 | 9 | 35 | 136 |
+| 0.825 | 155 | 16 | 18 | 153 |
+| 0.85 | 146 | 25 | 0 | 171 |
+| 0.875 | 131 | 40 | 0 | 171 |
+| 0.90 | 97 | 74 | 0 | 171 |
+
+The threshold prioritizes low observed false acceptance over forcing all stored genuine samples to pass. No statistically robust FAR/FRR claim is made from this small, enrollment-derived dataset.
+
+### Preliminary Identity Margin
+
+`DEEP_MATCH_MIN_IDENTITY_MARGIN = 0.07`. This is distinct from and does not modify legacy `MIN_IDENTITY_MARGIN = 0.05`.
+
+At threshold `0.85`, the evaluated margin candidates produced:
+
+| Required margin | Genuine accepts | Genuine rejects | Proxy impostor accepts |
+| ---: | ---: | ---: | ---: |
+| 0.02 | 146 | 25 | 0 |
+| 0.03 | 146 | 25 | 0 |
+| 0.04 | 146 | 25 | 0 |
+| 0.05 | 146 | 25 | 0 |
+| 0.07 | 145 | 26 | 0 |
+| 0.10 | 138 | 33 | 0 |
+| 0.12 | 118 | 53 | 0 |
+| 0.15 | 79 | 92 | 0 |
+
+Margin `0.07` adds ambiguity protection, retains all eight available #22 genuine queries, and costs one additional stored genuine acceptance compared with margins through `0.05`. Margins `0.10+` rejected multiple available genuine cases without evidence of additional proxy false-accept reduction at the selected threshold.
+
+### AmbiguousMatch Rule
+
+The diagnostic decision order is fail-closed:
+
+1. If the top mean-top-3 score is below `0.85`, return `MatchBelowThreshold`.
+2. Otherwise, if a second identity exists and `topScore - secondScore < 0.07`, return `AmbiguousMatch`.
+3. Otherwise return `DiagnosticMatched`.
+
+Every result remains diagnostic-only with `attendanceCreated = false`, `persistentWrite = false`, and `activeForAttendance = false`.
+
+### #22 vs #19/#27/#28 Analysis
+
+- **#19:** It was the second-ranked identity for all eight #22 queries. Its score range was `0.748516-0.840033`; #22 remained first with margins `0.085123-0.137076`. Because #19 has the same stored full name as #22 but a different roll number, its physical-identity relationship must be resolved before safety-hold release.
+- **#27:** Offline-only #27 score range for the eight #22 queries was `0.046661-0.121642`; #22-minus-#27 separation was `0.785283-0.877846`.
+- **#28:** Offline-only #28 score range for the eight #22 queries was `0.166698-0.217626`; #22-minus-#28 separation was `0.689186-0.748535`.
+- #27 and #28 were not physically present, and these comparisons are not live validation for either student.
+
+### Unknown-Person Limitation
+
+Unknown-person live test: `NOT AVAILABLE`. Ahmad was not reused as an unknown person. Correct-identity-removed stored-data simulations are labeled offline proxies and do not establish real unknown-person rejection performance.
+
+### Automated Verification
+
+- Created `app.verify_phase10_7c`.
+- Phase 10.7C verifier: PASS. It confirms the selected scoring calculation, threshold rule, margin rule, `AmbiguousMatch`, `MatchBelowThreshold` precedence, exact-row/source-hash exclusion, ready-student/department candidate scoping, department authorization, no attendance writes, and the active safety hold.
+- Phase 10.7B.1 verifier: PASS.
+- Phase 10.7B verifier: PASS.
+- Phase 10.7A verifier: PASS inside the isolated unified runner.
+- Phase 10.6C verifier: PASS inside the isolated unified runner.
+- Unified regression: PASS - all 18 sequential isolated suites passed.
+- Existing non-blocking warnings remain the InsightFace/scikit-image `estimate` deprecation and legacy SQLAlchemy subquery-coercion warning.
+- Frontend was not changed in Phase 10.7C, so no new frontend verification was required; its prior Phase 10.7B.1 lint/build/smoke results remain recorded above.
+
+Files created in this phase:
+
+- `backend/app/services/deep_face_matching.py`
+- `backend/app/verify_phase10_7c.py`
+
+Files modified in this phase:
+
+- `backend/app/config.py`
+- `backend/app/routers/deep_face.py`
+- `backend/app/schemas/deep_face.py`
+- `backend/app/run_final_verification.py`
+- `docs/development_journey.md`
+
+### Attendance Safety Decision
+
+**PARTIAL.** Deep recognition shows strong preliminary separation on the available #22 genuine captures and the internal leave-one-out data, with no observed wrong identity under the selected rule. Broader live identity and unknown-person evidence is still missing, #19's relationship to #22 requires clarification, and #27/#28 remain deep-enrollment-incomplete. Normal attendance therefore remains disabled.
+
+### Remaining Limitations
+
+- #27 genuine live recovery and recognition testing pending.
+- #28 genuine live recovery and recognition testing pending.
+- Real unknown-person webcam testing pending.
+- Independent #22 recognition queries captured outside the recovery/enrollment session pending.
+- Broader demographic, camera, distance, pose, and lighting validation pending.
+- The apparent #19/#22 same-name duplicate or alias relationship requires explicit identity review.
+- The preliminary threshold/margin are based on a small FYP dataset and are not production FAR/FRR calibration.
+
+### Safety Confirmations
+
+- `IDENTITY_MATCHING_SAFETY_HOLD` remains `True`.
+- Production database/storage were preserved; diagnostic replay left FaceTemplates at 4,708, deep embeddings at 171, and attendance at 21 before and after.
+- All eight approved Student #22 recovery files remain present and unchanged.
+- `opencv_basic_v1`, its `0.75` threshold, and its `0.05` margin remain preserved and separate.
+- Phase 10.6C exact-one-face and continuity protections remain preserved.
+- Liveness implementation and parameters remain preserved.
+- Deep diagnostic matching is not called from attendance.
+- Normal attendance remains disabled.
+- Phase 10.8 was not started.
+
+### Final Status
+
+**PARTIAL** - the limited ArcFace calibration is promising and all available #22 genuine queries plus 171 leakage-safe offline stored queries retained the correct top identity, but missing #27/#28 live tests, missing real unknown-person evidence, same-session query limitations, and unresolved #19/#22 identity duplication prevent readiness approval. The attendance safety hold remains active pending explicit future authorization and broader evidence.
+
+## Phase 10.7D - Identity Record Integrity Audit & Independent Live Validation
+
+### Goal
+
+Resolve the unusually high #19/#22 similarity as an identity-record integrity question, preserve all historical evidence, prevent a confirmed duplicate from remaining in the active recognition pool, recalculate preliminary deep-recognition evidence using distinct physical identities only, and collect ten genuinely independent #22 webcam queries in diagnostic/no-attendance mode.
+
+This entry supplements rather than erases the Phase 10.7C investigation. The earlier numerical observations remain valid; their interpretation is corrected by the user's identity confirmation below.
+
+### #19/#22 Database Audit
+
+| Field | #19 historical/duplicate | #22 canonical/current |
+| --- | --- | --- |
+| Student ID | 19 | 22 |
+| Name | Ahmad Mughal | Ahmad Mughal |
+| Roll number | `CS-2022-58` | `cs-2026-789` |
+| Department | Computer Science (#1) | Computer Science (#1) |
+| Class | BSCS Semester 5 - A (#1) | BSCS Semester 5 - A (#1) |
+| Semester/section | Semester 5 / A | Semester 5 / A |
+| Status after authorized remediation | Inactive | Active |
+| Created | 2026-08-30 18:32:13.272894 | 2026-09-10 03:41:38.909650 |
+| Updated before remediation | 2026-09-12 19:01:32.254905 | 2026-09-10 03:41:38.909650 |
+| Updated after remediation | 2026-09-12 19:09:01.609161 | unchanged |
+| FaceTemplate rows | 25, all active | 33, all active |
+| Template statuses | 24 Encoded, 1 NoFaceDetected | 19 Encoded, 6 NoFaceDetected, 8 DeepRecovery |
+| Template creation range | 2026-08-30 18:32:38.123945 | 2026-09-10 03:42:04.780470 to 2026-09-12 18:17:45.096616 |
+| Active ArcFace embeddings | 23 | 22 |
+| ArcFace creation range | 2026-09-12 10:14:37.647933 to 10:14:54.322153 | 2026-09-12 10:14:55.332599 to 18:17:45.096616 |
+| Attendance records | 4 | 3 |
+| First/last attendance | 2026-08-30 18:33:26.454222 / 2026-09-10 05:55:41.224937 | 2026-09-10 03:43:02.640468 / 2026-09-11 18:00:49.480933 |
+
+Both records have separate registration email metadata. The addresses are not reproduced here because they are unnecessary for the identity decision; no passwords or password hashes were inspected. Record chronology supports treating #19 as the older historical registration and #22 as the later current registration.
+
+### Storage Relationship
+
+- #19 storage root: `backend/storage/face_enrollments/19`. It contains two 25-image timestamped batches: a 2026-07-12 batch (`25` files, `1,029,589` bytes) and a 2026-08-30 batch (`25` files, `1,617,797` bytes). The current 25 template rows reference the later batch; the older on-disk batch was retained as historical/orphaned evidence and was not altered.
+- #22 storage roots: `backend/storage/face_enrollments/22` (`25` files, `1,962,604` bytes) and its `recovery` subdirectory (`8` files, `534,901` bytes), for `33` files and `2,497,505` bytes.
+- File naming is independently timestamped (`sample_YYYYMMDD_...`) with #22 recovery-specific names for the eight additive images.
+- Exact SHA-256 image overlap across all 50 physical #19 files and all 33 #22 files: `0`.
+- Exact `sourceImageSha256` overlap between the #19 and #22 ArcFace rows: `0`.
+- The absence of exact file overlap was not used to infer distinct identity. Different captures of the same person are expected to have different hashes.
+
+### ArcFace Cross-Record Analysis
+
+Using the existing normalized `arcface_v1` vectors without changing or persisting embeddings:
+
+| Distribution | Pairs | Minimum | Maximum | Mean | Median |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| #19 within-record | 253 | 0.734088 | 0.959848 | 0.891425 | 0.897959 |
+| #22 within-record | 231 | 0.739665 | 0.975597 | 0.872068 | 0.873248 |
+| #19-to-#22 cross-record | 506 | 0.650014 | 0.845125 | 0.782002 | 0.787998 |
+
+- Normalized #19/#22 centroid similarity: `0.881658`.
+- For comparison, 9,524 distinct-person cross pairs among active #18/#22/#23/#24/#25/#27/#28/#29 had range `-0.146838-0.805070`, mean `0.115483`, and median `0.087135`.
+- Before user confirmation this embedding relationship was classified only as **highly consistent with duplicate enrollment**, not as biological/legal proof.
+
+### User Identity Confirmation
+
+The user explicitly confirmed that Student #19 and Student #22 are the **same physical person**. This is recorded as **USER-CONFIRMED DUPLICATE IDENTITY**. Therefore #19 is not a distinct-person impostor and all former #19-vs-#22 impostor interpretations are withdrawn. Their high ArcFace similarity is expected evidence of the duplicate data condition, not evidence that ArcFace confused two different people.
+
+### Safe Duplicate Remediation
+
+- Canonical record: #22 Ahmad Mughal, `cs-2026-789`, remains Active and deep-ready with 22 active ArcFace embeddings.
+- Historical duplicate: only #19's valid existing `Student.status` value changed from Active to Inactive.
+- #19 was not deleted or merged. Its identity row remains queryable, and all 4 attendance rows, 25 template rows, 23 embedding rows, and all 50 physical storage images remain intact.
+- No #19 embedding or template was copied into #22.
+- No #22 field or related row changed.
+- Active deep candidate selection now contains #22/#24/#29 in department #1; #19 is excluded because candidate selection requires `Student.status == "Active"`. The legacy active matcher also excludes #19.
+- No other student record was changed by the remediation.
+
+### Recalculated Distinct-Person Results
+
+All recalculations exclude #19 and use only genuinely distinct identity labels. Mean-top-3 leave-one-out evaluation covered 148 stored queries from active #18/#22/#23/#24/#25/#27/#28/#29:
+
+- Correct top-1: `148/148`; wrong top-1: `0/148`.
+- Genuine score range `0.553266-0.962594`, mean `0.889736`, median `0.904059`.
+- Best distinct-impostor score range `0.110673-0.798565`, mean `0.388298`, median `0.300150`.
+- Genuine top-1 versus strongest-distinct margin range `0.035050-0.812506`, mean `0.501438`, median `0.600813`.
+- At threshold `0.85`: 123/148 stored genuine queries passed threshold and 25 were rejected; all 148 correct-identity-removed distinct-impostor proxies were rejected.
+- At threshold `0.85` plus margin `0.07`: 122/148 stored genuine queries passed and 26 were rejected; distinct-impostor proxy accepts remained zero.
+
+Recalculation of the prior eight #22 recovery-source diagnostics after #19 exclusion:
+
+| Query | #22 score | Strongest distinct competitor | Competitor score | Margin |
+| ---: | ---: | --- | ---: | ---: |
+| 1 | 0.862241 | #24 | 0.217027 | 0.645214 |
+| 2 | 0.951978 | #25 | 0.235741 | 0.716237 |
+| 3 | 0.941790 | #24 | 0.278366 | 0.663424 |
+| 4 | 0.956410 | #24 | 0.249483 | 0.706926 |
+| 5 | 0.926839 | #25 | 0.280991 | 0.645849 |
+| 6 | 0.896813 | #25 | 0.262197 | 0.634617 |
+| 7 | 0.925156 | #25 | 0.270953 | 0.654203 |
+| 8 | 0.879058 | #24 | 0.268947 | 0.610111 |
+
+Across these eight, the strongest distinct competitor is #25 at `0.280991`; competitors are #24 or #25, not #19. Requested comparison ranges were #18 `0.077374-0.152709`, #24 `0.217027-0.278366`, #27 `0.046661-0.121642`, #28 `0.166698-0.217626`, and #29 `0.066734-0.104991`.
+
+### Independent #22 Test Design
+
+A dedicated frontend diagnostic control was added for active students. For #22 it provides exactly ten manual query prompts: frontal, frontal repeat, slight left, slight right, slightly closer, slightly farther, small upward angle, small downward angle, modest normal-lighting variation, and neutral final capture.
+
+Every click captures one fresh in-memory JPEG, checks exactly one Haar-detected face, applies the existing lightweight face-continuity lock, then sends that same frame only to `/api/deep-face/match/diagnostic`. Invalid face-count/continuity/deep-detection frames are not counted. Only response metadata is retained in React state; the image is discarded after the request. The control never calls enrollment, recovery, template, embedding, or attendance endpoints, and offers a metadata-only JSON copy after query 10.
+
+### Independent #22 Results
+
+**Pending user-operated genuine webcam capture: 0/10 recorded.** Automated or fabricated webcam results are not substituted. Final score, second-candidate, margin, and classification counts will be added after the user completes the ten prompts and returns the metadata-only report.
+
+### Preliminary 0.85 / 0.07 Rule Results
+
+The independent live result is pending. The implementation still evaluates `mean_top_3`, threshold `0.85`, then distinct-identity margin `0.07` in fail-closed order. No threshold, margin, method, or recognition algorithm was tuned in Phase 10.7D.
+
+### Test-vs-Enrollment Separation Confirmation
+
+- Dedicated backend verifier confirms a query-only diagnostic creates no FaceTemplate, FaceTemplateEmbedding, AttendanceRecord, identity-row, or storage change.
+- The frontend test path sends each query only to the diagnostic endpoint and retains no image array, local-storage item, download, or gallery reference.
+- Phase 10.7D query images are not eligible as enrollment/calibration gallery data.
+
+### Automated Verification
+
+- `app.verify_phase10_7d`: PASS. It verifies #19 preserved/inactive, #22 active/deep-ready, candidate scoping, no template/embedding/attendance/storage writes, unchanged identity rows, unchanged `mean_top_3 / 0.85 / 0.07`, and active safety hold.
+- `app.verify_phase10_7c`: PASS.
+- Unified isolated regression: PASS, all 19 sequential suites.
+- Frontend lint: PASS.
+- Frontend production build: PASS, with only the existing non-blocking large-chunk warning.
+- Focused `smoke:phase10.7d`: PASS. It confirms inactive #19 has no diagnostic action, active #22 has one, the correct modal/no-persistence/10-query state is visible, capture is disabled before camera startup, and page errors are zero.
+- Existing warnings: SQLAlchemy legacy subquery coercion and the InsightFace/scikit-image `estimate` deprecation. Neither changed behavior or caused a failed check.
+
+### Final Identity Integrity Decision
+
+Current decision: **A. #19/#22 USER-CONFIRMED DUPLICATE**, with #22 canonical and #19 safely excluded from active recognition without destructive data changes. The deep matcher is behaving consistently with that confirmed relationship in the available evidence. Phase 10.7D cannot receive its final PASS/PARTIAL/FAIL classification until the required ten independent #22 live queries are completed.
+
+### Remaining Manual Limitations
+
+- Ten independent #22 live diagnostic queries remain required.
+- #27/#28 genuine live tests and a genuinely unknown-person live test remain unavailable and outside this phase's available-person constraint.
+- The preliminary policy remains small-dataset FYP evidence, not a population-level FAR/FRR claim.
+
+### Safety State
+
+- `IDENTITY_MATCHING_SAFETY_HOLD = True`.
+- Deep matching remains disconnected from attendance; normal automatic attendance remains disabled.
+- `DEEP_MATCH_SCORING_METHOD = mean_top_3`, deep threshold `0.85`, and deep margin `0.07` are unchanged.
+- Legacy `FACE_MATCH_THRESHOLD = 0.75` and legacy margin `0.05` are unchanged.
+- Phase 10.6C exact-one-face/continuity protections and liveness are preserved.
+- Database size remains `4,395,008` bytes. Live-file hashing was intentionally not forced while the active backend held the SQLite file; row/storage fingerprints in the isolated verifier remained identical across diagnostic execution.
+- Production database, attendance history, templates, embeddings, and storage are preserved except for the explicitly authorized #19 Active-to-Inactive status update.
+- Phase 10.8 was not started.
+
+### Current Phase Status
+
+**IN PROGRESS - awaiting the required ten independent Student #22 webcam diagnostic queries.**

@@ -7,7 +7,7 @@ from app.dependencies import require_operator_or_admin
 from app.models.student import Student
 from app.models.user import User
 from app.schemas.academic import StudentCreate, StudentRead, StudentUpdate
-from app.services.face_enrollment import FACE_ENROLLMENT_SAMPLE_COUNT, has_encoded_templates
+from app.services.face_enrollment import has_encoded_templates, student_face_registered
 from app.services.departments import ensure_department_access
 from app.services.students import (
     ensure_student_access,
@@ -23,7 +23,6 @@ router = APIRouter(prefix="/api/students", tags=["students"])
 
 
 def to_student_read(student: Student) -> StudentRead:
-    active_template_count = sum(1 for template in student.faceTemplates if getattr(template, "isActive", True))
     return StudentRead(
         studentId=student.studentId,
         rollNo=student.rollNo,
@@ -37,7 +36,7 @@ def to_student_read(student: Student) -> StudentRead:
         yearSemester=student.yearSemester,
         section=student.section,
         status=student.status,
-        faceRegistered=active_template_count >= FACE_ENROLLMENT_SAMPLE_COUNT,
+        faceRegistered=student_face_registered(student),
         hasEncodedFaceTemplates=has_encoded_templates(student),
         createdAt=student.createdAt,
         updatedAt=student.updatedAt,

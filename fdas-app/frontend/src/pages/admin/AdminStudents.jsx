@@ -6,6 +6,8 @@ import StudentTable from '../../components/StudentTable'
 import { studentsApi } from '../../api/studentsApi'
 import { getApiError } from '../../api/client'
 import Icon from '../../components/Icon'
+import CameraEnrollment from '../../components/CameraEnrollment'
+import DeepRecognitionDiagnosticCapture from '../../components/DeepRecognitionDiagnosticCapture'
 
 function mapStudent(student) {
   return {
@@ -15,6 +17,7 @@ function mapStudent(student) {
     rollNumber: student.rollNo,
     className: student.className,
     department: student.departmentName,
+    departmentId: student.departmentId,
     email: student.email || '',
     enrolled: student.faceRegistered,
     status: student.status,
@@ -107,10 +110,49 @@ export default function AdminStudents() {
       </div>
 
       <div className="rounded-xl overflow-hidden" style={{ backgroundColor: '#fff8f6', boxShadow: '0 4px 20px rgba(232,146,74,0.12)' }}>
-        {loading ? <div className="p-8 text-center" style={{ color: '#887369' }}>Loading students...</div> : <StudentTable students={mappedStudents} actionsEnabled onEdit={student => setModal({ type: 'edit', student })} onDelete={student => setModal({ type: 'status', student })} />}
+        {loading ? <div className="p-8 text-center" style={{ color: '#887369' }}>Loading students...</div> : <StudentTable students={mappedStudents} actionsEnabled onDiagnose={student => setModal({ type: 'diagnostic', student })} onRecover={student => setModal({ type: 'recovery', student })} onEdit={student => setModal({ type: 'edit', student })} onDelete={student => setModal({ type: 'status', student })} />}
       </div>
 
-      {modal && (
+      {modal?.type === 'recovery' && (
+        <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/40 p-4">
+          <div className="mx-auto my-6 w-full max-w-3xl rounded-xl p-5 fdas-card">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>Deep Enrollment Recovery</h2>
+                <p className="text-sm mt-1" style={{ color: '#55433b' }}>{modal.student.name} — {modal.student.rollNumber}</p>
+              </div>
+              <button onClick={() => setModal(null)} className="rounded-lg border px-3 py-2 font-bold" style={{ borderColor: '#dbc1b7', color: '#55433b' }}>Close</button>
+            </div>
+            <CameraEnrollment
+              recoveryMode
+              studentId={modal.student.studentId}
+              studentName={modal.student.name}
+              onCompleted={result => {
+                setMessage(`Deep recovery saved ${result.recoverySamples?.length || 0} samples. Deep readiness: ${result.deepCountAfter}/${result.requiredMinimum}.`)
+                setModal(null)
+                loadStudents()
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {modal?.type === 'diagnostic' && (
+        <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/40 p-4">
+          <div className="mx-auto my-6 w-full max-w-5xl rounded-xl p-5 fdas-card">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>Independent Deep Recognition Test</h2>
+                <p className="text-sm mt-1" style={{ color: '#55433b' }}>{modal.student.name} — {modal.student.rollNumber}</p>
+              </div>
+              <button onClick={() => setModal(null)} className="rounded-lg border px-3 py-2 font-bold" style={{ borderColor: '#dbc1b7', color: '#55433b' }}>Close</button>
+            </div>
+            <DeepRecognitionDiagnosticCapture student={modal.student} onCompleted={() => setMessage('Ten query-only deep diagnostic captures completed; no attendance or enrollment data was created.')} />
+          </div>
+        </div>
+      )}
+
+      {modal && !['recovery', 'diagnostic'].includes(modal.type) && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40">
           <div className="w-full max-w-md rounded-xl p-5 fdas-card">
             <h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>{modal.type === 'edit' ? 'Edit Student Name' : 'Change Student Status'}</h2>
