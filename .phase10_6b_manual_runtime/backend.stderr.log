@@ -1,0 +1,6 @@
+INFO:     Started server process [18152]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+C:\Users\WELCOME\Desktop\FDAS Project\fdas-app\backend\app\services\face_matching.py:119: SAWarning: Coercing Subquery object into a select() for use in IN(); please pass a select() construct explicitly
+  Student.studentId.in_(registered_students),

@@ -2338,3 +2338,559 @@ None. A controlled temporary Error Boundary test page and script were removed im
 ### Final Phase 10.4 Status
 
 **PASS** - registration validation, duplicate handling, frontend form protection, safe network errors, and React crash protection are implemented and verified without changing protected data or out-of-scope behavior.
+
+## Phase 10.5 - Verification Framework & Unified Regression Runner
+
+### Goal
+
+Organize the existing FDAS verification scripts into a repeatable final QA workflow, add one safe sequential backend regression runner, protect active local data, and retain a clear boundary between automated checks and real-camera acceptance testing.
+
+### Starting Verification Audit
+
+- Backend verifier inventory: `verify_phase2.py`, `verify_phase3.py`, `verify_phase4.py`, `verify_phase6a.py`, `verify_phase6b.py`, `verify_phase7a.py`, `verify_phase7b.py`, `verify_phase7c.py`, `verify_phase8b.py`, `verify_phase8c.py`, `verify_phase10.py`, and `verify_phase10_4.py`.
+- Frontend QA inventory: `frontend/scripts/phase5-smoke.mjs`. No additional `verify_*.py`, `test*.py`, phase smoke, Playwright, or QA runner was found outside the audited set.
+- Phase 2 covers the backend foundation and database health. Phases 3 and 4 cover authentication/RBAC and academic APIs. Phase 6A covers attendance sessions; Phase 6B covers 25-sample enrollment/storage. Phases 7A, 7B, and 7C cover face processing, matching, and attendance marking. Phases 8B and 8C cover reports/CSV and basic liveness. Phase 10 covers dashboards, and Phase 10.4 covers registration/error-protection backend behavior.
+- Recursive behavior existed in Phase 6B, 7A, 7B, 7C, and 8C. Phase 6B called 3/4/6A; 7A called through 6B; 7B called through 7A; 7C called through 7B; and 8C called through 7C plus 8B. Phases 2, 3, 4, 6A, 8B, 10, and 10.4 were independent.
+- Every backend verifier seeds or mutates the database resolved from its running `app` package. None created its own isolated database/storage environment. The frontend smoke also creates a registration request and is mutation-capable.
+- General HTTP checks used 10-second timeouts. Phase 7C/8B/8C used longer targeted values, but the 25-image multipart uploads in Phase 6B and Phase 7A still used 10 seconds even though local OpenCV processing was already known to exceed that limit on this machine.
+- Verifier module paths were already stable and documented as `python -m app.verify_phaseX`; moving the files would risk historical command/import compatibility without improving test safety.
+- No verifier was obsolete. Phase 2 was retained as a useful foundation check, and all implemented coverage was included.
+
+### Design Decision
+
+All existing verifiers remain in `backend/app`. The unified runner invokes each suite directly in logical order and sets a runner-only environment flag that tells chained verifiers their prerequisites have already run. Each verifier still executes all of its own assertions, and standalone historical verifier commands retain their original recursive behavior when the flag is absent.
+
+This strategy avoids duplicate nested execution while preserving coverage, command compatibility, readable per-suite output, and deterministic first-failure behavior.
+
+### Files Created
+
+- `backend/app/run_final_verification.py`
+
+### Files Modified
+
+- `backend/app/verify_phase6b.py`
+- `backend/app/verify_phase7a.py`
+- `backend/app/verify_phase7b.py`
+- `backend/app/verify_phase7c.py`
+- `backend/app/verify_phase8c.py`
+- `backend/README.md`
+- `frontend/README.md`
+- `docs/development_journey.md`
+
+### Files Deleted
+
+None. Temporary isolated backend copies and logs were removed after verification; no permanent application or verifier file was deleted.
+
+### Unified Runner
+
+The runner command is:
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m app.run_final_verification
+```
+
+Execution order is strictly sequential:
+
+1. Phase 2 Foundation
+2. Phase 3 Auth/RBAC
+3. Phase 4 Academic APIs
+4. Phase 6A Attendance Sessions
+5. Phase 6B Face Enrollment/Storage
+6. Phase 7A Face Processing
+7. Phase 7B Face Matching
+8. Phase 7C Attendance Marking
+9. Phase 8B Reports/CSV
+10. Phase 8C Liveness
+11. Phase 10 Dashboard
+12. Phase 10.4 Registration Validation
+
+The runner refuses to start if port 8000 is occupied, checks isolated `/health` and `/api/info`, gives every direct verifier a 900-second process ceiling, shows verifier stdout/stderr, stops after the first required failure, marks remaining suites `NOT RUN`, and returns exit code 0 only when every required suite passes. Timeouts are reported as failures with code 124. Uvicorn is stopped in a `finally` path and diagnostic log tails remain available on a failure before temporary cleanup.
+
+### Test Isolation
+
+The runner creates a temporary repo-shaped backend under the workspace. It copies the current application and `fdas_local.db`, creates an empty `storage/`, starts Uvicorn from that isolated backend, and verifies through `/api/info` that the resolved database path is the temporary copy before running any verifier.
+
+Verifier subprocesses inherit the isolated working directory and use the recovered real `.venv` interpreter. The temporary database, storage, source copy, and server logs are automatically removed at completion. The active `backend/fdas_local.db` and `backend/storage/` are never used for verifier mutations.
+
+The frontend smoke was also run against a separate disposable database/application copy with empty storage. The active demo backend was not used. The disposable frontend-QA backend and both local listener processes were removed/stopped afterward.
+
+### Timeout Adjustments
+
+- Added `FACE_UPLOAD_TIMEOUT_SECONDS = 120` to Phase 6B and Phase 7A.
+- Applied it only to the 25-image multipart enrollment upload in each verifier.
+- Kept ordinary HTTP requests at 10 seconds and did not change application runtime processing or recognition behavior.
+- The conservative increase addresses legitimate local OpenCV work identified in Phase 10.2 without weakening assertions.
+
+### Frontend QA Workflow
+
+The established Windows PowerShell sequence remains:
+
+```powershell
+cd frontend
+npm.cmd run lint
+npm.cmd run build
+node .\scripts\phase5-smoke.mjs
+```
+
+No `verify:final` package script was added because it would not safely manage the cross-directory disposable backend lifecycle. The README now states that the smoke's test registration makes an isolated backend copy mandatory, while the normal local `.venv`, Node environment, and frontend build remain in use.
+
+### README/Documentation Changes
+
+- Added a concise Final Verification section to both backend and frontend READMEs.
+- Documented the exact backend runner and frontend lint/build/smoke commands.
+- Documented sequential behavior, temporary backend data isolation, first-failure/non-zero-exit behavior, cleanup, and the separate manual face/webcam acceptance boundary.
+
+### Commands Executed
+
+- `.\.venv\Scripts\python.exe -m py_compile app\run_final_verification.py app\verify_phase6b.py app\verify_phase7a.py app\verify_phase7b.py app\verify_phase7c.py app\verify_phase8c.py`
+- `.\.venv\Scripts\python.exe -m app.run_final_verification`
+- Controlled dependency-injected runner failure check using a temporary in-memory fake command result.
+- `npm.cmd run lint`
+- `npm.cmd run build`
+- `node .\scripts\phase5-smoke.mjs`
+- Final verifier/source-reference searches, `git diff --check`, protected-source diff checks, listener checks, and live database/storage fingerprint/count audits.
+
+### Verification Results
+
+- Runner startup and isolated `/health`: PASS; database connected.
+- Isolated `/api/info` path guard: PASS.
+- Phase 2 Foundation: PASS.
+- Phase 3 Auth/RBAC: PASS.
+- Phase 4 Academic APIs: PASS.
+- Phase 6A Attendance Sessions: PASS.
+- Phase 6B Face Enrollment/Storage: PASS, including the 25-image enrollment path.
+- Phase 7A Face Processing: PASS; automated synthetic images still reported `detected_face_encoding=False` and retained the manual-real-face marker.
+- Phase 7B Face Matching: PASS; automated synthetic images retained the manual-real-face-match marker.
+- Phase 7C Attendance Marking: PASS.
+- Phase 8B Reports/CSV: PASS.
+- Phase 8C Liveness: PASS; `real_camera_liveness_verified=False` remains explicit.
+- Phase 10 Dashboard: PASS.
+- Phase 10.4 Registration Validation: PASS.
+- Unified runner final result: PASS, exit code 0, with all 12 direct suites executed once.
+- Frontend lint: PASS.
+- Frontend production build: PASS.
+- Phase 5 Playwright smoke: PASS; all 22 checks passed and `page_errors=0`.
+- Six smoke console resource errors were expected from deliberate HTTP 409, HTTP 401, and route-aborted connection-refusal cases.
+- Temporary unified-runner directory cleanup: PASS.
+- Temporary frontend-QA backend cleanup and port 8000/5173 listener shutdown: PASS.
+
+### Controlled Failure Test
+
+Failure handling was tested without editing production code or starting a server. The runner's injectable command function returned exit code 7 for the first temporary test specification. The summary marked that suite `FAIL`, marked the following suite `NOT RUN`, printed `FINAL RESULT: FAIL`, invoked only one command, and returned exit code 1. No failing fixture or temporary test code was retained.
+
+### Remaining Manual Verification
+
+- Real-human enrollment and recognition across lighting, pose, distance, and appearance variation remain manual acceptance tests.
+- Real-camera liveness reliability and spoof-resistance evaluation remain manual acceptance tests.
+- Automated synthetic/control-image results do not claim production-grade recognition accuracy or presentation-attack detection.
+
+### Errors Encountered And Fixed
+
+- The first timeout edit was briefly applied to a generic HTTP helper instead of only the multipart path. Source review caught it before runner execution; the generic timeout was restored to 10 seconds and only the 25-image upload now uses 120 seconds.
+- The first disposable frontend backend start used one extra directory level in its working path. The missing-directory startup was corrected to the verified temporary backend root.
+- The first Vite preview start passed an absolute script path containing a space without sufficient Windows argument quoting. It was corrected to a working-directory-relative Vite script path; the smoke then passed.
+- The command sandbox initially could not launch the AppData-backed Python 3.11 interpreter. Approved host execution used the existing recovered `.venv`; no environment recreation or dependency install occurred.
+
+### Remaining Issues
+
+- The Vite production build retains non-blocking plugin timing output and the existing warning that the main 817.03 kB JavaScript chunk exceeds 500 kB after minification.
+- Real-face and real-camera checks remain manual by design.
+- During the Phase 10.5 work window, the live database fingerprint changed because the user manually created and approved an account for testing after the initial isolated test copy was made. The user confirmed this activity. The final read-only audit found no Phase 10.5 browser fixture in the live database, and the user's test account was preserved rather than rolled back.
+
+### Safety Confirmations
+
+- The initial protected database baseline was SHA-256 `9FD169AC55CCB2D4E09630FB6E127190B576B6371A0E613C182207F67FB36821`, 1,556,480 bytes, with UTC mtime `2026-08-31T00:49:43.7563983Z`.
+- The final active database is preserved at 1,556,480 bytes with SHA-256 `36B0341B8C2FCDE9C3EC24D11BA2AEEB44D6D4C8A6C50980504D6921DA2531DF` and UTC mtime `2026-09-09T22:22:06.0267599Z`. The hash/mtime difference corresponds to the user-confirmed manually created/approved test account noted above, not a verifier fixture; no test account from the isolated browser smoke exists in live data.
+- Active `backend/storage` remains exactly 15,341 files and 15,653,491 bytes, with unchanged root and latest-file timestamps.
+- All 4,500 live face-template records and enrolled storage files are preserved.
+- All 11 live attendance records are preserved.
+- The Admin and Operator demo accounts remained compatible throughout the isolated full runner and browser smoke.
+- `FACE_MATCH_THRESHOLD` remains exactly 0.75.
+- PBKDF2-SHA256 remains unchanged at 120,000 iterations.
+- JWT remains environment-first `FDAS_SECRET_KEY` with the same development fallback, HS256, and 60-minute expiry.
+- Recognition source/behavior is unchanged.
+- Liveness source/behavior and thresholds are unchanged.
+- Authentication and department authorization source/behavior are unchanged.
+- `requirements.txt` is unchanged; no dependencies were installed or reinstalled.
+- No active database reset, reseed, deletion, test-fixture insertion, face-template deletion, attendance deletion, or storage deletion was performed.
+- No Stitch UI redesign, LAN work, FaceNet, or ArcFace was implemented.
+- Phase 10.6 was not started.
+
+### Final Phase 10.5 Status
+
+**PASS** - the unified sequential regression runner and documented final QA workflow are implemented and verified with isolated mutation-capable tests, correct failure semantics, preserved protected behavior, and no Phase 10.6 work.
+
+## Phase 10.6 - Real Webcam Liveness Acceptance Testing
+
+### Goal
+
+Validate the existing Basic Liveness challenge-response flow with the real laptop webcam and genuine human interaction, record recognition observations without changing the face-match threshold, and confirm that liveness, matching, attendance creation, and duplicate prevention remain separate enforced stages.
+
+### Starting State
+
+- Phase 10.6 manual testing is in progress; this is not yet a final PASS/PARTIAL/FAIL entry.
+- Source review confirmed that the displayed webcam preview and canvas capture are not mirrored by application CSS or canvas transforms. `MOVE_LEFT` and `MOVE_RIGHT` therefore correspond to movement toward the left and right edges, respectively, as seen in the FDAS preview.
+- The normal local backend and frontend were already running at `127.0.0.1:8000` and `127.0.0.1:5173`.
+- `/api/info` confirmed that the backend is using the active `backend/fdas_local.db` for this user-approved manual acceptance test.
+
+### Current Liveness Configuration
+
+- Mode: `basic`.
+- Challenges: `MOVE_LEFT`, `MOVE_RIGHT`, and `MOVE_CLOSER`.
+- Frame count: 5.
+- Frame capture interval: 500 ms, approximately 2 seconds from the first to last capture before request processing.
+- Automatic next-scan delay: 2,800 ms after the preceding request completes.
+- Minimum horizontal center shift ratio: 0.08.
+- Minimum face-area increase ratio for `MOVE_CLOSER`: 0.12.
+- `FACE_MATCH_THRESHOLD`: 0.75.
+- Raw center-shift and area-change measurements are not exposed in the API/UI; liveness status and face-match confidence are exposed where applicable.
+
+### Manual Test Environment
+
+- Real laptop/webcam and the actual FDAS browser flow are being used.
+- Two existing active sessions were available at the start of collection: Mathematics session 439 and IT session 442.
+- Both active sessions had zero attendance records in a read-only API check after the observations below.
+- Exact challenge, lighting, and distance labels for the already reported observations were not supplied and remain unclassified rather than inferred.
+
+### Genuine User Test Results - Evidence Recorded So Far
+
+| Evidence | Challenge | Lighting | Distance | Liveness classification | Recognition result | Confidence | Attendance created | Notes |
+| --- | --- | --- | --- | --- | --- | ---: | --- | --- |
+| 1 | Not supplied | Not supplied | Not supplied | Liveness Failed | Not executed/available | N/A | No | At least one explicit liveness failure was observed. |
+| 2 | Not supplied | Not supplied | Not supplied | Liveness Passed | Face Match Failed | 0.456426 | No | Below threshold 0.75. |
+| 3 | Not supplied | Not supplied | Not supplied | Liveness Passed | Face Match Failed | 0.413143 | No | Below threshold 0.75. |
+| 4 | Not supplied | Not supplied | Not supplied | Liveness Passed | Face Match Failed | 0.238707 | No | Below threshold 0.75. |
+| 5 | Not supplied | Not supplied | Not supplied | Liveness Passed | Face Match Failed | 0.312130 | No | Below threshold 0.75. |
+| 6 | MOVE_CLOSER | Indoor webcam view shown | Not supplied | Liveness Passed | Face Match Failed | 0.411559 | No | Session 442; explicit below-threshold message; screenshot showed zero present/records. |
+| 7 | MOVE_CLOSER | Indoor webcam view shown | Not supplied | Liveness Passed | Face Match Failed | 0.531635 | No | Session 442; explicit below-threshold message; screenshot showed zero present/records. |
+| 8 | Not visible after scan stopped | Indoor webcam view shown | Not supplied | Liveness Passed | Face Match Failed | 0.547170 | No | Session 442; explicit below-threshold message; screenshot showed zero present/records. |
+| 9 | MOVE_CLOSER | Indoor webcam view shown | Not supplied | Liveness Passed | Face Match Failed | 0.637544 | No | Session 442; explicit below-threshold message; screenshot showed zero present/records. |
+
+The `Liveness Passed` classification for evidence 2-5 follows from the live endpoint order: recognition and a confidence result occur only after the liveness gate passes. One result explicitly displayed: "Face detected but match confidence is below threshold."
+
+No `Liveness Passed + Face Match Passed`, `Attendance Marked`, or `DuplicateAttendance` result has been reported yet. Three screenshot-classified `MOVE_CLOSER` attempts have been recorded. Repeated `MOVE_LEFT` and `MOVE_RIGHT` failures were reported separately, but their exact attempt counts and individual messages have not yet been supplied and are therefore not invented.
+
+### Horizontal Challenge Evidence Review
+
+- The user reported that `MOVE_LEFT` and `MOVE_RIGHT` failed repeatedly despite completing the requested movement within the approximately two-second capture window.
+- The earlier source audit found no CSS, video, or canvas mirroring mismatch: preview-left maps to decreasing backend X and preview-right maps to increasing backend X.
+- The current API does not expose the actual first/last face centers or calculated `shift_ratio`, so the evidence does not yet show whether failures are caused by insufficient measured displacement, lost face detections near the end of motion, capture timing, or another detector-level effect.
+- Remaining horizontal attempts are paused for evidence review. Lowering the 0.08 threshold without measured shift values would violate the Phase 10.6 tuning rules.
+- No liveness parameter, face threshold, recognition logic, or authorization behavior was changed.
+
+### Recognition Observations
+
+- Observed real-webcam confidence values: 0.456426, 0.413143, 0.238707, 0.312130, 0.411559, 0.531635, 0.547170, and 0.637544.
+- All are below `FACE_MATCH_THRESHOLD = 0.75` and are retained for Phase 10.7 face-threshold evaluation.
+- No threshold conclusion or scientific accuracy claim is made from this small evidence set.
+- Phase 10.6 will not change the face-match threshold.
+
+### Attendance Safety - Evidence Recorded So Far
+
+- The explicitly failed liveness attempt created no attendance.
+- Liveness-passed but below-threshold face matches created no attendance.
+- Read-only API verification found zero records in both currently active sessions 439 and 442 after these observations.
+- A second read-only API check after evidence 6-7 confirmed that session 442 still contained zero attendance records.
+- A third read-only API check after evidence 8-9 and the reported horizontal failures confirmed that session 442 still contained zero attendance records.
+- Successful face matching, attendance creation, and duplicate prevention still require direct manual evidence.
+
+### Parameter Changes
+
+No liveness parameters were changed. `FACE_MATCH_THRESHOLD` also remains unchanged at 0.75. Initial evidence will be reviewed before any tuning is considered.
+
+### Remaining Evidence Collection
+
+- Classify at least five genuine attempts for each of `MOVE_LEFT`, `MOVE_RIGHT`, and `MOVE_CLOSER`, including lighting and distance conditions.
+- Test a static phone/display photograph, genuine no-movement behavior, and wrong-direction behavior.
+- Observe `Liveness Passed + Face Match Passed`, `Attendance Marked`, and `DuplicateAttendance` if achievable without changing the face threshold.
+- Keep each outcome distinct: `Liveness Failed`; `Liveness Passed + Face Match Failed`; `Liveness Passed + Face Match Passed`; `Attendance Marked`; and `DuplicateAttendance`.
+
+### Current Phase Status
+
+**IN PROGRESS** - initial real-webcam safety and low-confidence recognition evidence is recorded. No parameter tuning has occurred, and Phase 10.7 has not started.
+
+## Phase 10.6C — Single-Face Enrollment & Attendance Guard
+
+### Goal And Scope
+
+Ensure that new face enrollment and live attendance proceed only when exactly one continuous face is present. Zero-face, multiple-face, disappearing-face, and unexpected subject-switch states must stop the current capture without invoking recognition or creating attendance.
+
+This phase did not change `FACE_MATCH_THRESHOLD`, the stored recognition descriptor, face templates, attendance records, or live database contents. Phase 10.6B identity-integrity diagnosis remains paused with its evidence and frontend attendance safety hold preserved; no later phase was started.
+
+### Starting Defect
+
+- `detect_largest_face()` discarded all but the largest Haar detection, so callers could continue even when two or more faces were present.
+- The 25-sample browser enrollment loop captured frames blindly, incremented the count unconditionally, and uploaded every frame only after capture completed.
+- Enrollment upload processing allowed zero-face images to become `NoFaceDetected` template rows and did not reject multi-face images as a batch-invalid state.
+- Liveness stored only one largest face box per frame and allowed some movement frames to have no detected face. It had no subject-continuity lock.
+- These behaviors could mix people in one enrollment batch or allow a liveness attempt to continue after the visible subject changed.
+
+### Shared Backend Face-Count Rule
+
+- Added `detect_faces()` to the existing OpenCV Haar pipeline. It returns every normalized detection, ordered only for deterministic processing.
+- `process_image_bytes()` now classifies `faceCount == 0` as `NoFaceDetected`, `faceCount == 1` as the sole processable face, and `faceCount > 1` as `MultipleFacesDetected`.
+- A largest face is no longer silently selected for enrollment, matching, diagnostic capture, or attendance when multiple faces are present.
+- Added the authenticated, non-writing `/api/face-processing/validate-single-face` endpoint. It returns the face count, guard status, readiness, and optional continuity result; it never stores the submitted frame.
+- Matching endpoints now return `MultipleFacesDetected` rather than attempting to recognize the largest face.
+
+### Enrollment Guard And Face Lock
+
+- Enrollment now waits for exactly one face to remain continuously valid for approximately one second before accepting the first sample.
+- Every candidate sample is checked by the backend before it is added to the browser's in-memory 25-sample batch.
+- Zero-face and multiple-face frames do not increment progress and are not included in the upload.
+- Capture pauses automatically on an invalid state and resumes automatically only after the original locked face is again the sole stable face for approximately one second.
+- The first accepted single face is retained as the attempt lock. Subsequent frames are compared with that lock using the existing lightweight OpenCV descriptor only as an in-attempt continuity signal.
+- The backend revalidates all 25 frames before writing any file or template row and verifies both anchor-to-frame and adjacent-frame continuity. A failure rejects the whole batch before storage, preventing partial enrollment writes.
+- Enrollment authorization is now checked before image processing, so cross-department callers receive the correct authorization failure even when their submitted image is invalid.
+
+Enrollment UI messages are distinct:
+
+- `No face detected. Please face the camera.`
+- `Face detected — ready.`
+- `Multiple faces detected. Only one person should be in front of the camera.`
+- A continuity failure asks for the original person to return; it does not silently re-lock to a replacement person.
+
+### Attendance Guard And Face Lock
+
+- The frontend checks for a stable single face before choosing or starting a liveness challenge.
+- Every baseline and movement frame is checked against the initial face lock. Any zero-face, multiple-face, or continuity failure cancels that scan locally, before the live attendance endpoint is called.
+- The backend independently counts faces in every submitted liveness frame. Any frame with multiple faces returns `MultipleFacesDetected`; any frame where the face disappears returns `NoFaceDetected`.
+- The backend continuity check runs before movement evaluation and face matching. `FaceContinuityLost` short-circuits the pipeline, so recognition, eligibility, duplicate checking, and attendance persistence are not reached.
+- Exactly-one continuous-face sequences continue through the existing liveness and recognition stages without changing the recognition algorithm.
+
+Attendance UI messages are distinct:
+
+- `No face detected. Please stand in front of the camera.`
+- `Face detected — ready.`
+- `Multiple faces detected. Please allow only one student in front of the camera for attendance.`
+- `The active face changed or disappeared. This attendance attempt was cancelled.`
+
+### Continuity Mechanism
+
+- Added `FACE_CONTINUITY_MIN_SIMILARITY = 0.10` as a short-lived capture-continuity threshold, separate from identity recognition.
+- It compares descriptors only within one current enrollment or liveness sequence; it does not select a student and does not change the stored identity-matching threshold.
+- Read-only measurements from the two involved real enrollment sets were above this guard floor: student 22 had minimum adjacent/anchor similarities of approximately 0.397/0.420, and student 27 approximately 0.320/0.245.
+- The mechanism is intentionally lightweight and compatible with `opencv_basic_v1`. It is a continuity safeguard, not a claim of production-grade biometric tracking.
+
+### Verification Framework Changes
+
+- Added `app.verify_phase10_6c` to the isolated unified runner.
+- Updated legacy Phase 6B and Phase 7A verifier expectations: their blank synthetic image must now be rejected with `NoFaceDetected` and zero upload writes. Isolated control rows are created only for the historical storage, processing, deactivate, and clear assertions.
+- Updated Phase 8C controlled frames to include explicit face counts and continuity descriptors.
+- Extended the existing frontend smoke with enrollment stable-face guidance and live-attendance single-face-guard visibility checks.
+
+### Verification Results
+
+- Python compile checks: PASS.
+- Phase 10.6C zero/one/many classification: PASS.
+- Authenticated single-face validation endpoint and unauthenticated rejection: PASS.
+- Enrollment zero-face rejection with no template writes: PASS.
+- Enrollment multiple-face rejection: PASS.
+- Enrollment stable-subject continuity: PASS.
+- Enrollment subject-switch rejection: PASS.
+- Single-face liveness continues normally: PASS.
+- Liveness multi-face rejection: PASS.
+- Liveness missing-face rejection: PASS.
+- Liveness subject-switch rejection: PASS.
+- Multi-face liveness short-circuits before the matcher: PASS.
+- Rejected liveness attempt creates no attendance: PASS.
+- Unified sequential runner: PASS for all 13 suites, including Phase 6B, Phase 7A, Phase 7B, Phase 7C, Phase 8C, and Phase 10.6C.
+- Frontend `npm.cmd run lint`: PASS.
+- Frontend `npm.cmd run build`: PASS.
+- Isolated Playwright smoke: PASS; all 23 checks passed and `page_errors=0`.
+- Six smoke console resource errors were expected from deliberate conflict, invalid-login, and unavailable-backend checks.
+
+### Data And Configuration Safety
+
+- Active database remained 2,158,592 bytes with SHA-256 `032A366304D823B4354C1FBF3D692365FB957F14FC53FCED632F2EE768624FDD` and UTC mtime `2026-09-11T18:01:26.3497090Z` before and after isolated verification.
+- Active storage remained 15,516 files and 25,569,658 bytes; latest stored-file UTC timestamp remained `2026-09-10T06:59:01.2100442Z`.
+- No live database reset or reseed occurred. No attendance record or existing face template was deleted, deactivated, reassigned, reprocessed, or replaced.
+- All mutation-capable verification used disposable database/storage copies that were removed afterward.
+- `FACE_MATCH_THRESHOLD` remains exactly `0.75`.
+- The identity recognition algorithm remains `opencv_basic_v1`; its cosine calculation was only moved to a shared helper so the same calculation can be reused for transient continuity checking.
+- Liveness direction and movement thresholds from Phase 10.6A remain unchanged.
+- The unresolved Phase 10.6B wrong-identity record remains preserved. The frontend attendance safety hold remains active, so live attendance cannot resume accidentally before that separate blocker is resolved.
+
+### Warnings And Limitations
+
+- Haar face count can still miss a heavily occluded, very small, or badly lit secondary face. The guard enforces every face that the current detector reports; it is not advanced crowd detection.
+- The continuity descriptor is a practical short-sequence safeguard, not FaceNet, ArcFace, or certified identity tracking.
+- Real-webcam multi-face entry/exit and subject-switch confirmation remains desirable after the Phase 10.6B identity blocker is separately resolved; live attendance was intentionally not re-enabled in this phase.
+- The Vite build retains the existing non-blocking warning that its main JavaScript chunk exceeds 500 kB after minification.
+
+### Final Phase 10.6C Status
+
+**PASS** — enrollment and attendance now require exactly one continuous detected face at both frontend and backend boundaries, invalid attempts fail without storage or attendance writes, protected data and recognition configuration remain unchanged, and no other phase was started.
+
+## Phase 10.6B - Identity Matching Integrity Diagnosis & Safety Fix
+
+### Goal
+
+Resume the paused identity-integrity investigation after Phase 10.6C and make uncertain identity decisions fail safely. A false rejection is preferable to assigning attendance to the wrong student. Normal attendance remains disabled until the automated and real-webcam cross-identity acceptance requirements pass.
+
+### Original Wrong-Identity Incident
+
+- Expected person: student 22, Ahmad Mughal, roll `cs-2026-789`.
+- Incorrectly selected and persisted identity: student 27, talha, roll `cs-icg-203`.
+- Preserved evidence: attendance record 39, session 447, recognition confidence `0.833374`, liveness `Passed`.
+- The evidence record was not edited or deleted.
+
+### Previous Findings
+
+- Template database ownership, storage-folder ownership, and image review showed distinct people and no student 22/27 cross-link.
+- Attendance persistence writes the exact `studentId` returned by matching; it did not remap student 22 to student 27.
+- The matcher itself selected student 27, classifying the defect as weak identity separation rather than a persistence mapping error.
+
+### Phase 10.6C Dependency
+
+Phase 10.6C passed before this work resumed. Exact face counting, stable-single-face gating, enrollment locking, liveness-frame continuity, and the `NoFaceDetected`, `MultipleFacesDetected`, and `FaceContinuityLost` short circuits remain intact. The identity policy runs only after these gates and liveness pass.
+
+### Matching Algorithm Audit
+
+1. Haar detection identifies exactly one face and crops it.
+2. `opencv_basic_v1` converts the crop to grayscale, equalizes its histogram, resizes it to 16 by 16, mean-centers and L2-normalizes the 256 intensity values.
+3. Query/template similarity is cosine similarity rounded to six decimals.
+4. The original production ranking compared every active encoded candidate template, then represented each student by that student's maximum single-template score.
+5. Students were ranked by that maximum; ties were resolved deterministically by `studentId`.
+6. The original production path did not inspect the second-ranked student or require identity separation.
+7. `FACE_MATCH_THRESHOLD = 0.75` was applied only to the winning maximum after ranking.
+8. Session department scoping, operator authorization, active-student filtering, active-template filtering, and encoded/non-null filtering were present. This phase also restricts comparable templates to `encodingVersion = opencv_basic_v1`.
+9. Legacy enrollment eligibility still counts 25 active sample rows, including historical `NoFaceDetected` rows. The comparison pool itself uses only valid encoded rows. This legacy-data limitation is preserved rather than deleting or re-enrolling students during diagnosis.
+
+### Template Ownership Audit
+
+| Student | Name / roll | Department / class | Status | Total active rows | Active encoded `opencv_basic_v1` rows | Storage ownership |
+| --- | --- | --- | --- | ---: | ---: | --- |
+| 22 | Ahmad Mughal / `cs-2026-789` | 1 / 1 | Active | 25 | 19 | All 25 files exist under `storage/face_enrollments/22/` |
+| 27 | talha / `cs-icg-203` | 1 / 1 | Active | 25 | 19 | All 25 files exist under `storage/face_enrollments/27/` |
+
+No cross-linked template paths and no identical stored-image SHA-256 hashes were found between the two students. The six non-encoded rows for each student are historical `NoFaceDetected` samples; they are not used for matching.
+
+### Diagnostic Dataset
+
+- Existing live evidence capture A: top student 22 at approximately `0.817113`, second student 27 at `0.798707`, margin `0.018406`.
+- Existing live evidence capture B: top student 27 at approximately `0.775933`, second student 22 at `0.731381`, margin `0.044552`.
+- Both top scores exceed 0.75, but both margins are below the provisional 0.05 safety floor. Threshold-only matching can therefore either make a low-separation correct selection or a low-separation cross-selection.
+- A read-only leave-one-template-out analysis evaluated 270 stored encoded samples across 12 active department-1 candidates. The query row itself was excluded from its expected student's comparison set.
+- A separate 25-sample out-of-department stored-template proxy was evaluated as an impostor stress check. This is not a substitute for a genuine unknown volunteer.
+- Student 22 genuine capture 1: expected/top student 22 at `0.839631`; second student 27 at `0.786301`; maximum-score margin `0.053330`. The provisional 0.05 rule passed and no attendance was created. This result is borderline because it clears the required margin by only `0.003330`.
+- Capture 1 aggregation margins: maximum `0.053330`, mean top 3 `0.035796`, mean top 5 `0.031127`, median top 5 `0.024102`.
+- Student 22 genuine capture 2 - critical false identity: expected student 22, but maximum scoring ranked student 28 first at `0.763408` and student 19 second at `0.656789`, producing margin `0.106619`. Both `0.763408 > 0.75` and `0.106619 > 0.05`, so the provisional rule would accept the wrong identity. No attendance was created because the safety hold remained active.
+- Student 22 genuine capture 3: maximum scoring ranked student 28 first at `0.746424` and expected student 22 second at `0.746299`, margin `0.000125`. It was rejected because it was below threshold and highly ambiguous.
+- Capture 3 aggregate observations changed the ranking back toward the expected person: mean top 3 reported student 22 `0.738120` versus student 27 `0.709298`; mean top 5 reported student 22 `0.725829` versus student 27 `0.698382`; median top 5 reported student 22 `0.722506` versus student 27 `0.704524`. These scores remain below 0.75 and require different evidence-based calibration; they do not justify another Phase 10.6B production change.
+- Further manual capture collection was stopped immediately after this decisive false-identity evidence. Missing student-27, other-student, and unknown-person sample counts are reported as not collected rather than inferred.
+
+### Per-Student Scoring Comparison
+
+The stored-sample analysis compared the four required per-student aggregations. At threshold 0.75 plus a 0.05 margin:
+
+| Aggregation | Top-1 correct before acceptance gate | Top-1 incorrect before acceptance gate | Accepted correct | Accepted false | Rejected |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Maximum | 211 | 59 | 182 | 0 | 88 |
+| Mean of top 3 | 208 | 62 | 168 | 0 | 102 |
+| Mean of top 5 | 209 | 61 | 154 | 0 | 116 |
+| Median of top 5 | 201 | 69 | 149 | 0 | 121 |
+
+Maximum retained the largest number of correct accepted samples in this dataset. Robust top-k aggregation did not improve separation enough to justify replacing production scoring before live evidence is complete. All four values are now returned by diagnostic mode for every candidate student.
+
+### Top-1 / Top-2 Margin Analysis
+
+For maximum scoring on the 270-sample stored set:
+
+| Required margin | Accepted correct | Accepted false | Rejected |
+| ---: | ---: | ---: | ---: |
+| 0.00 | 208 | 52 | 10 |
+| 0.02 | 183 | 1 | 86 |
+| 0.03 | 183 | 0 | 87 |
+| 0.04 | 183 | 0 | 87 |
+| 0.05 | 182 | 0 | 88 |
+| 0.07 | 177 | 0 | 93 |
+| 0.10 | 171 | 0 | 99 |
+
+The stored-sample result initially supported a provisional 0.05 candidate, but the genuine Student 22 capture 2 invalidated it: a wrong identity won above both threshold and margin. Threshold plus top-two margin alone is therefore insufficient. The out-of-department proxy also produced high false scores under every tested aggregation. Attendance cannot be re-enabled.
+
+### Provisional Safety Rule - Rejected For Attendance Enablement
+
+The implemented provisional decision policy was:
+
+`maximumScore >= 0.75 AND top1Score - top2Score >= 0.05`
+
+- Descriptor/recognition algorithm: unchanged `opencv_basic_v1`.
+- Aggregation: maximum, retained based on the wider stored-set comparison.
+- `FACE_MATCH_THRESHOLD`: unchanged at 0.75.
+- `MIN_IDENTITY_MARGIN`: 0.05.
+- Capture 2 proved this rule unsafe because wrong student 28 scored `0.763408` with a `0.106619` margin.
+- The policy remains in code only behind mandatory frontend and backend attendance holds; it is not approved as a safe attendance rule.
+- No threshold, margin, aggregation, descriptor, or other recognition parameter was changed after this failure.
+
+### AmbiguousMatch Behavior
+
+- If the winning score is below 0.75, matching returns `MatchBelowThreshold`.
+- If it is above threshold but less than 0.05 ahead of the second student, matching returns `AmbiguousMatch` with `matched = false`.
+- Safe metadata includes top score, second score, actual margin, required margin, threshold, and aggregation method.
+- Normal attendance output does not reveal another student's identity for an ambiguous result.
+- The frontend message is: `Identity could not be determined confidently. Please try again.`
+- Both frontend and backend attendance safety holds are active. Even an otherwise clear match returns `AttendanceSafetyHold` and cannot be persisted while validation is incomplete.
+- `AmbiguousMatch` safely handles close top-two scores but cannot protect against a wrong candidate that wins by a large margin, as capture 2 demonstrated.
+
+### Before/After Results
+
+- Before: any top maximum of at least 0.75 could be accepted, including the wrong record-39 decision at 0.833374 and the two observed low-margin diagnostic decisions.
+- After policy evaluation: the two known live diagnostic decisions would both be rejected as ambiguous because `0.018406 < 0.05` and `0.044552 < 0.05`.
+- Stored leave-one-out threshold-only false accepts decreased from 52 to zero accepted false identities at the provisional threshold-plus-margin rule.
+- Real capture 1 selected the expected person but cleared the margin by only 0.003330.
+- Real capture 2 selected the wrong person and passed both provisional gates, proving that the stored leave-one-out result did not generalize to live use.
+- Real capture 3 rejected safely, while top-k aggregation changed the observed #22/#27 ordering; the aggregate scores were below 0.75 and need separate calibration.
+- Final conclusion: the current `opencv_basic_v1` identity representation and provisional acceptance policy cannot be considered safe for automatic attendance.
+
+### Real-Webcam Identity Retest
+
+| Capture | Expected | Top / score | Second / score | Maximum margin | Top-3 margin | Top-5 mean margin | Top-5 median margin | Policy result | Attendance |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- |
+| Student 22 - 1 | #22 Ahmad Mughal | #22 / 0.839631 | #27 talha / 0.786301 | 0.053330 | 0.035796 | 0.031127 | 0.024102 | Correct; provisional rule passed, borderline by 0.003330 | No |
+| Student 22 - 2 | #22 Ahmad Mughal | #28 ikram / 0.763408 | #19 Ahmad Mughal (`CS-2022-58`) / 0.656789 | 0.106619 | Not supplied | Not supplied | Not supplied | **Critical wrong identity; provisional threshold and margin both passed** | No |
+| Student 22 - 3 | #22 Ahmad Mughal | #28 ikram / 0.746424 | #22 Ahmad Mughal / 0.746299 | 0.000125 | #22 0.738120 vs #27 0.709298 | #22 0.725829 vs #27 0.698382 | #22 0.722506 vs #27 0.704524 | Safely rejected; aggregate observations changed #22/#27 ordering but stayed below threshold | No |
+
+Further Phase 10.6B manual captures were stopped on explicit instruction after capture 2 proved the provisional rule unsafe and capture 3 confirmed unstable separation. Student-27, other-student, and unknown-person retests were not collected. No attendance was created by any diagnostic capture.
+
+### Automated Verification Results
+
+- Frontend `npm.cmd run lint`: PASS.
+- Frontend `npm.cmd run build`: PASS, with the existing non-blocking large-chunk and plugin-timing warnings.
+- Existing virtual environment: Python 3.11.9 verified; FastAPI, Uvicorn, SQLAlchemy, OpenCV, and NumPy import check PASS. No recreation or dependency installation was needed.
+- Dedicated read-only/no-write `app.verify_phase10_6b`: PASS and registered in the unified runner after stabilizing.
+- Required Phase 7B: PASS.
+- Required Phase 7C: PASS.
+- Required Phase 8C: PASS.
+- Required Phase 10.6C: PASS.
+- Unified final verification: PASS for all 14 sequential suites, including the dedicated Phase 10.6B verifier. It ran against a disposable database/storage copy on port 8001 while the user's live processes remained on ports 8000/5173.
+- Isolated Playwright smoke: PASS; all 23 checks passed and `page_errors=0`. Eight console resource errors were expected from deliberate conflict, invalid-login, route-abort, and unavailable-backend checks.
+- The unified runner now supports a configurable isolated port and legacy verifier entry points. Frontend smoke/API URLs and additional CORS origins can be overridden for isolated verification while retaining the normal 8000/5173 defaults.
+- Non-blocking warnings: SQLAlchemy reports legacy subquery coercion in candidate eligibility; Vite reports its existing main-chunk size warning.
+
+### Remaining Recognition Limitations
+
+- A normalized 16 by 16 grayscale appearance descriptor is not a modern identity embedding and remains vulnerable to illumination, pose, appearance similarity, and unknown-person false acceptance.
+- A margin rejects close competing identities but cannot prove that a well-separated top candidate is the correct enrolled person.
+- Student 22 capture 2 is the direct example: wrong student 28 was separated from second place by 0.106619 and would have passed both provisional gates.
+- Top-k aggregation improved the reported student-22/student-27 ordering in capture 3, but its genuine scores were below the unchanged 0.75 threshold and the wider live calibration required to select a replacement rule was intentionally stopped.
+- The stored dataset contains synthetic historical verifier identities and legacy partially encoded enrollments, so stored-sample analysis cannot replace genuine webcam evaluation.
+- The out-of-department proxy produced high false scores, reinforcing the decision to retain the attendance hold.
+
+### Safety Confirmations
+
+- `FACE_MATCH_THRESHOLD` remains exactly 0.75.
+- Phase 10.6C face-count and continuity safeguards are preserved.
+- `fdas_local.db` was queried read-only and was not reset or reseeded.
+- Storage and existing face templates were not changed or deleted.
+- Attendance record 39 remains preserved.
+- Recognition remains `opencv_basic_v1`; the new logic is an acceptance-policy and diagnostic change, not a new descriptor.
+- Frontend and backend normal-attendance safety holds remain active.
+- Closeout logical audit: attendance count remains 21 and record 39 remains the newest attendance record. Students 22, 27, 28, and 19 each retain 25 template rows; students 22 and 27 retain their 19 usable encoded rows.
+- Closeout live-data fingerprint: database SHA-256 `C1B66053901951BDA63C12F466B430A18EC5A1F0B6BF77CEF18113BD00356867`, 2,260,992 bytes; storage remains 15,541 files and 26,912,737 bytes with latest stored-file UTC mtime `2026-09-11T19:11:38.085265+00:00`. The running SQLite file's binary hash/mtime changed during the live application lifecycle, but critical logical counts, attendance evidence, template ownership, storage count, and storage bytes remained preserved.
+- Phase 10.7 was not started.
+
+### Final Phase 10.6B Status
+
+**PARTIAL / SAFETY HOLD** - automated verification passed and the diagnostic/ambiguity safeguards operate as designed, but genuine webcam capture 2 proved that the current `opencv_basic_v1` maximum-score plus 0.05 margin policy can accept a wrong identity above both gates. Normal attendance remains disabled. Phase 10.6B is closed without claiming identity safety, and Phase 10.7 has not started.

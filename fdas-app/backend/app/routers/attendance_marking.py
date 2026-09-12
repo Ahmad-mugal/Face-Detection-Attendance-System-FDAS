@@ -7,6 +7,7 @@ from app.models.attendance_record import AttendanceRecord
 from app.models.user import User
 from app.schemas.attendance_marking import AttendanceMarkResult, AttendanceSessionRecordRead
 from app.services.attendance_marking import (
+    apply_identity_safety_hold,
     create_attendance_from_match_result,
     ensure_active_session,
     list_session_records,
@@ -82,10 +83,19 @@ async def mark_by_face_live(
             "recognitionConfidence": None,
             "thresholdUsed": None,
             "livenessStatus": LIVENESS_STATUS_FAILED,
+            "livenessDiagnostics": liveness_result.diagnostics,
         }
 
     match_result = match_face_bytes(db, current_user, session.departmentId, liveness_result.bestFrameBytes)
-    return create_attendance_from_match_result(db, session, match_result, liveness_status=LIVENESS_STATUS_PASSED)
+    match_result = apply_identity_safety_hold(match_result)
+    attendance_result = create_attendance_from_match_result(
+        db,
+        session,
+        match_result,
+        liveness_status=LIVENESS_STATUS_PASSED,
+    )
+    attendance_result["livenessDiagnostics"] = liveness_result.diagnostics
+    return attendance_result
 
 
 @router.get("/api/attendance-sessions/{sessionId}/records", response_model=list[AttendanceSessionRecordRead])

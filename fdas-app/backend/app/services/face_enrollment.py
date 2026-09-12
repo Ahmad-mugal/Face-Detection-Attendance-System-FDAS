@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from uuid import uuid4
 
@@ -5,11 +6,11 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.config import BASE_DIR
+from app.config import BASE_DIR, FACE_CONTINUITY_MIN_SIMILARITY
 from app.models.face_template import FaceTemplate
 from app.models.student import Student
 from app.models.user import User
-from app.services.face_processing import load_image_bytes_from_path, process_image_bytes
+from app.services.face_processing import descriptor_similarity, load_image_bytes_from_path, process_image_bytes
 from app.services.students import ensure_student_access, get_student_or_404
 from app.utils.time import utc_now_naive
 
@@ -71,8 +72,59 @@ async def read_face_upload(file: UploadFile) -> tuple[str, bytes]:
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="Uploaded image is larger than the 5 MB limit",
         )
-    process_image_bytes(content)
+    processing_result = process_image_bytes(content)
+    ensure_exactly_one_face(processing_result)
     return suffix, content
+
+
+def ensure_exactly_one_face(processing_result) -> None:
+    if processing_result.status == "NoFaceDetected":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "NoFaceDetected",
+                "message": "No face detected. Please face the camera.",
+            },
+        )
+    if processing_result.status == "MultipleFacesDetected":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "MultipleFacesDetected",
+                "message": "Multiple faces detected. Only one person should be in front of the camera.",
+            },
+        )
+    if processing_result.status != "Encoded" or not processing_result.encodingData:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "code": "InvalidFaceCapture",
+                "message": "The face capture could not be processed.",
+            },
+        )
+
+
+def ensure_enrollment_face_continuity(processing_results: list) -> None:
+    if not processing_results:
+        return
+    descriptors = [json.loads(result.encodingData) for result in processing_results]
+    anchor = descriptors[0]
+    previous = descriptors[0]
+    for descriptor in descriptors[1:]:
+        anchor_similarity = descriptor_similarity(anchor, descriptor)
+        adjacent_similarity = descriptor_similarity(previous, descriptor)
+        if (
+            anchor_similarity < FACE_CONTINUITY_MIN_SIMILARITY
+            or adjacent_similarity < FACE_CONTINUITY_MIN_SIMILARITY
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "code": "FaceContinuityLost",
+                    "message": "The detected subject changed during enrollment. No samples were stored.",
+                },
+            )
+        previous = descriptor
 
 
 def build_sample_path(studentId: int, sample_index: int, suffix: str) -> tuple[Path, Path]:
@@ -95,13 +147,19 @@ def create_face_templates(
             detail=f"Exactly {FACE_ENROLLMENT_SAMPLE_COUNT} face samples are required",
         )
 
+    processed_uploads = []
+    for suffix, content in uploads:
+        processing_result = process_image_bytes(content)
+        ensure_exactly_one_face(processing_result)
+        processed_uploads.append((suffix, content, processing_result))
+    ensure_enrollment_face_continuity([item[2] for item in processed_uploads])
+
     student = get_student_or_404(db, studentId)
     ensure_student_access(user, student)
 
     sample_index = next_sample_index(db, studentId)
     created_templates: list[FaceTemplate] = []
-    for suffix, content in uploads:
-        processing_result = process_image_bytes(content)
+    for suffix, content, processing_result in processed_uploads:
         relative_path, absolute_path = build_sample_path(studentId, sample_index, suffix)
         absolute_path.parent.mkdir(parents=True, exist_ok=True)
         absolute_path.write_bytes(content)

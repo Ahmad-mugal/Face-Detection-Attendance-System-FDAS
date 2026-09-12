@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import urllib.error
@@ -106,6 +107,9 @@ def login(email: str, password: str) -> tuple[int, str | None]:
 
 
 def run_prior_verifier(module_name: str, success_marker: str | None = None) -> bool:
+    # The unified runner executes prerequisites once in order before this verifier.
+    if os.getenv("FDAS_SKIP_PRIOR_VERIFIERS") == "1":
+        return True
     result = subprocess.run(
         [sys.executable, "-m", module_name],
         cwd=BASE_DIR,
@@ -196,23 +200,45 @@ def seed_and_prepare() -> tuple[int, int, int, int]:
         return cs.departmentId, it.departmentId, session.sessionId, closed_session.sessionId
 
 
-def controlled_liveness_checks() -> tuple[bool, bool]:
-    frames = [
-        LivenessFrame(image_bytes=b"a", width=200, height=200, face_box=(50, 50, 60, 60)),
-        LivenessFrame(image_bytes=b"b", width=200, height=200, face_box=(72, 50, 60, 60)),
-    ]
-    static_frames = [
-        LivenessFrame(image_bytes=b"a", width=200, height=200, face_box=(50, 50, 60, 60)),
-        LivenessFrame(image_bytes=b"b", width=200, height=200, face_box=(50, 50, 60, 60)),
-    ]
-    closer_frames = [
-        LivenessFrame(image_bytes=b"a", width=200, height=200, face_box=(60, 60, 50, 50)),
-        LivenessFrame(image_bytes=b"b", width=200, height=200, face_box=(55, 55, 60, 60)),
-    ]
+def controlled_liveness_checks() -> tuple[bool, bool, bool, bool]:
+    def frames_from_boxes(boxes: list[tuple[int, int, int, int]]) -> list[LivenessFrame]:
+        return [
+            LivenessFrame(
+                image_bytes=f"frame-{index}".encode("ascii"),
+                width=200,
+                height=200,
+                face_count=1,
+                face_box=box,
+                face_descriptor=[1.0, 0.0, 0.0],
+            )
+            for index, box in enumerate(boxes)
+        ]
+
+    baseline = [(50, 50, 60, 60), (50, 50, 60, 60)]
+    preview_left_frames = frames_from_boxes(
+        baseline + [(54, 50, 60, 60), (60, 50, 60, 60), (68, 50, 60, 60), (72, 50, 60, 60), (70, 50, 60, 60), (68, 50, 60, 60), (66, 50, 60, 60)]
+    )
+    preview_right_frames = frames_from_boxes(
+        baseline + [(46, 50, 60, 60), (40, 50, 60, 60), (32, 50, 60, 60), (28, 50, 60, 60), (30, 50, 60, 60), (32, 50, 60, 60), (34, 50, 60, 60)]
+    )
+    static_frames = frames_from_boxes(baseline + [(50, 50, 60, 60)] * 7)
+    closer_frames = frames_from_boxes(
+        [(60, 60, 50, 50), (60, 60, 50, 50)]
+        + [(59, 59, 52, 52), (57, 57, 55, 55), (55, 55, 58, 58), (54, 54, 60, 60), (54, 54, 60, 60), (55, 55, 58, 58), (57, 57, 55, 55)]
+    )
+    one_spike_frames = frames_from_boxes(
+        baseline + [(50, 50, 60, 60), (50, 50, 60, 60), (70, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60)]
+    )
     return (
-        evaluate_liveness_frames(frames, "MOVE_RIGHT").passed
+        evaluate_liveness_frames(preview_left_frames, "MOVE_LEFT").passed
+        and evaluate_liveness_frames(preview_right_frames, "MOVE_RIGHT").passed
         and evaluate_liveness_frames(closer_frames, "MOVE_CLOSER").passed,
-        not evaluate_liveness_frames(static_frames, "MOVE_RIGHT").passed,
+        not evaluate_liveness_frames(static_frames, "MOVE_LEFT").passed
+        and not evaluate_liveness_frames(static_frames, "MOVE_RIGHT").passed
+        and not evaluate_liveness_frames(static_frames, "MOVE_CLOSER").passed,
+        not evaluate_liveness_frames(preview_right_frames, "MOVE_LEFT").passed
+        and not evaluate_liveness_frames(preview_left_frames, "MOVE_RIGHT").passed,
+        not evaluate_liveness_frames(one_spike_frames, "MOVE_LEFT").passed,
     )
 
 
@@ -301,8 +327,14 @@ def main() -> None:
         challenge="MOVE_RIGHT",
     )
     no_face_after = record_count_for_session(session_id)
+    no_face_diagnostics = no_face_body.get("livenessDiagnostics") if isinstance(no_face_body, dict) else None
 
-    controlled_liveness_pass, static_repeated_frame_fails = controlled_liveness_checks()
+    (
+        controlled_liveness_pass,
+        static_repeated_frame_fails,
+        wrong_direction_fails,
+        single_frame_jitter_fails,
+    ) = controlled_liveness_checks()
     liveness_failed_no_record = no_face_after == no_face_before
     successful_match_creates_record, duplicate_prevented = controlled_attendance_creation(session_id)
 
@@ -331,6 +363,10 @@ def main() -> None:
             and isinstance(info_body, dict)
             and info_body.get("mode") == "basic"
             and info_body.get("frameCount") == LIVENESS_FRAME_COUNT
+            and info_body.get("baselineFrameCount") == 2
+            and info_body.get("movementFrameCount") == 7
+            and info_body.get("diagnosticsExposed") is True
+            and info_body.get("previewMirrored") is True
         ),
         "missing_frames_rejected": missing_status == 422,
         "invalid_challenge_rejected": invalid_status == 422,
@@ -343,6 +379,18 @@ def main() -> None:
         ),
         "controlled_movement_liveness_passes": controlled_liveness_pass,
         "static_repeated_frame_fails": static_repeated_frame_fails,
+        "wrong_direction_movement_fails": wrong_direction_fails,
+        "single_frame_detector_jitter_fails": single_frame_jitter_fails,
+        "liveness_diagnostics_exposed_safely": (
+            isinstance(no_face_diagnostics, dict)
+            and no_face_diagnostics.get("challenge") == "MOVE_RIGHT"
+            and no_face_diagnostics.get("submittedFrameCount") == LIVENESS_FRAME_COUNT
+            and isinstance(no_face_diagnostics.get("detectedFaceFrameCount"), int)
+            and "displacementRatio" in no_face_diagnostics
+            and "areaGrowthRatio" in no_face_diagnostics
+            and bool(no_face_diagnostics.get("reason"))
+            and "image" not in " ".join(no_face_diagnostics.keys()).lower()
+        ),
         "liveness_failed_no_attendance": liveness_failed_no_record,
         "liveness_passed_successful_match_creates_record": successful_match_creates_record,
         "duplicate_attendance_prevented": duplicate_prevented,

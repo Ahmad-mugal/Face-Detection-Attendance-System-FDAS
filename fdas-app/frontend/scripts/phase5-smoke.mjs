@@ -2,7 +2,7 @@ import { chromium } from 'playwright'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 
-const baseUrl = 'http://127.0.0.1:5173'
+const baseUrl = process.env.FDAS_FRONTEND_BASE_URL || 'http://127.0.0.1:5173'
 const outputDir = path.resolve('output/playwright')
 await mkdir(outputDir, { recursive: true })
 
@@ -156,6 +156,14 @@ await check('admin students page opens', async () => {
 await check('admin add student page opens', async () => {
   await page.goto(`${baseUrl}/admin/students/add`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('heading', { name: /add new student/i }).waitFor()
+  await page.getByText(/capture starts or resumes after one face remains stable/i).waitFor()
+})
+
+await check('single-face attendance guard is visible', async () => {
+  await page.goto(`${baseUrl}/admin/attendance/live`, { waitUntil: 'domcontentloaded' })
+  await page.getByText(/every required frame must contain exactly one continuous face/i).waitFor()
+  await page.getByText(/compares maximum, top-3 mean, top-5 mean, and top-5 median scores/i).waitFor()
+  await page.getByRole('button', { name: /attendance paused/i }).waitFor()
 })
 
 await check('admin timing page opens', async () => {

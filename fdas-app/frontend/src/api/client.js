@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-export const API_BASE_URL = 'http://127.0.0.1:8000'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 export const TOKEN_STORAGE_KEY = 'fdas_access_token'
 export const FDAS_SERVER_UNAVAILABLE_MESSAGE = 'Unable to connect to the FDAS server. Please make sure the backend is running.'
 

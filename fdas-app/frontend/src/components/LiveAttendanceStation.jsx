@@ -2,15 +2,24 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { attendanceMarkingApi } from '../api/attendanceMarkingApi'
 import { attendanceSessionsApi } from '../api/attendanceSessionsApi'
 import { departmentsApi } from '../api/departmentsApi'
+import { faceMatchingApi } from '../api/faceMatchingApi'
 import { getApiError } from '../api/client'
+import { studentsApi } from '../api/studentsApi'
 import { useAttendanceSession } from '../context/useAttendanceSession'
 import { useAuth } from '../context/useAuth'
 import Icon from './Icon'
 import StatsCard from './StatsCard'
 
 const SCAN_INTERVAL_MS = 2800
-const LIVENESS_FRAME_COUNT = 5
+const LIVENESS_BASELINE_FRAME_COUNT = 2
+const LIVENESS_MOVEMENT_FRAME_COUNT = 7
+const LIVENESS_FRAME_COUNT = LIVENESS_BASELINE_FRAME_COUNT + LIVENESS_MOVEMENT_FRAME_COUNT
+const LIVENESS_BASELINE_DELAY_MS = 250
 const LIVENESS_FRAME_DELAY_MS = 500
+const LIVENESS_CENTER_HOLD_MS = 1000
+const LIVENESS_GO_RENDER_MS = 150
+const ATTENDANCE_SINGLE_FACE_STABLE_MS = 1000
+const IDENTITY_MATCHING_SAFETY_HOLD = true
 const LIVENESS_CHALLENGES = [
   { type: 'MOVE_LEFT', label: 'Move face slightly left' },
   { type: 'MOVE_RIGHT', label: 'Move face slightly right' },
@@ -25,6 +34,11 @@ function formatDateTime(value) {
 }
 
 function formatConfidence(value) {
+  if (typeof value !== 'number') return '-'
+  return value.toFixed(6)
+}
+
+function formatLivenessMeasurement(value) {
   if (typeof value !== 'number') return '-'
   return value.toFixed(6)
 }
@@ -61,10 +75,34 @@ function buildResultMessage(result) {
       text: 'Face detected but match confidence is below threshold.',
     }
   }
+  if (result.status === 'AmbiguousMatch') {
+    return {
+      tone: 'warning',
+      text: 'Identity could not be determined confidently. Please try again.',
+    }
+  }
+  if (result.status === 'AttendanceSafetyHold') {
+    return {
+      tone: 'warning',
+      text: 'Attendance remains disabled while identity-integrity validation is incomplete.',
+    }
+  }
   if (result.status === 'NoFaceDetected') {
     return {
       tone: 'warning',
       text: 'No face detected. Please face the camera clearly.',
+    }
+  }
+  if (result.status === 'MultipleFacesDetected') {
+    return {
+      tone: 'warning',
+      text: 'Multiple faces detected. Please allow only one student in front of the camera for attendance.',
+    }
+  }
+  if (result.status === 'FaceContinuityLost') {
+    return {
+      tone: 'warning',
+      text: 'The active face changed or disappeared. This attendance attempt was cancelled.',
     }
   }
   if (result.status === 'LivenessFailed') {
@@ -115,6 +153,17 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
   const [message, setMessage] = useState({ tone: 'info', text: 'Select or start an attendance session.' })
   const [lastResult, setLastResult] = useState(null)
   const [currentChallenge, setCurrentChallenge] = useState(null)
+  const [livenessInstruction, setLivenessInstruction] = useState(null)
+  const [diagnosticStudents, setDiagnosticStudents] = useState([])
+  const [expectedStudentId, setExpectedStudentId] = useState('')
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false)
+  const [identityDiagnostic, setIdentityDiagnostic] = useState(null)
+  const [diagnosticHistory, setDiagnosticHistory] = useState([])
+  const [attendanceFaceGuard, setAttendanceFaceGuard] = useState({
+    status: 'Unchecked',
+    message: 'No face detected.',
+    ready: false,
+  })
 
   const selectedDepartment = useMemo(() => {
     const selectedId = Number(departmentId)
@@ -126,6 +175,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
   const stopScanning = useCallback(() => {
     scanningRef.current = false
     setScanning(false)
+    setLivenessInstruction(null)
     if (scanTimeoutRef.current) {
       clearTimeout(scanTimeoutRef.current)
       scanTimeoutRef.current = null
@@ -212,6 +262,30 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
   }, [departmentId, loadActiveSession])
 
   useEffect(() => {
+    let mounted = true
+    if (!departmentId) {
+      setDiagnosticStudents([])
+      setExpectedStudentId('')
+      return () => { mounted = false }
+    }
+    studentsApi.list({ departmentId: Number(departmentId), status: 'Active' })
+      .then(items => {
+        if (!mounted) return
+        const encodedStudents = items.filter(student => student.hasEncodedFaceTemplates)
+        setDiagnosticStudents(encodedStudents)
+        setExpectedStudentId(current => (
+          encodedStudents.some(student => String(student.studentId) === String(current))
+            ? current
+            : ''
+        ))
+      })
+      .catch(error => {
+        if (mounted) setMessage({ tone: 'error', text: getApiError(error, 'Unable to load diagnostic students.') })
+      })
+    return () => { mounted = false }
+  }, [departmentId])
+
+  useEffect(() => {
     registerCleanup(cleanupAttendance)
     return () => registerCleanup(null)
   }, [cleanupAttendance, registerCleanup])
@@ -292,15 +366,35 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
 
   const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
-  const captureLivenessFrames = async () => {
+  const inspectAttendanceFrame = async (frame, referenceFile = null) => {
+    const result = await faceMatchingApi.validateSingleFace({ file: frame, referenceFile })
+    const message = result.status === 'NoFaceDetected'
+      ? 'No face detected. Please stand in front of the camera.'
+      : result.status === 'MultipleFacesDetected'
+        ? 'Multiple faces detected. Please allow only one student in front of the camera for attendance.'
+        : result.status === 'FaceContinuityLost'
+          ? 'The active face changed or disappeared. This attendance attempt was cancelled.'
+          : 'Face detected — ready.'
+    const guardResult = { ...result, message }
+    setAttendanceFaceGuard(guardResult)
+    return guardResult
+  }
+
+  const captureLivenessFrames = async (frameCount, frameDelayMs, referenceFile) => {
     const frames = []
-    for (let index = 0; index < LIVENESS_FRAME_COUNT; index += 1) {
+    for (let index = 0; index < frameCount; index += 1) {
       if (!scanningRef.current) break
       const blob = await captureFrameBlob()
-      if (blob) frames.push(blob)
-      if (index < LIVENESS_FRAME_COUNT - 1) await wait(LIVENESS_FRAME_DELAY_MS)
+      if (blob) {
+        const faceGuardResult = await inspectAttendanceFrame(blob, referenceFile)
+        if (!faceGuardResult.ready || faceGuardResult.faceCount !== 1 || faceGuardResult.continuityPassed === false) {
+          return { frames, faceGuardFailure: faceGuardResult }
+        }
+        frames.push(blob)
+      }
+      if (index < frameCount - 1) await wait(frameDelayMs)
     }
-    return frames
+    return { frames, faceGuardFailure: null }
   }
 
   const chooseChallenge = () => LIVENESS_CHALLENGES[Math.floor(Math.random() * LIVENESS_CHALLENGES.length)]
@@ -310,11 +404,67 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
 
     scanInFlightRef.current = true
     try {
+      const initialFace = await captureFrameBlob()
+      if (!initialFace) {
+        setMessage({ tone: 'warning', text: 'Camera frame is not ready yet.' })
+        return
+      }
+      const initialGuard = await inspectAttendanceFrame(initialFace)
+      if (!initialGuard.ready || initialGuard.faceCount !== 1) {
+        setMessage({ tone: 'warning', text: initialGuard.message })
+        return
+      }
+      await wait(ATTENDANCE_SINGLE_FACE_STABLE_MS)
+      if (!scanningRef.current) return
+      const stableFace = await captureFrameBlob()
+      if (!stableFace) {
+        setMessage({ tone: 'warning', text: 'Camera frame is not ready yet.' })
+        return
+      }
+      const stableGuard = await inspectAttendanceFrame(stableFace, initialFace)
+      if (!stableGuard.ready || stableGuard.faceCount !== 1 || stableGuard.continuityPassed === false) {
+        setMessage({ tone: 'warning', text: stableGuard.message })
+        return
+      }
+
       const challenge = chooseChallenge()
       setCurrentChallenge(challenge)
-      setMessage({ tone: 'info', text: `Liveness challenge: ${challenge.label}` })
+      setLivenessInstruction(`Center your face — ${challenge.label}`)
+      setMessage({ tone: 'info', text: `Center your face. Get ready to: ${challenge.label}.` })
+      await wait(LIVENESS_CENTER_HOLD_MS)
+      if (!scanningRef.current) return
 
-      const frames = await captureLivenessFrames()
+      const baselineCapture = await captureLivenessFrames(
+        LIVENESS_BASELINE_FRAME_COUNT,
+        LIVENESS_BASELINE_DELAY_MS,
+        initialFace,
+      )
+      if (baselineCapture.faceGuardFailure) {
+        setMessage({ tone: 'warning', text: baselineCapture.faceGuardFailure.message })
+        return
+      }
+      const baselineFrames = baselineCapture.frames
+      if (baselineFrames.length < LIVENESS_BASELINE_FRAME_COUNT) {
+        setMessage({ tone: 'warning', text: 'Stable baseline frames were not ready. Please center your face and retry.' })
+        return
+      }
+
+      setLivenessInstruction(`GO — ${challenge.label}`)
+      setMessage({ tone: 'info', text: `GO — ${challenge.label}` })
+      await wait(LIVENESS_GO_RENDER_MS)
+      if (!scanningRef.current) return
+
+      const movementCapture = await captureLivenessFrames(
+        LIVENESS_MOVEMENT_FRAME_COUNT,
+        LIVENESS_FRAME_DELAY_MS,
+        initialFace,
+      )
+      if (movementCapture.faceGuardFailure) {
+        setMessage({ tone: 'warning', text: movementCapture.faceGuardFailure.message })
+        return
+      }
+      const movementFrames = movementCapture.frames
+      const frames = [...baselineFrames, ...movementFrames]
       if (frames.length < LIVENESS_FRAME_COUNT) {
         setMessage({ tone: 'warning', text: 'Camera frames are not ready yet. Please keep your face in view and retry.' })
         return
@@ -365,7 +515,55 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     stopCamera()
     setActiveSession(null)
     setRecords([])
+    setIdentityDiagnostic(null)
+    setDiagnosticHistory([])
+    setExpectedStudentId('')
     setDepartmentId(event.target.value)
+  }
+
+  const runIdentityDiagnostic = async () => {
+    stopScanning()
+    if (!cameraOn) {
+      setMessage({ tone: 'warning', text: 'Start the camera before running an identity diagnostic.' })
+      return
+    }
+    if (!departmentId || !expectedStudentId) {
+      setMessage({ tone: 'warning', text: 'Select the enrolled person or Unknown / not enrolled.' })
+      return
+    }
+
+    setDiagnosticLoading(true)
+    try {
+      const frame = await captureFrameBlob()
+      if (!frame) {
+        setMessage({ tone: 'warning', text: 'Camera frame is not ready. Keep your face visible and retry.' })
+        return
+      }
+      const result = await faceMatchingApi.diagnose({
+        departmentId: Number(departmentId),
+        expectedStudentId: expectedStudentId === 'unknown' ? undefined : Number(expectedStudentId),
+        file: frame,
+      })
+      setIdentityDiagnostic(result)
+      setDiagnosticHistory(current => [
+        ...current,
+        {
+          ...result,
+          captureNumber: current.length + 1,
+          expectedLabel: expectedStudentId === 'unknown' ? 'Unknown / not enrolled' : `Student #${expectedStudentId}`,
+          capturedAt: new Date().toISOString(),
+          usable: result.status === 'DiagnosticComplete',
+        },
+      ])
+      setMessage({
+        tone: result.status === 'DiagnosticComplete' ? 'info' : 'warning',
+        text: `${result.message} No attendance was created.`,
+      })
+    } catch (error) {
+      setMessage({ tone: 'error', text: getApiError(error, 'Unable to run identity diagnostic.') })
+    } finally {
+      setDiagnosticLoading(false)
+    }
   }
 
   const messageStyle = {
@@ -420,14 +618,158 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         )}
       </div>
 
+      {lastResult?.livenessDiagnostics && (
+        <div className="rounded-xl px-4 py-3 text-xs space-y-1 border font-mono" style={{ backgroundColor: '#fff', borderColor: '#f0dfd8', color: '#55433b' }}>
+          <p className="font-sans font-black text-sm" style={{ color: '#4A2B0F' }}>Liveness Diagnostic Measurements</p>
+          <p>
+            Challenge {lastResult.livenessDiagnostics.challenge} | Faces {lastResult.livenessDiagnostics.detectedFaceFrameCount}/{lastResult.livenessDiagnostics.submittedFrameCount} | Baseline {lastResult.livenessDiagnostics.baselineDetectedFaceFrameCount}/{lastResult.livenessDiagnostics.baselineFrameCount} | Movement {lastResult.livenessDiagnostics.movementDetectedFaceFrameCount}/{lastResult.livenessDiagnostics.movementFrameCount}
+          </p>
+          <p>
+            Center X start/end/min/max: {formatLivenessMeasurement(lastResult.livenessDiagnostics.startCenterX)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.endCenterX)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.minimumCenterX)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.maximumCenterX)}
+          </p>
+          <p>
+            Raw signed displacement: {formatLivenessMeasurement(lastResult.livenessDiagnostics.signedDisplacementPixels)} px | Final ratio {formatLivenessMeasurement(lastResult.livenessDiagnostics.displacementRatio)} | Preview-left excursion {formatLivenessMeasurement(lastResult.livenessDiagnostics.leftwardExcursionRatio)} | Preview-right excursion {formatLivenessMeasurement(lastResult.livenessDiagnostics.rightwardExcursionRatio)}
+          </p>
+          <p>
+            Requested-direction ratio: {formatLivenessMeasurement(lastResult.livenessDiagnostics.requestedDirectionalDisplacementRatio)} | Supporting frames {lastResult.livenessDiagnostics.directionalSupportingFrameCount ?? '-'} | Threshold {formatLivenessMeasurement(lastResult.livenessDiagnostics.centerShiftThreshold)}
+          </p>
+          <p>
+            Area start/final/max: {formatLivenessMeasurement(lastResult.livenessDiagnostics.initialFaceArea)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.finalFaceArea)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.maximumFaceArea)} | Growth {formatLivenessMeasurement(lastResult.livenessDiagnostics.areaGrowthRatio)} | Max growth {formatLivenessMeasurement(lastResult.livenessDiagnostics.maximumAreaGrowthRatio)}
+          </p>
+          <p className="font-sans">Reason: {lastResult.livenessDiagnostics.reason || '-'}</p>
+          <p className="font-sans">Method: {lastResult.livenessDiagnostics.evaluationMethod}</p>
+        </div>
+      )}
+
+      {attendanceFaceGuard.status !== 'Unchecked' && (
+        <div
+          className="rounded-xl px-4 py-3 text-sm font-bold border"
+          style={{
+            backgroundColor: attendanceFaceGuard.ready ? '#d1fae5' : '#ffdad6',
+            borderColor: attendanceFaceGuard.ready ? '#15803d' : '#93000a',
+            color: attendanceFaceGuard.ready ? '#065f46' : '#93000a',
+          }}
+        >
+          {attendanceFaceGuard.message} Face count: {attendanceFaceGuard.faceCount ?? '-'}.
+        </div>
+      )}
+
       <div className="rounded-xl p-4 text-xs space-y-1.5 border" style={{ backgroundColor: '#fff1eb', borderColor: '#f0dfd8', color: '#55433b' }}>
         <p className="font-bold text-sm" style={{ color: '#4A2B0F' }}>Live Attendance & Liveness Operational Rules</p>
         <ul className="list-disc list-inside space-y-0.5" style={{ color: '#887369' }}>
           <li><strong style={{ color: '#4A2B0F' }}>Liveness Mode:</strong> Basic Mode (lightweight challenge-response).</li>
           <li><strong style={{ color: '#4A2B0F' }}>livenessStatus:</strong> Displays <code className="font-mono text-[11px]">Passed</code>, <code className="font-mono text-[11px]">Failed</code>, or <code className="font-mono text-[11px]">NotChecked</code> depending on endpoint and scan result.</li>
           <li><strong style={{ color: '#4A2B0F' }}>Face Matching:</strong> If recognition confidence is below threshold, attendance is not marked.</li>
+          <li><strong style={{ color: '#4A2B0F' }}>Single-Face Guard:</strong> Every required frame must contain exactly one continuous face before liveness or recognition can run.</li>
           <li><strong style={{ color: '#4A2B0F' }}>Duplicate Prevention:</strong> Duplicate attendance is prevented for the active session and is not an error.</li>
         </ul>
+      </div>
+
+      <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: '#fff', borderColor: '#93000a' }}>
+        <div>
+          <p className="font-black text-base" style={{ color: '#93000a' }}>Identity Integrity Diagnostic — Attendance Disabled for This Check</p>
+          <p className="text-xs mt-1" style={{ color: '#55433b' }}>
+            Select the person physically in front of the webcam, or Unknown / not enrolled, then capture one normal frame. This diagnostic compares maximum, top-3 mean, top-5 mean, and top-5 median scores; it never creates attendance or stores the query image.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 items-end">
+          <label>
+            <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Expected person in front of camera</span>
+            <select
+              value={expectedStudentId}
+              onChange={event => setExpectedStudentId(event.target.value)}
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm font-bold"
+              style={{ borderColor: '#dbc1b7', color: '#4A2B0F', backgroundColor: '#fff' }}
+            >
+              <option value="">Select student</option>
+              <option value="unknown">Unknown / not enrolled</option>
+              {diagnosticStudents.map(student => (
+                <option key={student.studentId} value={student.studentId}>
+                  #{student.studentId} — {student.fullName} ({student.rollNo})
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            onClick={runIdentityDiagnostic}
+            disabled={!cameraOn || !expectedStudentId || diagnosticLoading}
+            className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-60"
+            style={{ backgroundColor: '#93000a' }}
+          >
+            {diagnosticLoading ? 'Checking…' : 'Capture Diagnostic — No Attendance'}
+          </button>
+        </div>
+        {identityDiagnostic && (
+          <div className="rounded-lg border p-3 text-xs space-y-2" style={{ borderColor: '#f0dfd8', backgroundColor: '#fff8f6', color: '#55433b' }}>
+            <p className="font-bold" style={{ color: '#4A2B0F' }}>
+              Expected #{identityDiagnostic.expectedStudentId ?? '-'} score {formatConfidence(identityDiagnostic.expectedStudentScore)} | Threshold {formatConfidence(identityDiagnostic.thresholdUsed)} | Attendance created: {identityDiagnostic.attendanceCreated ? 'YES' : 'NO'}
+            </p>
+            <p className="font-mono">
+              Top: {identityDiagnostic.topCandidate ? `#${identityDiagnostic.topCandidate.studentId} ${identityDiagnostic.topCandidate.studentName} (${identityDiagnostic.topCandidate.rollNo}) — ${formatConfidence(identityDiagnostic.topCandidate.bestScore)}` : '-'}
+            </p>
+            <p className="font-mono">
+              Second: {identityDiagnostic.secondCandidate ? `#${identityDiagnostic.secondCandidate.studentId} ${identityDiagnostic.secondCandidate.studentName} (${identityDiagnostic.secondCandidate.rollNo}) — ${formatConfidence(identityDiagnostic.secondCandidate.bestScore)}` : '-'}
+            </p>
+            <p className="font-mono">Top-1 / top-2 margin: {formatConfidence(identityDiagnostic.scoreMargin)} | Required {formatConfidence(identityDiagnostic.requiredMargin)} | Method {identityDiagnostic.aggregationMethod} | Students {identityDiagnostic.candidateStudentCount} | Templates {identityDiagnostic.candidateTemplateCount}</p>
+            <div className="overflow-auto">
+              <table className="w-full text-left">
+                <thead><tr><th className="py-1 pr-3">Method</th><th className="py-1 pr-3">Expected</th><th className="py-1 pr-3">Top</th><th className="py-1 pr-3">Second</th><th className="py-1">Margin</th></tr></thead>
+                <tbody>
+                  {(identityDiagnostic.aggregations || []).map(aggregation => (
+                    <tr key={aggregation.method} className="border-t" style={{ borderColor: '#f0dfd8' }}>
+                      <td className="py-1 pr-3 font-bold">{aggregation.method}</td>
+                      <td className="py-1 pr-3 font-mono">{formatConfidence(aggregation.expectedStudentScore)}</td>
+                      <td className="py-1 pr-3 font-mono">#{aggregation.topStudentId ?? '-'} {formatConfidence(aggregation.topScore)}</td>
+                      <td className="py-1 pr-3 font-mono">#{aggregation.secondStudentId ?? '-'} {formatConfidence(aggregation.secondScore)}</td>
+                      <td className="py-1 font-mono">{formatConfidence(aggregation.scoreMargin)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="overflow-auto">
+              <table className="w-full text-left">
+                <thead><tr><th className="py-1 pr-3">Candidate</th><th className="py-1 pr-3">Maximum</th><th className="py-1 pr-3">Top-3 mean</th><th className="py-1 pr-3">Top-5 mean</th><th className="py-1 pr-3">Top-5 median</th><th className="py-1">Templates</th></tr></thead>
+                <tbody>
+                  {identityDiagnostic.candidates.map(candidate => (
+                    <tr key={candidate.studentId} className="border-t" style={{ borderColor: '#f0dfd8' }}>
+                      <td className="py-1 pr-3">#{candidate.studentId} {candidate.studentName} ({candidate.rollNo})</td>
+                      <td className="py-1 pr-3 font-mono">{formatConfidence(candidate.maximumScore)}</td>
+                      <td className="py-1 pr-3 font-mono">{formatConfidence(candidate.meanTop3Score)}</td>
+                      <td className="py-1 pr-3 font-mono">{formatConfidence(candidate.meanTop5Score)}</td>
+                      <td className="py-1 pr-3 font-mono">{formatConfidence(candidate.medianTop5Score)}</td>
+                      <td className="py-1 font-mono">{candidate.templatesEvaluated}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        {diagnosticHistory.length > 0 && (
+          <div className="rounded-lg border p-3 text-xs space-y-2" style={{ borderColor: '#dbc1b7', backgroundColor: '#fff', color: '#55433b' }}>
+            <p className="font-bold" style={{ color: '#4A2B0F' }}>
+              Diagnostic capture log: {diagnosticHistory.filter(item => item.usable).length} usable / {diagnosticHistory.length} attempted. Query images are not stored.
+            </p>
+            <div className="overflow-auto max-h-64">
+              <table className="w-full text-left">
+                <thead><tr><th className="py-1 pr-3">#</th><th className="py-1 pr-3">Expected</th><th className="py-1 pr-3">Status</th><th className="py-1 pr-3">Top</th><th className="py-1 pr-3">Second</th><th className="py-1">Margin</th></tr></thead>
+                <tbody>
+                  {diagnosticHistory.map(item => (
+                    <tr key={`${item.captureNumber}-${item.capturedAt}`} className="border-t" style={{ borderColor: '#f0dfd8' }}>
+                      <td className="py-1 pr-3 font-mono">{item.captureNumber}</td>
+                      <td className="py-1 pr-3">{item.expectedLabel}</td>
+                      <td className="py-1 pr-3">{item.status}</td>
+                      <td className="py-1 pr-3 font-mono">#{item.topCandidate?.studentId ?? '-'} {formatConfidence(item.topCandidate?.bestScore)}</td>
+                      <td className="py-1 pr-3 font-mono">#{item.secondCandidate?.studentId ?? '-'} {formatConfidence(item.secondCandidate?.bestScore)}</td>
+                      <td className="py-1 font-mono">{formatConfidence(item.scoreMargin)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5 min-w-0">
@@ -441,8 +783,8 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
               <button onClick={cameraOn ? stopCamera : startCamera} disabled={!activeSession} className="px-3 py-2 rounded-lg text-xs font-bold border disabled:opacity-60" style={{ borderColor: '#C4533A', color: '#C4533A' }}>
                 {cameraOn ? 'Stop Camera' : 'Start Camera'}
               </button>
-              <button onClick={scanning ? stopScanning : startScanning} disabled={!activeSession || !cameraOn} className="px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ backgroundColor: scanning ? '#C4533A' : '#D4A017' }}>
-                {scanning ? 'Stop Scanning' : 'Start Scanning'}
+              <button onClick={scanning ? stopScanning : startScanning} disabled={IDENTITY_MATCHING_SAFETY_HOLD || !activeSession || !cameraOn} className="px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ backgroundColor: scanning ? '#C4533A' : '#D4A017' }}>
+                {IDENTITY_MATCHING_SAFETY_HOLD ? 'Attendance Paused' : (scanning ? 'Stop Scanning' : 'Start Scanning')}
               </button>
             </div>
           </div>
@@ -453,7 +795,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
               playsInline
               muted
               className="absolute inset-0 h-full w-full object-cover"
-              style={{ display: cameraOn ? 'block' : 'none' }}
+              style={{ display: cameraOn ? 'block' : 'none', transform: 'scaleX(-1)' }}
             />
             <canvas ref={canvasRef} className="hidden" />
             <div className="absolute inset-6 rounded-xl border-2 border-dashed" style={{ borderColor: cameraOn ? '#D4A017' : '#55433b' }} />
@@ -470,7 +812,9 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
                   Camera Active
                 </div>
                 <div className="absolute bottom-5 left-5 right-5 rounded-xl p-3 text-center font-bold text-sm" style={{ backgroundColor: scanning ? 'rgba(6,95,70,0.9)' : 'rgba(196,83,58,0.9)', color: '#fff' }}>
-                  {scanning ? `Liveness challenge: ${currentChallenge?.label || 'Get ready'}` : 'Camera ready. Start scanning to mark attendance.'}
+                  {scanning
+                    ? (livenessInstruction || `Liveness challenge: ${currentChallenge?.label || 'Get ready'}`)
+                    : (IDENTITY_MATCHING_SAFETY_HOLD ? 'Identity safety hold active. Use the no-attendance diagnostic only.' : 'Camera ready. Start scanning to mark attendance.')}
                 </div>
               </>
             )}

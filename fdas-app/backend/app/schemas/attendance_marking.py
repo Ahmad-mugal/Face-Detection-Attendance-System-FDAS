@@ -18,8 +18,13 @@ class AttendanceMarkResult(BaseModel):
     departmentName: str | None = None
     markedAt: datetime | None = None
     recognitionConfidence: float | None = None
+    secondRecognitionConfidence: float | None = None
+    scoreMargin: float | None = None
     thresholdUsed: float | None = None
+    requiredMargin: float | None = None
+    aggregationMethod: str | None = None
     livenessStatus: str | None = None
+    livenessDiagnostics: dict[str, bool | int | float | str | None] | None = None
 
 
 class AttendanceSessionRecordRead(BaseModel):

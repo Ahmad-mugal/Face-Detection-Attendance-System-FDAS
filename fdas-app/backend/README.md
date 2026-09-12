@@ -639,6 +639,28 @@ Recommended backend regression sequence:
 .\.venv\Scripts\python.exe -m app.verify_phase8c
 ```
 
+## Final Verification
+
+Run the backend final regression from `fdas-app/backend`:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.run_final_verification
+```
+
+The runner uses the recovered local virtual environment, creates a temporary repo-shaped copy of the backend database with empty isolated storage, starts an isolated local Uvicorn process, and runs every backend verifier sequentially. It stops on the first required failure, returns a non-zero exit code, and removes the temporary database/storage after completion. The active `fdas_local.db` and `storage/` are not used for verifier mutations.
+
+Run the frontend final QA from `fdas-app/frontend` while the normal local backend environment is available at `http://127.0.0.1:8000`:
+
+```powershell
+npm.cmd run lint
+npm.cmd run build
+node .\scripts\phase5-smoke.mjs
+```
+
+The smoke script submits a test registration request, so start the backend against a disposable copy of `fdas_local.db` with an empty disposable `storage/` directory. Use the existing local `.venv`; do not point this mutation-capable browser check at the active demo database. Remove the disposable copy after the smoke completes.
+
+Automated verification uses synthetic/control images. Real-human face recognition across realistic conditions and real-webcam liveness reliability remain separate manual acceptance tests; the automated runner does not claim production-grade spoof resistance.
+
 ## Current Limitations
 
 - Face enrollment upload/storage uses a fixed 25-sample automatic registration batch.

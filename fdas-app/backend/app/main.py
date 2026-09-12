@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import APP_NAME, APP_PHASE, APP_VERSION
+from app.config import APP_NAME, APP_PHASE, APP_VERSION, CORS_ALLOWED_ORIGINS
 from app.routers.admin_users import router as admin_users_router
 from app.routers.attendance_marking import router as attendance_marking_router
 from app.routers.attendance_records import router as attendance_records_router
@@ -26,7 +26,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_origins=CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,4 +46,3 @@ app.include_router(attendance_marking_router)
 app.include_router(attendance_records_router)
 app.include_router(liveness_router)
 app.include_router(dashboard_router)
-

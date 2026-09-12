@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getApiError } from '../api/client'
+import { faceMatchingApi } from '../api/faceMatchingApi'
 import { studentsApi } from '../api/studentsApi'
 import {
   FACE_ENROLLMENT_CAPTURE_INTERVAL_MS,
-  FACE_ENROLLMENT_COUNTDOWN_SECONDS,
   FACE_ENROLLMENT_SAMPLE_COUNT,
 } from '../constants/faceEnrollment'
 import Icon from './Icon'
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+const SINGLE_FACE_STABLE_MS = 1000
+const SINGLE_FACE_POLL_MS = 250
 
 export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCompleted }) {
   const videoRef = useRef(null)
@@ -16,11 +18,15 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
   const streamRef = useRef(null)
   const cancelledRef = useRef(false)
   const [status, setStatus] = useState('idle')
-  const [countdown, setCountdown] = useState(FACE_ENROLLMENT_COUNTDOWN_SECONDS)
   const [capturedCount, setCapturedCount] = useState(0)
   const [capturedSamples, setCapturedSamples] = useState([])
   const [savedSampleCount, setSavedSampleCount] = useState(0)
   const [error, setError] = useState('')
+  const [faceGuard, setFaceGuard] = useState({
+    status: 'Unchecked',
+    message: 'No face detected.',
+    ready: false,
+  })
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach(track => track.stop())
@@ -36,7 +42,7 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
 
   useEffect(() => {
     const handleBeforeUnload = event => {
-      if (!['starting', 'countdown', 'capturing', 'uploading'].includes(status)) return
+      if (!['starting', 'stabilizing', 'capturing', 'paused', 'uploading'].includes(status)) return
       event.preventDefault()
       event.returnValue = 'Face registration is active. Leaving will stop the camera and discard unsaved samples.'
     }
@@ -82,9 +88,33 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
       onCompleted?.(result)
     } catch (err) {
       setStatus('error')
-      setError(getApiError(err, 'Unable to upload face enrollment samples.'))
+      const detail = err?.response?.data?.detail
+      setError(detail?.message || getApiError(err, 'Unable to upload face enrollment samples.'))
     }
   }, [onCompleted, studentId])
+
+  const inspectSingleFace = useCallback(async (sample, referenceFile = null) => {
+    const result = await faceMatchingApi.validateSingleFace({ file: sample, referenceFile })
+    setFaceGuard(result)
+    return result
+  }, [])
+
+  const waitForStableSingleFace = useCallback(async (referenceFile = null) => {
+    let stableSince = null
+    while (!cancelledRef.current) {
+      const sample = await captureFrame()
+      const result = await inspectSingleFace(sample, referenceFile)
+      if (result.ready && result.faceCount === 1) {
+        if (stableSince === null) stableSince = Date.now()
+        if (Date.now() - stableSince >= SINGLE_FACE_STABLE_MS) return sample
+      } else {
+        stableSince = null
+        setStatus('paused')
+      }
+      await sleep(SINGLE_FACE_POLL_MS)
+    }
+    return null
+  }, [captureFrame, inspectSingleFace])
 
   const startRegistration = useCallback(async () => {
     if (!studentId) {
@@ -107,21 +137,29 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
       videoRef.current.srcObject = stream
       await videoRef.current.play()
 
-      setStatus('countdown')
-      for (let seconds = FACE_ENROLLMENT_COUNTDOWN_SECONDS; seconds > 0; seconds -= 1) {
-        if (cancelledRef.current) return
-        setCountdown(seconds)
-        await sleep(1000)
-      }
+      setStatus('stabilizing')
+      const lockSample = await waitForStableSingleFace()
+      if (!lockSample || cancelledRef.current) return
 
-      const samples = []
+      const samples = [lockSample]
+      setCapturedCount(1)
       setStatus('capturing')
-      for (let index = 0; index < FACE_ENROLLMENT_SAMPLE_COUNT; index += 1) {
+      while (samples.length < FACE_ENROLLMENT_SAMPLE_COUNT) {
         if (cancelledRef.current) return
-        const sample = await captureFrame()
-        samples.push(sample)
+        await sleep(FACE_ENROLLMENT_CAPTURE_INTERVAL_MS)
+        if (cancelledRef.current) return
+        const candidate = await captureFrame()
+        const validation = await inspectSingleFace(candidate, lockSample)
+        if (!validation.ready || validation.faceCount !== 1 || validation.continuityPassed === false) {
+          setStatus('paused')
+          const resumedSample = await waitForStableSingleFace(lockSample)
+          if (!resumedSample || cancelledRef.current) return
+          samples.push(resumedSample)
+          setStatus('capturing')
+        } else {
+          samples.push(candidate)
+        }
         setCapturedCount(samples.length)
-        if (samples.length < FACE_ENROLLMENT_SAMPLE_COUNT) await sleep(FACE_ENROLLMENT_CAPTURE_INTERVAL_MS)
       }
 
       setCapturedSamples(samples)
@@ -132,7 +170,7 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
       setStatus('error')
       setError(getApiError(err, 'Unable to start camera or capture samples.'))
     }
-  }, [captureFrame, clearTemporarySamples, stopCamera, studentId, uploadSamples])
+  }, [captureFrame, clearTemporarySamples, inspectSingleFace, stopCamera, studentId, uploadSamples, waitForStableSingleFace])
 
   const cancelRegistration = useCallback(() => {
     cancelledRef.current = true
@@ -146,7 +184,7 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
     uploadSamples(capturedSamples)
   }, [capturedSamples, uploadSamples])
 
-  const active = ['starting', 'countdown', 'capturing', 'uploading'].includes(status)
+  const active = ['starting', 'stabilizing', 'capturing', 'paused', 'uploading'].includes(status)
   const progressLabel = status === 'capturing'
     ? `Capturing ${capturedCount}/${FACE_ENROLLMENT_SAMPLE_COUNT}`
     : `${capturedCount}/${FACE_ENROLLMENT_SAMPLE_COUNT} samples`
@@ -177,9 +215,9 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
             </p>
           </div>
         )}
-        {status === 'countdown' && (
+        {['stabilizing', 'paused'].includes(status) && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/45">
-            <span className="text-7xl font-black text-white">{countdown}</span>
+            <span className="max-w-md px-6 text-center text-lg font-black text-white">{faceGuard.message}</span>
           </div>
         )}
       </div>
@@ -189,6 +227,8 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
           <p>Keep your face inside the frame</p>
           <p>Slowly move face slightly left and right</p>
           <p>Keep normal expression</p>
+          <p className="font-bold" style={{ color: faceGuard.ready ? '#15803d' : '#93000a' }}>{faceGuard.message}</p>
+          <p>Capture starts or resumes after one face remains stable for approximately one second.</p>
         </div>
 
         {status === 'uploading' && <p className="text-sm font-bold" style={{ color: '#C4533A' }}>Uploading {FACE_ENROLLMENT_SAMPLE_COUNT} samples...</p>}

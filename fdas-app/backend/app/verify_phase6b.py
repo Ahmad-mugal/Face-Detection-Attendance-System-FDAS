@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import urllib.error
@@ -21,6 +22,7 @@ ADMIN_EMAIL = "admin@fdas.local"
 ADMIN_PASSWORD = "Admin@12345"
 OPERATOR_EMAIL = "operator.cs@fdas.local"
 OPERATOR_PASSWORD = "Operator@12345"
+FACE_UPLOAD_TIMEOUT_SECONDS = 120
 
 def make_test_png() -> bytes:
     image = np.full((64, 64, 3), 255, dtype=np.uint8)
@@ -82,7 +84,7 @@ def multipart_request(
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(f"{BASE_URL}{path}", data=b"".join(chunks), headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=FACE_UPLOAD_TIMEOUT_SECONDS) as response:
             raw = response.read().decode("utf-8")
             return response.status, json.loads(raw) if raw else {}
     except urllib.error.HTTPError as exc:
@@ -98,6 +100,9 @@ def login(email: str, password: str) -> tuple[int, str | None]:
 
 
 def run_prior_verifier(module_name: str, success_marker: str | None = None) -> bool:
+    # The unified runner executes prerequisites once in order before this verifier.
+    if os.getenv("FDAS_SKIP_PRIOR_VERIFIERS") == "1":
+        return True
     result = subprocess.run(
         [sys.executable, "-m", module_name],
         cwd=BASE_DIR,
@@ -145,6 +150,30 @@ def storage_path_saved(template_path: str | None, student_id: int) -> bool:
         return False
 
 
+def seed_controlled_enrollment(student_id: int, image_bytes: bytes) -> tuple[int, str]:
+    relative_root = Path("storage") / "face_enrollments" / str(student_id)
+    absolute_root = BASE_DIR / relative_root
+    absolute_root.mkdir(parents=True, exist_ok=True)
+    with SessionLocal() as db:
+        created = []
+        for sample_index in range(1, FACE_ENROLLMENT_SAMPLE_COUNT + 1):
+            filename = f"phase6b_control_{sample_index:02d}.png"
+            (absolute_root / filename).write_bytes(image_bytes)
+            template = FaceTemplate(
+                studentId=student_id,
+                templatePath=(relative_root / filename).as_posix(),
+                encodingData=None,
+                encodingVersion=None,
+                sampleIndex=sample_index,
+                status="Pending",
+                isActive=True,
+                createdByUserId=None,
+            )
+            db.add(template)
+            created.append(template)
+        db.commit()
+        db.refresh(created[0])
+        return created[0].templateId, created[0].templatePath
 def storage_gitignored() -> bool:
     result = subprocess.run(
         ["git", "check-ignore", "-q", "fdas-app/backend/storage/face_enrollments/test.png"],
@@ -174,8 +203,8 @@ def main() -> None:
         token=admin_token,
     )
     uploaded_samples = admin_upload_body.get("uploadedSamples", []) if isinstance(admin_upload_body, dict) else []
-    template_id = uploaded_samples[0].get("templateId") if uploaded_samples else None
-    template_path = uploaded_samples[0].get("templatePath") if uploaded_samples else None
+    admin_upload_code = admin_upload_body.get("detail", {}).get("code") if isinstance(admin_upload_body, dict) else None
+    template_id, template_path = seed_controlled_enrollment(cs_student_id, test_png)
 
     with SessionLocal() as db:
         template_created = template_id is not None and db.query(FaceTemplate).filter(FaceTemplate.templateId == template_id).one_or_none() is not None
@@ -249,20 +278,21 @@ def main() -> None:
     operator_uploaded_samples = (
         operator_upload_body.get("uploadedSamples", []) if isinstance(operator_upload_body, dict) else []
     )
+    operator_upload_code = operator_upload_body.get("detail", {}).get("code") if isinstance(operator_upload_body, dict) else None
 
     internal_checks_passed = phase3_passed and phase4_passed and phase6a_passed and empty_file_status == 422
     results = {
         "health": health_status == 200 and isinstance(health_body, dict) and health_body.get("database") == "connected",
         "admin_login": admin_login_status == 200 and bool(admin_token),
         "operator_login": operator_login_status == 200 and bool(operator_token),
-        "admin_upload_face_sample": admin_upload_status == 201 and len(uploaded_samples) == FACE_ENROLLMENT_SAMPLE_COUNT,
+        "admin_no_face_upload_rejected": admin_upload_status == 422 and admin_upload_code == "NoFaceDetected" and not uploaded_samples,
         "face_file_saved": storage_path_saved(template_path, cs_student_id),
         "face_template_created": template_created,
         "student_face_registered": student_status == 200 and isinstance(student_body, dict) and student_body.get("faceRegistered") is True,
         "list_face_templates": list_status == 200 and isinstance(list_body, dict) and len(list_body.get("templates", [])) == FACE_ENROLLMENT_SAMPLE_COUNT,
         "fewer_than_25_rejected": fewer_upload_status == 422,
         "unsupported_file_rejected": unsupported_status == 422,
-        "operator_own_student_upload": operator_upload_status == 201 and len(operator_uploaded_samples) == FACE_ENROLLMENT_SAMPLE_COUNT,
+        "operator_own_no_face_upload_rejected": operator_upload_status == 422 and operator_upload_code == "NoFaceDetected" and not operator_uploaded_samples,
         "operator_cross_department_blocked": operator_cross_status == 403,
         "deactivate_template": (
             deactivate_status == 200

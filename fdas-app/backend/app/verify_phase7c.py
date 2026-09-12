@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 import urllib.error
@@ -98,6 +99,9 @@ def login(email: str, password: str) -> tuple[int, str | None]:
 
 
 def run_prior_verifier(module_name: str, success_marker: str | None = None) -> bool:
+    # The unified runner executes prerequisites once in order before this verifier.
+    if os.getenv("FDAS_SKIP_PRIOR_VERIFIERS") == "1":
+        return True
     result = subprocess.run(
         [sys.executable, "-m", module_name],
         cwd=BASE_DIR,

@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.config import FACE_MATCH_THRESHOLD
+from app.config import FACE_MATCH_THRESHOLD, IDENTITY_MATCHING_SAFETY_HOLD
 from app.models.attendance_record import AttendanceRecord
 from app.models.attendance_session import AttendanceSession
 from app.models.face_template import FaceTemplate
@@ -84,7 +84,11 @@ def no_attendance_result(session: AttendanceSession, match_result: dict, livenes
         "departmentName": session.department.departmentName if session.department else match_result.get("departmentName"),
         "markedAt": None,
         "recognitionConfidence": match_result.get("similarityScore"),
+        "secondRecognitionConfidence": match_result.get("secondSimilarityScore"),
+        "scoreMargin": match_result.get("scoreMargin"),
         "thresholdUsed": match_result.get("thresholdUsed", FACE_MATCH_THRESHOLD),
+        "requiredMargin": match_result.get("requiredMargin"),
+        "aggregationMethod": match_result.get("aggregationMethod"),
         "livenessStatus": liveness_status or LIVENESS_STATUS_NOT_CHECKED,
     }
 
@@ -159,11 +163,31 @@ def create_attendance_from_match_result(
     )
 
 
+def apply_identity_safety_hold(match_result: dict) -> dict:
+    if not IDENTITY_MATCHING_SAFETY_HOLD or match_result.get("matched") is not True:
+        return match_result
+    return {
+        **match_result,
+        "matched": False,
+        "status": "AttendanceSafetyHold",
+        "message": "Attendance remains disabled while identity-integrity validation is incomplete.",
+        "studentId": None,
+        "studentName": None,
+        "rollNo": None,
+        "classId": None,
+        "className": None,
+        "departmentId": None,
+        "departmentName": None,
+        "bestTemplateId": None,
+    }
+
+
 def mark_attendance_by_face(db: Session, currentUser: User, sessionId: int, image_bytes: bytes) -> dict:
     session = get_session_or_404(db, sessionId)
     ensure_session_access(currentUser, session)
     ensure_active_session(session)
     match_result = match_face_bytes(db, currentUser, session.departmentId, image_bytes)
+    match_result = apply_identity_safety_hold(match_result)
     return create_attendance_from_match_result(db, session, match_result)
 
 

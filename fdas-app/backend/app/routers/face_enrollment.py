@@ -63,9 +63,10 @@ async def upload_face_enrollment(
     current_user: User = Depends(require_operator_or_admin),
     db: Session = Depends(get_db),
 ):
+    student = get_student_or_404(db, studentId)
+    ensure_student_access(current_user, student)
     uploads = [await read_face_upload(file) for file in files]
     templates = create_face_templates(db, current_user, studentId, uploads)
-    student = get_student_or_404(db, studentId)
     return FaceEnrollmentUploadResponse(
         studentId=studentId,
         faceRegistered=student_face_registered(student),

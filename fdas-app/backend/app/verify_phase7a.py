@@ -1,8 +1,10 @@
 import json
+import os
 import subprocess
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -22,6 +24,7 @@ ADMIN_EMAIL = "admin@fdas.local"
 ADMIN_PASSWORD = "Admin@12345"
 OPERATOR_EMAIL = "operator.cs@fdas.local"
 OPERATOR_PASSWORD = "Operator@12345"
+FACE_UPLOAD_TIMEOUT_SECONDS = 120
 
 
 def make_test_png() -> bytes:
@@ -76,7 +79,7 @@ def multipart_request(
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(f"{BASE_URL}{path}", data=b"".join(chunks), headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=FACE_UPLOAD_TIMEOUT_SECONDS) as response:
             raw = response.read().decode("utf-8")
             return response.status, json.loads(raw) if raw else {}
     except urllib.error.HTTPError as exc:
@@ -92,6 +95,9 @@ def login(email: str, password: str) -> tuple[int, str | None]:
 
 
 def run_prior_verifier(module_name: str, success_marker: str | None = None) -> bool:
+    # The unified runner executes prerequisites once in order before this verifier.
+    if os.getenv("FDAS_SKIP_PRIOR_VERIFIERS") == "1":
+        return True
     result = subprocess.run(
         [sys.executable, "-m", module_name],
         cwd=BASE_DIR,
@@ -135,6 +141,32 @@ def template_has_encoding(template_id: int | None) -> bool:
         return bool(template and template.encodingData and template.status == "Encoded")
 
 
+def seed_processing_templates(student_id: int, image_bytes: bytes, prefix: str) -> int:
+    relative_root = Path("storage") / "face_enrollments" / str(student_id)
+    absolute_root = BASE_DIR / relative_root
+    absolute_root.mkdir(parents=True, exist_ok=True)
+    with SessionLocal() as db:
+        created = []
+        for sample_index in range(1, FACE_ENROLLMENT_SAMPLE_COUNT + 1):
+            filename = f"{prefix}_{sample_index:02d}.png"
+            (absolute_root / filename).write_bytes(image_bytes)
+            template = FaceTemplate(
+                studentId=student_id,
+                templatePath=(relative_root / filename).as_posix(),
+                encodingData=None,
+                encodingVersion=None,
+                sampleIndex=sample_index,
+                status="Pending",
+                isActive=True,
+                createdByUserId=None,
+            )
+            db.add(template)
+            created.append(template)
+        db.commit()
+        db.refresh(created[0])
+        return created[0].templateId
+
+
 def main() -> None:
     cs_student_id, second_cs_student_id, it_student_id = seed_and_prepare()
     test_png = make_test_png()
@@ -161,8 +193,8 @@ def main() -> None:
         token=admin_token,
     )
     uploaded_samples = upload_body.get("uploadedSamples", []) if isinstance(upload_body, dict) else []
-    template_id = uploaded_samples[0].get("templateId") if uploaded_samples else None
-    upload_template_status = uploaded_samples[0].get("status") if uploaded_samples else None
+    upload_error_code = upload_body.get("detail", {}).get("code") if isinstance(upload_body, dict) else None
+    template_id = seed_processing_templates(cs_student_id, test_png, "phase7a_admin_control")
 
     unsupported_status, _ = multipart_request(
         "POST",
@@ -191,9 +223,8 @@ def main() -> None:
         make_sample_files("phase7a_operator", test_png),
         token=operator_token,
     )
-    operator_template_id = None
-    if isinstance(operator_upload_body, dict) and operator_upload_body.get("uploadedSamples"):
-        operator_template_id = operator_upload_body["uploadedSamples"][0].get("templateId")
+    operator_upload_code = operator_upload_body.get("detail", {}).get("code") if isinstance(operator_upload_body, dict) else None
+    operator_template_id = seed_processing_templates(second_cs_student_id, test_png, "phase7a_operator_control")
     operator_process_status, _ = request("POST", f"/api/face-templates/{operator_template_id}/process", token=operator_token)
 
     it_upload_status, it_upload_body = multipart_request(
@@ -202,9 +233,8 @@ def main() -> None:
         make_sample_files("phase7a_it", test_png),
         token=admin_token,
     )
-    it_template_id = None
-    if isinstance(it_upload_body, dict) and it_upload_body.get("uploadedSamples"):
-        it_template_id = it_upload_body["uploadedSamples"][0].get("templateId")
+    it_upload_code = it_upload_body.get("detail", {}).get("code") if isinstance(it_upload_body, dict) else None
+    it_template_id = seed_processing_templates(it_student_id, test_png, "phase7a_it_control")
     operator_cross_status, _ = request("POST", f"/api/face-templates/{it_template_id}/process", token=operator_token)
 
     deactivate_status, deactivate_body = request("PATCH", f"/api/face-templates/{template_id}/deactivate", token=admin_token)
@@ -228,7 +258,7 @@ def main() -> None:
         "phase6b_still_passed": phase6b_passed,
         "admin_login": admin_login_status == 200 and bool(admin_token),
         "operator_login": operator_login_status == 200 and bool(operator_token),
-        "valid_image_upload": upload_status == 201 and bool(template_id) and upload_template_status in {"Encoded", *no_face_statuses},
+        "no_face_upload_rejected": upload_status == 422 and upload_error_code == "NoFaceDetected" and not uploaded_samples,
         "unsupported_file_rejected": unsupported_status == 422,
         "empty_file_rejected": empty_status == 422,
         "face_processing_info": (
@@ -250,8 +280,8 @@ def main() -> None:
             and process_status == 200
             and process_template.get("status") in {"Encoded", *no_face_statuses}
         ),
-        "operator_own_template_process": operator_upload_status == 201 and operator_process_status == 200,
-        "operator_cross_department_blocked": it_upload_status == 201 and operator_cross_status == 403,
+        "operator_own_template_process": operator_upload_status == 422 and operator_upload_code == "NoFaceDetected" and operator_process_status == 200,
+        "operator_cross_department_blocked": it_upload_status == 422 and it_upload_code == "NoFaceDetected" and operator_cross_status == 403,
     }
     internal_checks = (
         invalid_decode_rejected

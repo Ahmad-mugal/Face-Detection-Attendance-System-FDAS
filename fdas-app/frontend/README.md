@@ -66,10 +66,14 @@ Face enrollment behavior:
 - `Cancel` stops the camera and clears unsaved samples.
 - Enrollment capture does not run liveness; liveness is used only during live attendance scanning.
 
-Verification:
+## Final Verification
+
+Start the backend with its normal local `.venv` at `http://127.0.0.1:8000`, then run from `fdas-app/frontend`:
 
 ```powershell
-npm.cmd run build
 npm.cmd run lint
+npm.cmd run build
 node .\scripts\phase5-smoke.mjs
 ```
+
+Run these commands sequentially. Because the smoke script submits a test registration request, the backend must use a disposable copy of `fdas_local.db` and an empty disposable `storage/` directory rather than the active demo data. The script otherwise uses the normal local frontend/backend environments and writes screenshots under `output/playwright/`; remove the disposable backend copy afterward. Real-face recognition and real-camera liveness remain separate manual acceptance tests.
