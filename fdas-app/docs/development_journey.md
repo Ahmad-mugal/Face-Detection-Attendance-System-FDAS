@@ -2894,3 +2894,590 @@ Further Phase 10.6B manual captures were stopped on explicit instruction after c
 ### Final Phase 10.6B Status
 
 **PARTIAL / SAFETY HOLD** - automated verification passed and the diagnostic/ambiguity safeguards operate as designed, but genuine webcam capture 2 proved that the current `opencv_basic_v1` maximum-score plus 0.05 margin policy can accept a wrong identity above both gates. Normal attendance remains disabled. Phase 10.6B is closed without claiming identity safety, and Phase 10.7 has not started.
+
+## Phase 10.7 - Deep Face Recognition Upgrade & Identity Recalibration
+
+### Goal
+
+Replace the weak 16 by 16 grayscale identity descriptor with a local, CPU-capable deep face embedding pipeline while preserving the legacy descriptor, Phase 10.6C safeguards, liveness, stored images, database history, and the attendance safety hold.
+
+### Reason For Upgrade
+
+Phase 10.6B proved that `opencv_basic_v1` is unsafe for automatic attendance. In genuine Student 22 capture 2, the wrong Student 28 scored `0.763408`, above `FACE_MATCH_THRESHOLD = 0.75`, with a `0.106619` top-one/top-two margin, above the provisional `0.05` requirement. Threshold and margin therefore both passed for the wrong identity. Normal attendance remains held.
+
+### Dependency / Compatibility Audit
+
+- Audit date: 2026-09-12.
+- `.venv/pyvenv.cfg` records Python `3.11.9` and points to `C:\Users\WELCOME\AppData\Local\Programs\Python\Python311\python.exe`.
+- Historical safe-stop: the first restricted agent-environment probe could not reach the host Python installation and incorrectly concluded that the base interpreter was unavailable. That conclusion described the sandbox view, not the actual Windows host.
+- Host correction: direct host verification disproved the earlier conclusion. The actual project `.venv/Scripts/python.exe` reports Python `3.11.9`, confirms the project interpreter path and 64-bit CPython build, and successfully imports FastAPI, Uvicorn, SQLAlchemy, OpenCV, and NumPy with `FDAS environment OK`.
+- The intact site-package metadata records NumPy `2.2.6` and OpenCV `4.12.0.88`, matching `requirements.txt`.
+- `requirements.txt` contains FastAPI, Uvicorn, SQLAlchemy, Pydantic, PyJWT, python-multipart, NumPy, and OpenCV only. InsightFace, ONNX Runtime, SciPy, scikit-image, and scikit-learn are not installed.
+- InsightFace 2.0 advertises Python 3.10+ support, a pure-Python wheel, CPU ONNX Runtime, and no mandatory C++ build for its base installation. ONNX Runtime publishes Windows CPython 3.11 CPU wheels.
+- A disposable Python 3.11.9 environment was created at the workspace root. The production FDAS `.venv` was not used for package installation.
+- Binary-wheel-only installation succeeded for `insightface==2.0`, `onnxruntime==1.30.0`, `numpy==2.2.6`, and `opencv-python==4.12.0.88`. No compiler or Visual Studio build chain was required.
+- Resolved supporting versions were `onnx==1.22.0`, `scipy==1.17.1`, `scikit-image==0.26.0`, `pillow==12.3.0`, `protobuf==7.36.1`, `ml_dtypes==0.6.0`, `imageio==2.37.4`, `tifffile==2026.3.3`, and `networkx==3.6.1`, plus pure-Python transport/utility packages.
+- `pip check` returned `No broken requirements found`. InsightFace, ONNX Runtime, ONNX, NumPy, OpenCV, SciPy, and scikit-image all imported successfully.
+- ONNX Runtime reported device `CPU` with `CPUExecutionProvider` available. The extra advertised `AzureExecutionProvider` was not selected; both model sessions were explicitly created with CPU only.
+- No production dependency was installed, removed, or upgraded, and `requirements.txt` was not changed.
+
+The previous safe-stop is retained as history, but its Python-unavailable premise is corrected. The disposable compatibility gate passed; production installation still requires explicit approval.
+
+### Selected Model
+
+No model was installed or adopted in the production FDAS environment. The following candidate passed disposable compatibility testing: InsightFace `FaceAnalysis` with an explicitly local model pack and `CPUExecutionProvider`.
+
+- Candidate framework: InsightFace 2.0 with ONNX Runtime CPU.
+- Candidate model pack: `buffalo_l` for SCRFD detection, landmark alignment, and ResNet50 recognition, subject to measured laptop performance; `buffalo_s` is a smaller fallback for evaluation, not an automatic substitution.
+- Recognition output: verified as shape `[1, 512]`; the production integration must L2-normalize the 512-dimensional embedding and record the actual model identifier/version.
+- Measured model size: `288,621,354` bytes for the downloaded archive and `341,268,726` bytes extracted. The recognition ONNX file is `174,383,860` bytes and the SCRFD detector is `16,923,827` bytes.
+- Missing-model behavior: constructing `FaceAnalysis(name="buffalo_l")` with an empty root invokes an implicit GitHub model download. Production code must not use that form without prior provisioning.
+- Offline behavior: passing the existing extracted model directory directly succeeded while the downloader was replaced with a deliberate failure function. This proves explicit local provisioning is possible and no internet is required after the model files exist.
+- License: InsightFace library code is MIT, but its supplied pretrained model packs are restricted to non-commercial research use unless separately licensed. Any use in this FYP must be documented as research/demo use; commercial suitability is not claimed.
+
+### Old Recognition Pipeline
+
+Exactly one Haar-detected face is cropped, converted to grayscale, histogram-equalized, resized to 16 by 16, mean-centred, L2-normalized, stored as a 256-value JSON array with `encodingVersion = opencv_basic_v1`, and compared by cosine similarity. Production scoring remains maximum-template score plus the old `0.75` threshold and `0.05` margin, but the attendance hold prevents persistence.
+
+### New Recognition Pipeline
+
+Design only; not implemented in this stopped run:
+
+`Exactly One Haar Face` -> `Exactly One Deep-Detector Face` -> `Detector Agreement` -> `Landmark Alignment` -> `Deep Embedding` -> `L2 Normalization` -> `Version-Scoped Student Scoring` -> `Deep Threshold` -> `Deep Margin`.
+
+Any zero-face, multi-face, or Haar/deep-detector disagreement must fail safely. The deep detector must never silently select a largest face.
+
+### Data Migration Design
+
+- `face_templates` already stores `encodingData` as text and has an 80-character `encodingVersion`; the existing schema can represent a separate `arcface_v1` row/version without overwriting `opencv_basic_v1`.
+- A production migration must create new versioned rows or a separate versioned embedding table. It must never overwrite a legacy row's `encodingData`.
+- A repeatable migration command must default to dry-run, validate path ownership, require exactly one Haar face and exactly one deep-detector face, require detector agreement, and report per-image and per-student eligibility before a commit mode is allowed.
+- A schema decision remains pending until the executable environment is restored and transaction/rollback behavior can be verified.
+
+### Enrollment Re-encoding Results
+
+Not run at this compatibility-only gate. Read-only inventory found 4,700 template rows, 374 active rows, 295 active encoded `opencv_basic_v1` rows, and 15 students represented by active template rows. Fourteen students have at least 25 active rows under the legacy registration-count rule.
+
+Of the 374 active rows, 299 currently reference files that exist and 75 reference missing files. Existing linked files are available for 24 active rows for Student 1 and 25 rows each for Students 3, 18, 19, 22, 23, 24, 25, 26, 27, 28, and 29. Students 6, 9, and 14 each have 25 active encoded legacy rows whose referenced files are missing. No deep usability claim is made until the images pass both detectors and quality checks.
+
+### Failed/Unusable Enrollment Images
+
+Deep face detection was not run. The current pre-migration report therefore records 75 missing active image paths and zero images classified as deep-usable or deep-unusable. Students 6, 9, and 14 cannot be re-encoded from their currently referenced files and may need restored source images or manual re-enrollment. No student was silently enabled from one template.
+
+### Scoring Strategy Comparison
+
+Not run. Maximum, mean top 3, mean top 5, median top 5, and normalized student prototype remain required diagnostic strategies. No production strategy was selected.
+
+### Calibration Dataset
+
+Not collected. The required genuine queries for Students 22, 27, 28, two additional enrolled students, and unknown people remain pending after model integration.
+
+### Genuine Score Distribution
+
+Not available; no deep embeddings were generated.
+
+### Impostor Score Distribution
+
+Not available; no deep embeddings were generated.
+
+### Selected Deep Threshold
+
+Not selected. `FACE_MATCH_THRESHOLD = 0.75` remains legacy-only and must not be reused as a deep threshold. No `DEEP_FACE_MATCH_THRESHOLD` was added.
+
+### Selected Identity Margin
+
+Not selected. `MIN_IDENTITY_MARGIN = 0.05` remains legacy-only and must not be reused automatically. No `DEEP_MIN_IDENTITY_MARGIN` was added.
+
+### AmbiguousMatch Behavior
+
+The existing legacy fail-closed behavior remains intact. Deep `MatchBelowThreshold` and `AmbiguousMatch` behavior is designed but was not implemented without calibrated values.
+
+### Cross-Identity Results
+
+No deep-model results exist for Students 22, 27, or 28. The Phase 10.6B false-match evidence remains the controlling safety result.
+
+### Unknown-Face Results
+
+Not run. Unknown-person rejection remains mandatory before attendance can be considered for re-enablement.
+
+### Performance Results
+
+Disposable CPU model initialization succeeded. The first constructor, including the one-time 288.6 MB download and model-session creation, took approximately `153.529` seconds; CPU preparation took `0.727` seconds. With files already local, constructor/session creation took approximately `2.190` seconds and CPU preparation took `0.686` seconds. Query embedding latency, matching latency, full request latency, and production memory impact remain pending.
+
+### Automated Verification
+
+`app.verify_phase10_7` was not created because production implementation has not been approved. Compatibility checks passed: binary-only install, `pip check`, imports, CPU-provider discovery, CPU-only detector/recognizer initialization, verified 512-dimensional recognition output, implicit-download detection, and explicit local-path loading with the downloader disabled. Application regression commands were not run because no application code or production dependency changed.
+
+### Manual Webcam Verification
+
+Not started. No Phase 10.7 diagnostic capture was requested because the deep pipeline and model are not installed.
+
+### Rollback Strategy
+
+Rollback remains intact because no deep dependencies, model files, schema changes, encodings, or recognition code were introduced. Restore Python 3.11.9, verify the current project first, and retain `IDENTITY_MATCHING_SAFETY_HOLD = True`. Any future deep implementation must be additive and version-scoped; removing it must leave `opencv_basic_v1` evidence readable while still keeping unsafe automatic attendance disabled.
+
+### Remaining Limitations
+
+- Package compatibility, NumPy/OpenCV coexistence, CPU model initialization, and the 512-dimensional model output are verified only in the disposable environment, not yet in the production FDAS `.venv`.
+- Query inference latency, enrollment re-encoding quality, detector agreement, score separation, threshold/margin calibration, request latency, and memory use remain unverified.
+- The pretrained model license permits non-commercial research use, not an unqualified commercial deployment claim.
+- Seventy-five active template rows have missing referenced files; three students with encoded legacy rows currently lack their source images.
+- No deep migration, calibration, cross-identity, unknown-person, or webcam evidence exists yet.
+
+### Safety Confirmations
+
+- `opencv_basic_v1` code and all existing encoding data are preserved.
+- `FACE_MATCH_THRESHOLD` remains exactly `0.75`.
+- `MIN_IDENTITY_MARGIN` remains exactly `0.05`.
+- `IDENTITY_MATCHING_SAFETY_HOLD` remains `True`; normal attendance was not enabled.
+- Phase 10.6C exact-face-count and continuity safeguards are preserved.
+- MOVE_LEFT, MOVE_RIGHT, MOVE_CLOSER, mirrored-direction handling, and liveness thresholds are preserved.
+- `fdas_local.db` was inspected read-only and was not reset or reseeded. It remains 2,260,992 bytes.
+- Storage remains 15,541 files and 26,912,737 bytes with latest stored-file UTC timestamp `2026-09-11T19:11:38.0852652Z`.
+- No face template, enrollment image, or attendance history was deleted, overwritten, deactivated, or migrated.
+- No cloud API, GPU/CUDA package, compiler toolchain, LAN deployment, or Phase 10.8 work was started.
+
+### Previous Phase 10.7 Safe-Stop Status
+
+**PARTIAL / SAFE STOP** - retained as historical evidence of the initial restricted-environment result. The actual host subsequently proved that Python 3.11.9 and the working FDAS `.venv` were available, so the interpreter-unavailable conclusion was withdrawn before dependency work resumed.
+
+### Current Phase 10.7 Compatibility Status
+
+**PASS / AWAITING PRODUCTION-INSTALL APPROVAL** - InsightFace 2.0, ONNX Runtime 1.30.0 CPU, NumPy 2.2.6, OpenCV 4.12.0.88, and the official `buffalo_l` model installed and initialized successfully in a disposable Python 3.11.9 environment. Dependency consistency and explicit offline model loading passed. The disposable environment is removed after recording results. The production `.venv`, requirements, database, storage, templates, recognition logic, Phase 10.6C safeguards, liveness, and attendance safety hold remain unchanged. Phase 10.8 has not started.
+
+## Phase 10.7A - Production Deep-Recognition Foundation
+
+### Goal
+
+Install and integrate the already compatibility-tested deep-recognition foundation in the real FDAS backend without migrating templates, activating ArcFace matching, calibrating deep thresholds, or enabling attendance. The existing `opencv_basic_v1` pipeline remains intact as rollback/history, and `IDENTITY_MATCHING_SAFETY_HOLD` remains `True`.
+
+### Compatibility Basis
+
+- The preceding disposable-environment audit passed on Python 3.11.9 with InsightFace 2.0, ONNX Runtime 1.30.0, NumPy 2.2.6, OpenCV 4.12.0.88, `buffalo_l`, 512-dimensional recognition output, and CPU-only inference.
+- Binary-wheel installation, `pip check`, imports, explicit `CPUExecutionProvider` session creation, and explicit offline loading from a local model directory all passed before the production environment was changed.
+- That audit also proved that name/root-based `FaceAnalysis` loading can initiate an implicit download when the model is absent. The production implementation therefore requires pre-provisioned files and passes the explicit model-pack directory to InsightFace.
+
+### Production Environment Baseline
+
+- Project interpreter: `backend/.venv/Scripts/python.exe`.
+- Python: `3.11.9` (64-bit).
+- pip: `26.2.1`.
+- Pre-install `pip check`: `No broken requirements found.`
+- Database SHA-256: `C1B66053901951BDA63C12F466B430A18EC5A1F0B6BF77CEF18113BD00356867`.
+- Database size: `2,260,992` bytes.
+- Attendance rows: `21`.
+- FaceTemplate rows: `4,700` total, `374` active.
+- Active encoded `opencv_basic_v1` rows: `295`.
+- `backend/storage`: `15,541` files totalling `26,912,737` bytes; latest file UTC timestamp `2026-09-11T19:11:38.0852652Z`.
+- Pre-change `requirements.txt` SHA-256: `20FC1B668ADAFB6B1FC05E724A12155947D62F39B8632AC7B17607CFF438973D`.
+- Pre-change configuration SHA-256: `F300F8896A43DBC66B2CB864ADBDB53A5FA93161C58033EECB6606CDB470DAE7`.
+
+The recorded pre-install `pip freeze` was:
+
+```text
+annotated-types==0.8.0
+anyio==4.14.2
+click==8.4.2
+colorama==0.4.6
+fastapi==0.115.6
+greenlet==3.5.4
+h11==0.16.0
+httptools==0.8.0
+idna==3.18
+numpy==2.2.6
+opencv-python==4.12.0.88
+pydantic==2.10.4
+pydantic_core==2.27.2
+PyJWT==2.10.1
+python-dotenv==1.2.2
+python-multipart==0.0.20
+PyYAML==6.0.3
+SQLAlchemy==2.0.36
+starlette==0.41.3
+typing_extensions==4.16.0
+uvicorn==0.34.0
+watchfiles==1.2.0
+websockets==17.0.1
+```
+
+### Dependencies Installed
+
+The exact approved command was run in the real FDAS `.venv`:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install insightface==2.0 onnxruntime==1.30.0
+```
+
+Installation succeeded. Existing NumPy `2.2.6` and OpenCV `4.12.0.88` were retained; Python and the virtual environment were not recreated or upgraded. No CUDA/GPU package, compiler, or Visual Studio build tool was installed. Resolved supporting packages include ONNX `1.22.0`, SciPy `1.17.1`, scikit-image `0.26.0`, FlatBuffers `25.12.19`, Packaging `26.3`, Protobuf `7.36.1`, ml_dtypes `0.6.0`, Requests `2.34.2`, Charset-Normalizer `3.5.1`, urllib3 `2.7.0`, Certifi `2026.7.22`, NetworkX `3.6.1`, Pillow `12.3.0`, ImageIO `2.37.4`, tifffile `2026.3.3`, lazy-loader `0.5`, and tqdm `4.70.1`.
+
+### pip check Result
+
+Post-install `pip check`: **PASS** - `No broken requirements found.` InsightFace, ONNX Runtime, NumPy, OpenCV, the legacy processing service, and the new deep service all import successfully.
+
+### requirements.txt Changes
+
+Only the two direct runtime dependencies were appended; `requirements.txt` was not replaced with `pip freeze`:
+
+```text
+insightface==2.0
+onnxruntime==1.30.0
+```
+
+### Local buffalo_l Provisioning
+
+- Local archive: `backend/models/insightface/buffalo_l.zip`.
+- Explicit runtime directory: `backend/models/insightface/buffalo_l/`.
+- Verified archive size: `288,621,354` bytes.
+- Verified archive SHA-256: `80FFE37D8A5940D59A7384C201A2A38D4741F2F3C51EEF46EBB28218A7B0CA2F`.
+- Extracted model-pack size: `341,268,726` bytes.
+- Required runtime models: `det_10g.onnx` (`16,923,827` bytes) and `w600k_r50.onnx` (`174,383,860` bytes). The pack also contains `1k3d68.onnx`, `2d106det.onnx`, and `genderage.onnx`.
+- The archive and extracted binaries are excluded from Git. A checked-in provisioning script verifies the known archive hash and the individual model-file hashes before safe extraction.
+- A transient interrupted download produced an invalid archive during provisioning. Its size/hash validation failed, it was removed, and a clean atomic download was verified before extraction; no invalid model was retained.
+- Re-running the provisioning script reports `buffalo_l already provisioned and verified`.
+
+### Model Licensing Note
+
+InsightFace library code is MIT licensed. InsightFace-supplied pretrained model packs, including `buffalo_l`, carry research/non-commercial restrictions unless separately licensed. FDAS uses this model only as a Final Year Project research/demo component and does not claim unrestricted commercial rights.
+
+### Deep Recognition Service
+
+- A separate `app.services.deep_face` service was added; the existing `app.services.face_processing` implementation was not overwritten.
+- The service performs the Phase 10.6C Haar face-count gate first, invokes InsightFace detection/alignment only for exactly one Haar face, generates a 512-dimensional recognition embedding, validates finite values, and L2-normalizes it.
+- Zero Haar faces return `NoFaceDetected`; multiple Haar faces return `MultipleFacesDetected`; any Haar/deep detector count disagreement returns `FaceDetectionMismatch`. It never selects the largest face from a multi-face frame.
+- A protected operator/admin dry-run endpoint loads one existing enrollment image after the existing template-ownership checks. Its API response contains status, counts, dimension, norm, version, and elapsed time but never contains the raw embedding.
+- A protected capability endpoint reports availability, readiness, provider, model, execution provider, dimension, version, initialization timing, `activeForAttendance = false`, and the active safety hold.
+- Dry-run operations are read-only: they do not update `FaceTemplate`, persist query embeddings, alter eligibility, or create attendance.
+
+### Model Loading Strategy
+
+- `DeepFaceService` is a process-local, lazy singleton guarded by separate initialization and inference locks. It initializes once per backend process and is reused across requests.
+- It verifies that the explicit local model directory and required detector/recognizer files exist before importing/constructing the model. Missing files raise an explicit initialization error and processing fails closed.
+- InsightFace receives the resolved local `buffalo_l` directory directly and both detection and recognition sessions are verified to use `CPUExecutionProvider` first. No runtime download path is used.
+- The verifier replaced InsightFace's download helper with a deliberate failure and successfully initialized/encoded from the local directory, proving that runtime internet access is not required.
+
+### Encoding Version
+
+The foundation introduces `arcface_v1` as a distinct deep encoding-version identifier. Existing `opencv_basic_v1` identifiers and stored data remain unchanged. No deep threshold or deep identity margin was introduced.
+
+### Sample Dry-Run Results
+
+All successful samples were existing stored enrollment images, found under their owning student's storage directory. No identity comparisons were performed.
+
+| Student | Image found | Haar/deep faces | Result | Dimension | Version | L2 norm | Processing time |
+| --- | --- | --- | --- | ---: | --- | ---: | ---: |
+| #22 | Yes | 1 / 1 | Encoded | 512 | `arcface_v1` | 1.000000 | 765.719 ms |
+| #27 | Yes | 1 / 1 | Encoded | 512 | `arcface_v1` | 1.000000 | 547.745 ms |
+| #28 | Yes | 1 / 1 | Encoded | 512 | `arcface_v1` | 1.000000 | 627.992 ms |
+| #19 | Yes | 1 / 1 | Encoded | 512 | `arcface_v1` | 1.000000 | 632.021 ms |
+| #29 | Yes | 1 / 1 | Encoded | 512 | `arcface_v1` | 1.000000 | 596.776 ms |
+
+Student #26 was also inspected as negative evidence: all 25 stored frames were found but rejected as `MultipleFacesDetected` by the mandatory Haar gate. No deep embedding was generated and no face was silently selected. This is a stored-data quality finding, not a foundation failure.
+
+### CPU Performance
+
+- Dedicated verifier singleton initialization: `2,005.997` ms.
+- Isolated unified-run initialization: `1,982.786` ms.
+- Long-lived Uvicorn process initialization through the capability endpoint: `3,335.776` ms.
+- First measured embedding (#22 after initialization): `765.719` ms.
+- Same-image subsequent encodings: `670.001` ms and `600.723` ms; their cosine similarity was `1.000000`.
+- Other stored-image encodings ranged from `547.745` ms to `632.021` ms in the dedicated verifier.
+- Corrected process working-set measurement: `95,604,736` bytes before model load and `352,796,672` bytes after load, an increase of `257,191,936` bytes (approximately `245.28` MiB).
+- These are unoptimized CPU measurements from the actual production environment. No premature performance tuning was applied.
+
+### Files Created
+
+- `backend/app/services/deep_face.py`
+- `backend/app/schemas/deep_face.py`
+- `backend/app/routers/deep_face.py`
+- `backend/app/verify_phase10_7a.py`
+- `backend/scripts/provision_insightface_model.py`
+- `backend/models/insightface/README.md`
+- Locally provisioned, Git-ignored `backend/models/insightface/buffalo_l.zip` and `backend/models/insightface/buffalo_l/` model files
+
+### Files Modified
+
+- `backend/.gitignore`
+- `backend/requirements.txt`
+- `backend/app/config.py`
+- `backend/app/main.py`
+- `backend/app/run_final_verification.py`
+- `docs/development_journey.md`
+
+No frontend file was modified, so the conditional frontend lint/build/smoke commands were not required for Phase 10.7A.
+
+### Database Changes
+
+None. The final `fdas_local.db` SHA-256 remains `C1B66053901951BDA63C12F466B430A18EC5A1F0B6BF77CEF18113BD00356867`, its size remains `2,260,992` bytes, and its UTC mtime remains `2026-09-12T07:58:13.3578628Z`. Attendance remains 21 rows and FaceTemplate remains 4,700 rows.
+
+### Template Changes
+
+None. The complete template-state digest was checked before and after direct and protected-HTTP dry runs. It did not change. There remain 374 active template rows, 295 active encoded `opencv_basic_v1` rows, and **zero** persistent `arcface_v1` rows.
+
+### Attendance State
+
+`IDENTITY_MATCHING_SAFETY_HOLD` remains `True`. The new capability explicitly reports deep recognition as available/ready but `activeForAttendance = false`. The diagnostic created no attendance; the count remains 21.
+
+### Automated Verification
+
+Dedicated `app.verify_phase10_7a`: **PASS**. It verified InsightFace and ONNX Runtime imports, CPU provider availability, local/offline model loading, no call to the download helper, detector/recognizer initialization, 512-dimensional normalized output, deterministic repeat encoding, no-face handling, multiple-face handling, controlled detector-mismatch handling, `arcface_v1`, protected endpoint access, no attendance creation, no template mutation, preservation of `opencv_basic_v1`, zero deep rows, and the active identity safety hold.
+
+### Regression Results
+
+- Required Phase 10.6C: PASS.
+- Required Phase 7B: PASS.
+- Required Phase 7C: PASS.
+- Required Phase 8C: PASS.
+- Unified final verification: **PASS - all 15 suites passed sequentially**, including Phase 2, Phase 3, Phase 4, Phase 6A, Phase 6B, Phase 7A, Phase 7B, Phase 7C, Phase 8B, Phase 8C, Phase 10, Phase 10.4, Phase 10.6C, Phase 10.6B, and Phase 10.7A.
+- Mutation-capable legacy verifiers were executed by the unified runner against an automatically cleaned disposable database/storage copy, not against live user data. The production local model directory was supplied read-only to that isolated run.
+- `pip check`: PASS after the complete verification run.
+- `git diff --check`: PASS.
+- Non-blocking warnings: InsightFace triggers a scikit-image 0.26 deprecation warning for `estimate`; existing SQLAlchemy verifier paths report legacy subquery-coercion warnings. Neither warning caused a test failure.
+
+### Rollback Confirmation
+
+The deep implementation is additive and version-scoped. Removing the new router/service/configuration and its two direct dependencies leaves the old `opencv_basic_v1` implementation and stored encodings intact. The model is locally provisioned and Git-ignored, so it can be removed/re-provisioned independently without touching database or enrollment data. Rollback must keep `IDENTITY_MATCHING_SAFETY_HOLD = True`; the unsafe legacy matcher is preserved for evidence/history, not re-approved for automatic attendance.
+
+### Remaining Work
+
+- Bulk re-encoding has not been performed.
+- Deep matching is not active for attendance.
+- A deep match threshold has not been calibrated; legacy `0.75` was not reused.
+- A deep identity margin has not been calibrated; legacy `0.05` was not reused.
+- Webcam identity evaluation has not been performed.
+- Student #26's multi-face stored samples require later review; no re-enrollment or deletion occurred in this phase.
+
+### Safety Confirmations
+
+- All old `opencv_basic_v1` template data is preserved and still imports/loads.
+- All enrollment images are preserved: storage remains exactly `15,541` files and `26,912,737` bytes with the same latest stored-file UTC timestamp.
+- The database binary hash, size, mtime, and critical logical row counts are unchanged from the production baseline.
+- All 21 attendance-history rows are preserved; no attendance was created or deleted.
+- No persistent deep embedding was written and no schema migration was performed.
+- `FACE_MATCH_THRESHOLD` remains exactly `0.75`; it was not reused for ArcFace.
+- `MIN_IDENTITY_MARGIN` remains exactly `0.05`; it was not reused for ArcFace.
+- Phase 10.6C exact-face-count and continuity safeguards remain intact.
+- Liveness and its parameters remain unchanged.
+- Normal attendance remains disabled by frontend and backend safety holds.
+- No raw biometric embedding is exposed through the frontend API.
+- The application does not download a model at runtime and fails closed when the required local model is missing.
+- Phase 10.7B was not started.
+- Phase 10.8 was not started.
+
+### Final Phase 10.7A Status
+
+**PASS** - the production deep-recognition foundation is installed, locally provisioned, CPU-only, offline at runtime, singleton-loaded, protected by exact-face-count checks, and verified through non-persistent dry runs and all 15 isolated regression suites. Legacy recognition data and all user data remain unchanged, while deep matching, migration, calibration, webcam evaluation, and attendance activation remain intentionally out of scope.
+
+## Phase 10.7B - Non-Destructive Deep Embedding Migration
+
+### Goal
+
+Persist versioned `arcface_v1` embeddings from existing active enrollment images without overwriting `FaceTemplate.encodingData`, changing `FaceTemplate.encodingVersion`, duplicating physical images, or activating deep matching. All migration decisions remain subject to the Phase 10.6C exact-one-face gate, and `IDENTITY_MATCHING_SAFETY_HOLD` remains `True`.
+
+### Starting Database / Storage Baseline
+
+- Database SHA-256: `C1B66053901951BDA63C12F466B430A18EC5A1F0B6BF77CEF18113BD00356867`.
+- Database size: `2,260,992` bytes.
+- Database UTC mtime: `2026-09-12T07:58:13.3578628Z`.
+- Total students: `21`.
+- Students represented by active FaceTemplate rows: `15`.
+- FaceTemplate rows: `4,700` total and `374` active.
+- Active encoded `opencv_basic_v1` rows: `295`.
+- Persistent `arcface_v1` rows: `0`.
+- Attendance rows: `21`.
+- `backend/storage`: `15,541` files totalling `26,912,737` bytes; latest UTC file timestamp `2026-09-11T19:11:38.0852652Z`.
+- Complete storage-tree SHA-256, incorporating every relative path and file byte: `96F9FAEAFC198476F9BD4F019C797E06149C40761514DA93EA2EFC33078A75A5`.
+- A pre-migration rollback copy was retained at `backend/backups/phase10_7b_pre_migration_fdas_local.db`; its SHA-256 matches the baseline database exactly. The backup directory is Git-ignored.
+
+The pre-migration logical-table digests were:
+
+| Data | SHA-256 |
+| --- | --- |
+| FaceTemplate | `753D28011B0F0241818D3734C56C36A648DC7F0D7B3218F5FECC2AAE5A0BE417` |
+| AttendanceRecord | `939C83F1708E0C87A83B6CC93392295BFD7D662E93BF72146F4F3988C6ACBE37` |
+| Student | `BD18C8030D29DDDEE2C151E88031EEFF15435DD07E5740386CFE53A0D25DF365` |
+| ClassRoom | `791FC03D24E78DBC2018CA14E93DE09AF5B52F644F4FB8262AE2CC46D32C2629` |
+| Department | `3190E0FD4053B3394419B71C4EE5B0AD4188EAF3A2B22E5B11C44296EBC81DB4` |
+
+### Existing Schema Audit
+
+- `FaceTemplate` represents one enrollment sample/image. Its row owns `templatePath`, the legacy `encodingData` text, `encodingVersion`, face-box data, sample index, processing status, active state, audit user, and timestamps.
+- There was no unique constraint connecting an image to multiple versions and no child encoding collection. Replacing the row's `opencv_basic_v1` data with `arcface_v1` would destroy rollback evidence and could change current enrollment/legacy matching behavior.
+- Active enrollment and legacy registration counts are based only on `face_templates`; adding more `FaceTemplate` rows would incorrectly duplicate enrollment semantics.
+- The legacy matcher explicitly filters `FaceTemplate.encodingVersion == opencv_basic_v1`, so a separate table cannot enter existing candidate queries accidentally.
+- Conclusion: the existing row is the stable image/sample record, but its single encoding fields are not naturally multi-version. An additive child table is required.
+
+### Versioned Storage Design
+
+The selected design is a new `FaceTemplateEmbedding` model backed by `face_template_embeddings`. Each row belongs to one existing `FaceTemplate` and one student, while the physical image remains referenced only by the parent template. The uniqueness key is `(faceTemplateId, encodingVersion)`, supporting multiple algorithm versions for the same stored image while preventing duplicate runs for one version.
+
+Successful rows also record the exact source-image SHA-256. This binds the embedding to the image bytes used during migration and allows later integrity checks without duplicating the image.
+
+### Schema Changes
+
+One additive table was created with these fields:
+
+| Field | Purpose |
+| --- | --- |
+| `faceTemplateEmbeddingId` | Integer primary key |
+| `faceTemplateId` | Foreign key to the unchanged source `FaceTemplate` |
+| `studentId` | Foreign key used for student-scoped inventory/eligibility |
+| `encodingVersion` | `arcface_v1` for this migration |
+| `embeddingData` | JSON-serialized normalized 512-value vector |
+| `embeddingDimension` | Required value `512` |
+| `modelName` | Required value `buffalo_l` |
+| `sourceImageSha256` | SHA-256 of the exact enrollment image bytes |
+| `l2Norm` | Stored normalization evidence |
+| `processingMilliseconds` | CPU encoding duration for the row |
+| `isActive` | Versioned embedding active state |
+| `createdAt`, `updatedAt` | Audit timestamps |
+
+Constraints/indexes include the unique `(faceTemplateId, encodingVersion)` rule, individual foreign-key indexes, and a composite `(studentId, encodingVersion, isActive)` lookup index. No existing table or column was altered, and no schema field was added to attendance or matching.
+
+### Dry-Run Migration Results
+
+The schema-free command `python -m app.migrate_arcface_embeddings --dry-run` evaluated all `374` active template links and created no table, rows, attendance, or other database change.
+
+| Classification | Count |
+| --- | ---: |
+| `EncodedSuccessfully` | 163 |
+| `NoFaceDetected` | 79 |
+| `MultipleFacesDetected` | 43 |
+| `FaceDetectionMismatch` | 14 |
+| `MissingFile` | 75 |
+| `UnreadableImage` | 0 |
+| `EmbeddingError` | 0 |
+| Total failures/rejections | 211 |
+
+There were `299` existing linked images: 163 passed both detectors and embedding validation, while 136 failed closed. Students #6, #9, and #14 reconfirmed the known 25 missing source paths each. Student #26 reconfirmed that all 25 stored frames contain multiple Haar-detected faces.
+
+### Deep Eligibility Rule
+
+The selected minimum is **20 valid `arcface_v1` embeddings per student**.
+
+- Historical enrollment targets 25 samples, so 20 retains at least 80% of the intended multi-sample diversity.
+- The dry-run comparison showed 9 students would qualify at 10, 6 at 15, and only 4 at 20.
+- Lowering the gate to 10 would admit students with 11 or 14 valid samples despite 11-14 rejected frames; 15 would admit an 18/25 and 19/25 set but would still relax the original diversity target before identity calibration.
+- The 20 gate is deliberately conservative and does not represent a match threshold. Phase 10.7C must still evaluate identity separation before any student or matcher can be approved for attendance.
+
+Students below 20 are reported as `DeepEnrollmentIncomplete`; students with no available source images are reported as `SourceImagesMissing`. Invalid historic frames are never used to force eligibility.
+
+### Migration Tool
+
+The repeatable utility is `app.migrate_arcface_embeddings`:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.migrate_arcface_embeddings --dry-run
+.\.venv\Scripts\python.exe -m app.migrate_arcface_embeddings --apply
+.\.venv\Scripts\python.exe -m app.migrate_arcface_embeddings --dry-run --student-id 22
+```
+
+- `--dry-run` analyzes active templates without creating the additive table or writing rows.
+- `--apply` first requires the explicitly local `buffalo_l` pack, creates the additive table if needed, and commits each successful image independently.
+- `--student-id` supports focused/resumable processing.
+- Missing local model files stop the command before schema changes; runtime download is not used.
+- Existing `(faceTemplateId, arcface_v1)` keys are skipped before inference. Database uniqueness is the second line of duplicate defense.
+- A failed image is reported and does not roll back or corrupt earlier successful rows.
+
+### Applied Migration Results
+
+The first live `--apply` reproduced the dry-run classifications and created exactly `163` rows. Each row is `arcface_v1`, model `buffalo_l`, dimension 512, CPU-generated, finite, and L2-normalized. Measured stored vector norms range from `0.9999998808` to `1.0000001192` due only to float32 precision.
+
+No embedding was created for any missing, no-face, multi-face, detector-mismatch, unreadable, or encoding-error result. The final SQLite integrity check returned `ok`.
+
+### Per-Student Migration Summary
+
+| Student | Name / roll | Active links | Existing / missing | Legacy | Valid deep | Key failures | Eligibility |
+| ---: | --- | ---: | ---: | ---: | ---: | --- | --- |
+| 1 | Ayesha Khan / CS-2026-001 | 24 | 24 / 0 | 0 | 0 | 24 no-face | DeepEnrollmentIncomplete; re-enrollment recommended |
+| 3 | Sara Malik / IT-2026-001 | 25 | 25 / 0 | 0 | 0 | 25 no-face | DeepEnrollmentIncomplete; re-enrollment recommended |
+| 6 | Phase Seven B Encoded Student / P7B-ENCODED-001 | 25 | 0 / 25 | 25 | 0 | 25 missing | SourceImagesMissing; restore or re-enroll |
+| 9 | Phase Seven C Mark Student / P7C-MARK-001 | 25 | 0 / 25 | 25 | 0 | 25 missing | SourceImagesMissing; restore or re-enroll |
+| 14 | Phase Eight C Live Student / P8C-LIVE-001 | 25 | 0 / 25 | 25 | 0 | 25 missing | SourceImagesMissing; restore or re-enroll |
+| 18 | asher / 235 | 25 | 25 / 0 | 25 | 21 | 4 multi-face | Ready for deep calibration only |
+| 19 | Ahmad Mughal / CS-2022-58 | 25 | 25 / 0 | 24 | 23 | 1 no-face, 1 multi-face | Ready for deep calibration only |
+| 22 | Ahmad Mughal / cs-2026-789 | 25 | 25 / 0 | 19 | 14 | 6 no-face, 5 multi-face | DeepEnrollmentIncomplete; re-enrollment recommended |
+| 23 | Nosherwan / cs-2026-002 | 25 | 25 / 0 | 20 | 19 | 5 no-face, 1 multi-face | DeepEnrollmentIncomplete; additional valid enrollment required |
+| 24 | Mani / cs-2025-55 | 25 | 25 / 0 | 23 | 23 | 2 no-face | Ready for deep calibration only |
+| 25 | BIlal / cs-2025 | 25 | 25 / 0 | 16 | 14 | 9 no-face, 2 multi-face | DeepEnrollmentIncomplete; re-enrollment recommended |
+| 26 | Mateen / cs-2024-888 | 25 | 25 / 0 | 25 | 0 | 25 multi-face | DeepEnrollmentIncomplete; re-enrollment recommended |
+| 27 | talha / cs-icg-203 | 25 | 25 / 0 | 19 | 11 | 6 no-face, 4 multi-face, 4 mismatch | DeepEnrollmentIncomplete; re-enrollment recommended |
+| 28 | ikram / icg 303 | 25 | 25 / 0 | 24 | 18 | 1 no-face, 1 multi-face, 5 mismatch | DeepEnrollmentIncomplete; additional valid enrollment required |
+| 29 | asher ahmed / icg 193 | 25 | 25 / 0 | 25 | 20 | 5 detector mismatches | Ready for deep calibration only |
+
+The four students ready only for later deep calibration are #18, #19, #24, and #29. This status does not enable matching or attendance. Students #1, #3, #22, #23, #25, #26, #27, and #28 require additional valid enrollment/re-enrollment; #6, #9, and #14 require source restoration or re-enrollment.
+
+### Failed Image Categories
+
+- `NoFaceDetected` (79): the mandatory Haar layer found no usable face, so InsightFace was not allowed to supply an alternative.
+- `MultipleFacesDetected` (43): the Haar layer found more than one face; no largest-face selection was permitted. All 25 Student #26 frames are in this category.
+- `FaceDetectionMismatch` (14): Haar found one face but InsightFace did not agree with exactly one; processing failed closed.
+- `MissingFile` (75): the referenced image did not exist. All active links for Students #6, #9, and #14 are in this category.
+- `UnreadableImage` and `EmbeddingError` (0 each): no live stored image reached these failure states.
+
+No failure category was weakened or converted from the legacy 256-dimensional descriptor. Deep embeddings always originate from actual valid image bytes.
+
+### Idempotency Test
+
+The second production `--apply` found all 163 successful keys already present, created **zero** new rows, and left the total at 163. Rejected images were safely reevaluated, producing the same 211 failures. The isolated verifier also attempted a direct duplicate insert and confirmed that the database unique constraint rejects it.
+
+### Legacy Preservation Verification
+
+- Active `opencv_basic_v1` count: `295` before and `295` after.
+- Total FaceTemplate count: `4,700` before and `4,700` after.
+- Active FaceTemplate count: `374` before and `374` after.
+- The complete FaceTemplate digest remains `753D28011B0F0241818D3734C56C36A648DC7F0D7B3218F5FECC2AAE5A0BE417`.
+- No `FaceTemplate.encodingData`, `encodingVersion`, path, status, active flag, or timestamp changed.
+- Legacy candidate loading remains explicitly filtered to `opencv_basic_v1`; the new table is not referenced by the legacy matcher.
+
+### Database / Storage Verification
+
+- Post-migration database SHA-256: `9B36532268D28BA1FFFDBC5D43AD1D04C4FC0D2E216FC53410FC8810A2D66DF1`.
+- Post-migration database size: `4,292,608` bytes. The expected increase is the additive schema, indexes, and 163 JSON embeddings.
+- Attendance, Student, ClassRoom, Department, and FaceTemplate digests all exactly match the pre-migration values.
+- Attendance remains `21` rows; students remain `21`; FaceTemplate remains `4,700` rows.
+- Storage remains `15,541` files and `26,912,737` bytes with the same latest UTC timestamp.
+- The full storage-tree digest remains `96F9FAEAFC198476F9BD4F019C797E06149C40761514DA93EA2EFC33078A75A5`, proving original image paths and bytes were preserved.
+- All 163 deep rows have unique template/version keys, dimension 512, model `buffalo_l`, valid 64-character source hashes, and normalized vectors.
+
+### Automated Verification
+
+- Dedicated `app.verify_phase10_7b`: PASS. Its destructive cases use a disposable SQLite database and storage directory.
+- Verified no-write/no-schema dry run, all seven migration classifications, 512-dimensional normalized storage, legacy preservation, image preservation, apply behavior, per-image failure isolation, second-apply idempotency, unique-constraint enforcement, student eligibility counting, unchanged attendance, active safety hold, and inactive deep attendance matching.
+- Unified isolated final verification: PASS for all 16 sequential suites: Phase 2, Phase 3, Phase 4, Phase 6A, Phase 6B, Phase 7A, Phase 7B, Phase 7C, Phase 8B, Phase 8C, Phase 10, Phase 10.4, Phase 10.6C, Phase 10.6B, Phase 10.7A, and Phase 10.7B.
+- The specifically required Phase 10.7A, Phase 10.6C, Phase 7B, Phase 7C, and Phase 8C verifiers all passed within the sequential isolated run.
+- Post-migration `pip check`: PASS - no broken requirements.
+- `git diff --check`: PASS.
+- Frontend code was not modified, so conditional frontend verification was not required.
+- Non-blocking warnings: InsightFace/scikit-image reports the known `estimate` deprecation warning, and an existing legacy matcher query reports SQLAlchemy subquery coercion.
+
+### Attendance State
+
+`IDENTITY_MATCHING_SAFETY_HOLD` remains `True`. Deep recognition remains reported as available but `activeForAttendance = false`. No deep matcher, threshold, identity margin, eligibility hook, liveness-to-deep flow, or attendance persistence path was introduced. The attendance count remains exactly 21.
+
+### Remaining Work
+
+- Deep matching threshold calibration has not started.
+- Deep identity-margin calibration has not started.
+- Webcam deep-identity testing has not started.
+- Deep recognition is not active for attendance.
+- The incomplete and missing-source student groups require explicit restoration/additional enrollment decisions in a later approved phase.
+
+### Safety Confirmations
+
+- All `opencv_basic_v1` rows and encoding data are preserved.
+- Original enrollment images, paths, file counts, bytes, timestamps, and the full storage digest are preserved.
+- All attendance history is preserved and no attendance was created or deleted.
+- Students, classes, and departments are unchanged.
+- Phase 10.6C exact-one-face and continuity safeguards are preserved.
+- Liveness code and parameters are unchanged.
+- `FACE_MATCH_THRESHOLD` remains `0.75` and was not reused for ArcFace.
+- `MIN_IDENTITY_MARGIN` remains `0.05` and was not reused for ArcFace.
+- Normal attendance remains disabled by the safety hold.
+- No threshold, margin, identity comparison, webcam acceptance decision, or deep matching activation was performed.
+- No source restoration, automatic re-enrollment, deletion, reset, or reseed was performed.
+- Phase 10.7C was not started.
+- Phase 10.8 was not started.
+
+### Final Phase 10.7B Status
+
+**PASS** - 163 valid enrollment images were migrated into an additive, versioned, idempotent `arcface_v1` table. All rejected/missing images failed closed, legacy rows and source images remained byte-for-byte preserved, the attendance safety hold remains active, and all 16 isolated regression suites passed. Deep matching and calibration remain intentionally unstarted.

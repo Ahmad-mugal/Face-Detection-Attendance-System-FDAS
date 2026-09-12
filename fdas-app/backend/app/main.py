@@ -11,6 +11,7 @@ from app.routers.attendance_time_windows import router as attendance_time_window
 from app.routers.classes import router as classes_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.departments import router as departments_router
+from app.routers.deep_face import router as deep_face_router
 from app.routers.face_enrollment import router as face_enrollment_router
 from app.routers.face_matching import router as face_matching_router
 from app.routers.foundation import router as foundation_router
@@ -36,6 +37,7 @@ app.include_router(foundation_router)
 app.include_router(auth_router)
 app.include_router(admin_users_router)
 app.include_router(departments_router)
+app.include_router(deep_face_router)
 app.include_router(classes_router)
 app.include_router(students_router)
 app.include_router(attendance_time_windows_router)

@@ -56,6 +56,8 @@ VERIFIERS: tuple[VerifierSpec, ...] = (
     VerifierSpec("Phase 10.4 Registration Validation", "app.verify_phase10_4"),
     VerifierSpec("Phase 10.6C Single-Face Guard", "app.verify_phase10_6c"),
     VerifierSpec("Phase 10.6B Identity Integrity", "app.verify_phase10_6b"),
+    VerifierSpec("Phase 10.7A Deep Recognition Foundation", "app.verify_phase10_7a", timeout_seconds=1200),
+    VerifierSpec("Phase 10.7B Deep Embedding Migration", "app.verify_phase10_7b"),
 )
 
 
@@ -97,6 +99,15 @@ def prepare_isolated_backend(temp_root: Path) -> Path:
     if gitignore_source.is_file():
         shutil.copy2(gitignore_source, isolated_backend / ".gitignore")
     (isolated_backend / "storage").mkdir()
+    source_enrollment_root = SOURCE_BACKEND_DIR / "storage" / "face_enrollments"
+    isolated_enrollment_root = isolated_backend / "storage" / "face_enrollments"
+    for student_id in ("19", "22", "26", "27", "28", "29"):
+        source_student_directory = source_enrollment_root / student_id
+        if source_student_directory.is_dir():
+            shutil.copytree(
+                source_student_directory,
+                isolated_enrollment_root / student_id,
+            )
     return isolated_backend
 
 
@@ -230,6 +241,9 @@ def main() -> int:
     environment = os.environ.copy()
     environment[SKIP_PRIOR_ENV] = "1"
     environment["PYTHONUNBUFFERED"] = "1"
+    environment["FDAS_DEEP_FACE_MODEL_DIR"] = str(
+        SOURCE_BACKEND_DIR / "models" / "insightface" / "buffalo_l"
+    )
 
     try:
         with tempfile.TemporaryDirectory(

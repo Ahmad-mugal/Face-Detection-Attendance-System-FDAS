@@ -4,4 +4,7 @@ __pycache__/
 *.py[cod]
 fdas_local.db
 storage/
+models/insightface/buffalo_l/
+models/insightface/buffalo_l.zip
 uvicorn*.log
+backups/

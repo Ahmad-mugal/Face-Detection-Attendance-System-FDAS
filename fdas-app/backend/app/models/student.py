@@ -26,4 +26,5 @@ class Student(Base):
     department = relationship("Department", back_populates="students")
     classroom = relationship("ClassRoom", back_populates="students")
     faceTemplates = relationship("FaceTemplate", back_populates="student")
+    faceTemplateEmbeddings = relationship("FaceTemplateEmbedding", back_populates="student")
     attendanceRecords = relationship("AttendanceRecord", back_populates="student")

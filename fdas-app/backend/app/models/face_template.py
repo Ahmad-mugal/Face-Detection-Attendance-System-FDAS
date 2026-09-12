@@ -25,3 +25,4 @@ class FaceTemplate(Base):
     updatedAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, onupdate=utc_now_naive, nullable=False)
 
     student = relationship("Student", back_populates="faceTemplates")
+    deepEmbeddings = relationship("FaceTemplateEmbedding", back_populates="faceTemplate")
