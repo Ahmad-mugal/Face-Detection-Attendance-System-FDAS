@@ -569,7 +569,7 @@ def match_deep_face_query_burst_for_attendance(
     if not candidates:
         return _attendance_failure(
             "DeepEnrollmentIncomplete",
-            "No active student in this department has the required deep enrollment gallery.",
+            "Face registration is incomplete. Please contact the administrator.",
             thresholdUsed=threshold,
             requiredMargin=required_margin,
             queryCount=query_count,
@@ -585,7 +585,7 @@ def match_deep_face_query_burst_for_attendance(
     if len(query_tops) != DEEP_QUERY_BURST_COUNT:
         return _attendance_failure(
             "DeepEnrollmentIncomplete",
-            "The recognition gallery did not yield a complete query ranking.",
+            "Face registration is incomplete. Please contact the administrator.",
             thresholdUsed=threshold,
             requiredMargin=required_margin,
             queryCount=query_count,
@@ -660,7 +660,7 @@ def match_deep_face_query_burst_for_attendance(
     if not top_above_threshold:
         return _attendance_failure(
             "MatchBelowThreshold",
-            "The median deep identity score is below the preliminary threshold.",
+            "Face could not be verified under the production deep-recognition policy.",
             thresholdUsed=threshold,
             requiredMargin=required_margin,
             **common,
@@ -732,7 +732,7 @@ def match_deep_face_bytes_for_attendance(
     if not candidates:
         return _attendance_failure(
             "DeepEnrollmentIncomplete",
-            "No active student in this department has the required deep enrollment gallery.",
+            "Face registration is incomplete. Please contact the administrator.",
         )
 
     classified = classify_deep_embedding(encoding.embedding, candidates)

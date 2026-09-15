@@ -4567,3 +4567,131 @@ The decision is **KEEP SAFETY HOLD**. Normal attendance remains disabled, produc
 ### Current Status
 
 **PARTIAL / KEEP SAFETY HOLD - the controlled implementation and safety gates passed, liveness passed 10/10 attempts, and both completed ArcFace decisions correctly selected #22 with 3-of-3 consensus and no new attendance; however, only 5/10 cycles were collected and post-liveness blur rejection limited overall cycle success to 40%. Phase 10.9B does not recommend attendance enablement, and no later phase has started.**
+
+### Phase 10.9 Final Status
+
+**PASS WITH DOCUMENTED LIMITATIONS.** Testing stopped after the user approved the collected evidence as sufficient for the final FYP demonstration. The retained evidence contains 5 Phase 10.9B cycles and 10 total attempts, with liveness passing 10/10 attempts, two successful ArcFace decisions, zero wrong identities, and zero false accepts. Both completed decisions selected Student #22 with 3-of-3 consensus. The remaining failures were mainly safe blur/quality rejections.
+
+The controlled `0.80/0.10` policy was **not** adopted. Production remains `0.85/0.07`. Live validation remains centered primarily on Student #22, and equivalent real-webcam validation across more distinct people remains a documented limitation rather than a reason to fabricate or prolong unavailable-person testing.
+
+## Phase 10.10 — Final Deep Attendance Activation & Demo Hardening
+
+### Goal
+
+Finalize the safe deep-recognition attendance path for the FYP demonstration, activate it through the ordinary backend startup command, preserve every Phase 10.6C single-face and continuity guard, remove controlled-test UX from normal operation, and retain fail-closed behavior for every rejected recognition, liveness, quality, eligibility, or duplicate case.
+
+### Final Recognition Policy
+
+The final provider is InsightFace `buffalo_l` using normalized ArcFace embeddings stored as `arcface_v1`, with ONNX Runtime CPU execution. Every attendance decision uses three fresh, centered post-liveness query frames. At least 2-of-3 queries must select the same top identity. That identity must then meet the production score threshold `0.85` and top-versus-second distinct-identity margin `0.07`.
+
+The Phase 10.9 controlled `0.80/0.10` rule was not adopted. The `opencv_basic_v1` matcher and templates remain preserved for historical compatibility, but no automatic attendance path can fall back to that matcher. Only active, department-eligible, deep-ready candidates enter the final recognition gallery; inactive Student #19 remains excluded.
+
+### Final Liveness Policy
+
+The final challenge is `MOVE_CLOSER` only. It keeps area-growth threshold `0.12`, two centered baseline frames, ten movement frames, 600 ms between the GO instruction and the first movement capture, 300 ms frame spacing, and at least two consecutive movement frames at or above the growth threshold. Stationary and unchanged/static-frame sequences fail.
+
+Exactly one face and face continuity are required throughout the attempt. No-face, multiple-face, disappearance, subject-switch, or continuity failure cancels the attempt before recognition or attendance. Haar/SCRFD reconciliation remains active so patterned-background Haar false positives cannot silently replace the deep detector's single-face decision.
+
+### Query Quality Policy
+
+All three fresh recognition queries must pass the existing face-area, blur, brightness, edge-clearance, exact-one-deep-face, and centered-capture checks. The blur minimum remains `50`. A failed query quality gate produces no identity decision and no attendance row; the UI asks the user to hold still, improve lighting, or center their face and safely retry. No quality threshold was weakened for activation.
+
+### Deep-Ready Student Coverage
+
+The read-only `app.report_phase10_10_readiness` report parsed the current embedding records and produced the following final coverage. `Valid embeddings` counts usable `arcface_v1` embeddings, not merely database rows.
+
+| Student | Roll number | Department | Status | Valid embeddings | Final coverage |
+| --- | --- | --- | --- | ---: | --- |
+| #1 Ayesha Khan | CS-2026-001 | CS | Active | 0 | Incomplete |
+| #2 Bilal Ahmed | CS-2026-002 | CS | Active | 0 | Incomplete |
+| #3 Sara Malik | IT-2026-001 | IT | Active | 0 | Incomplete |
+| #6 Phase Seven B Encoded Student | P7B-ENCODED-001 | CS | Active | 0 | Incomplete |
+| #9 Phase Seven C Mark Student | P7C-MARK-001 | CS | Active | 0 | Incomplete |
+| #12 Phase Eight B CS Student | P8B-CS-001 | CS | Active | 0 | Incomplete |
+| #13 Phase Eight B IT Student | P8B-IT-001 | IT | Active | 0 | Incomplete |
+| #14 Phase Eight C Live Student | P8C-LIVE-001 | CS | Active | 0 | Incomplete |
+| #17 MATEEN | roll802 | IT | Active | 0 | Incomplete |
+| #18 asher | roll235 | IT | Active | 21 | Ready |
+| #19 Ahmad Mughal | CS-2022-58 | CS | Inactive | 23 | Excluded |
+| #20 Phase Four Updated Student | P4-ADMIN-001 | CS | Active | 0 | Incomplete |
+| #21 Phase Four Operator Student | P4-OP-CS-001 | CS | Active | 0 | Incomplete |
+| #22 Ahmad Mughal | cs-2026-789 | CS | Active | 22 | Ready |
+| #23 Nosherwan | cs-2026-002 | CS | Active | 19 | Incomplete |
+| #24 Mani | cs-2025-55 | CS | Active | 23 | Ready |
+| #25 BIlal | cs-2025 | CS | Active | 14 | Incomplete |
+| #26 Mateen | cs-2024-888 | CS | Active | 0 | Incomplete |
+| #27 talha | cs-icg-203 | CS | Active | 11 | Incomplete |
+| #28 ikram | icg303 | CS | Active | 18 | Incomplete |
+| #29 asher ahmed | icg193 | CS | Active | 20 | Ready |
+
+Final totals are **4 deep-ready**, **16 active but deep-incomplete**, and **1 inactive/excluded** student. Deep-incomplete students fail closed and require deep enrollment recovery before they can use automatic attendance; their legacy templates remain intact.
+
+### Normal Attendance Activation
+
+`DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE = True` and `IDENTITY_MATCHING_SAFETY_HOLD = False` are now the final verified configuration. The ordinary command below starts normal attendance without the Phase 10.9 controlled flag or launcher:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+The final sequence is: exact single face, continuity-preserved MOVE_CLOSER liveness, three quality-gated ArcFace queries, 2-of-3 identity consensus, production `0.85/0.07` checks, eligibility, duplicate prevention, then exactly one attendance record. Failure at any earlier stage creates no attendance.
+
+### Safety-Hold Transition
+
+Activation was staged and fail-safe. Phase 10.10 first ran in a preflight mode while the hold was still active. An initial verifier fixture exposed that its mocked success path had not patched the service-level hold; the fixture was corrected and the full preflight passed before activation.
+
+After activation, the first unified run stopped on one stale historical Phase 10.7D assertion. The safety hold was immediately restored, the diagnostic-only expectation was corrected without changing recognition behavior, and preflight passed again. The next unified run passed all 23 suites. During isolated browser smoke, one new navigation assertion initially failed because the script remained on the attendance route; the hold was restored, the script was corrected to return to the dashboard, and the complete smoke rerun passed. Only after all required gates passed was the final active/released configuration reapplied and reverified.
+
+### Final UI Cleanup
+
+Normal Admin and Operator attendance pages show `Start Scanning`; neither shows the controlled #22 action, Phase 10.9 controlled banner, nor the experimental `0.80/0.10` policy. Admin retains diagnostic information appropriate to administration. Operator pages hide developer diagnostics and production-policy internals while keeping clear operational guidance. Historical controlled launcher/code remains only as a diagnostic artifact and is not required by ordinary startup.
+
+### Friendly Failure Messages
+
+The live UI now maps backend safety outcomes to concise operator messages, including:
+
+- `No face detected. Please stand in front of the camera.`
+- `Multiple faces detected. Please allow only one student in front of the camera for attendance.`
+- `Please remain the same person and stay visible throughout the scan.`
+- `Liveness check failed. Please follow the movement instruction and try again.`
+- `Image is blurry. Hold still and look at the camera.`
+- `Face could not be verified. Please try again.`
+- `Identity could not be confirmed safely. Please try again.`
+- `Attendance already marked for this session.`
+
+Technical measurements remain available to Admin diagnostics but are not exposed as the primary operator-facing result.
+
+### Verification
+
+- `app.verify_phase10_10`: PASS, all 22 reported checks, including final activation state, released hold, `0.85/0.07`, 2-of-3 consensus, single-face and continuity enforcement, MOVE_CLOSER/static rejection, quality rejection, candidate/department/inactive filtering, exactly-one-row success, duplicate prevention, and no legacy fallback.
+- Focused regressions `app.verify_phase10_9b`, `app.verify_phase10_9`, and `app.verify_phase10_8`: PASS under the final configuration while retaining their historical controlled-flow isolation.
+- Full isolated `app.run_final_verification`: PASS, all 23 suites, using disposable database/storage on port 8021.
+- Frontend `npm.cmd run lint`: PASS.
+- Frontend `npm.cmd run build`: PASS; only the existing plugin-timing and JavaScript chunk-size warnings remain.
+- Isolated fake-camera `node scripts/phase5-smoke.mjs`: PASS on ports 8022/5178, `page_errors=0`. Eight console errors were expected from intentional conflict, unavailable-backend, and invalid-credential cases.
+- Existing non-blocking SQLAlchemy subquery-coercion and InsightFace/scikit-image deprecation warnings remain.
+
+### Runtime Smoke
+
+The old controlled port-8000 process tree was verified and stopped. The final backend was started using the ordinary documented Uvicorn command, with project-interpreter PID 7632 and host-Python worker PID 13028; no controlled launcher appears in the ancestry. `/health` returned `status = ok` and `database = connected`.
+
+The live capability endpoint reported InsightFace `buffalo_l`, CPU provider, `arcface_v1`, model ready, production threshold/margin `0.85/0.07`, three-query burst, consensus minimum `2`, `activeForAttendance = true`, `attendanceSafetyHold = false`, and `controlledAttendanceEnabled = false`. Real-browser runtime checks loaded session #453 and confirmed normal `Start Scanning` for both Admin and Operator, no controlled UI, Admin-only diagnostics, and an enabled scan button after camera readiness. No scan was started and no attendance was created during runtime smoke.
+
+### Data Preservation
+
+The production inventory was identical before and after Phase 10.10 verification: 21 students, 4,708 legacy face templates, 171 deep embeddings, 23 attendance records, and 15,549 storage files totaling 27,447,638 bytes. `fdas_local.db` remained 4,395,008 bytes; its final SHA-256 was `87690c304a2705f488baf8e05d5285a75a52c4eead7b0b0adcc2d15639aa08ed`.
+
+All mutation-capable verifiers and browser tests used disposable copies. No database reset/reseed, dependency reinstall, template deletion, embedding deletion, attendance deletion, or production storage rewrite occurred. `FACE_MATCH_THRESHOLD` remains `0.75`; Phase 10.6C safeguards and the current liveness implementation remain preserved.
+
+### Remaining Limitations
+
+- Live validation is mainly centered on Student #22.
+- Students #27/#28 and other students lack equivalent real-webcam validation.
+- Some active students are deep-incomplete and cannot use automatic attendance until their deep enrollment is completed.
+- Blur can trigger safe retries under the unchanged quality gate.
+- Lightweight MOVE_CLOSER liveness is not production-grade presentation-attack detection (PAD).
+- Advanced video-replay and depth-based anti-spoofing remain future work.
+
+### Final Status
+
+**PASS - final InsightFace/ArcFace attendance is active through ordinary startup with production `0.85/0.07`, 2-of-3 fresh-query consensus, MOVE_CLOSER liveness, quality and Phase 10.6C safeguards, no legacy fallback, and a released safety hold after all required verification passed. Phase 10.10 is complete with the documented limitations above. No later phase has started.**

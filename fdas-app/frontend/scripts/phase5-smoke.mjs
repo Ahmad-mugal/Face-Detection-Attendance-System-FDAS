@@ -177,12 +177,18 @@ await check('single-face attendance guard is visible', async () => {
   await page.goto(`${baseUrl}/admin/attendance/live`, { waitUntil: 'domcontentloaded' })
   await page.getByText(/every required frame must contain exactly one continuous face/i).waitFor()
   await page.getByText(/compares maximum, top-3 mean, top-5 mean, and top-5 median scores/i).waitFor()
-  await page.getByRole('button', { name: /attendance paused/i }).waitFor()
+  await page.getByRole('button', { name: 'Start Scanning', exact: true }).waitFor()
   await page.getByText(/three fresh quality-gated arcface queries/i).waitFor()
-  await page.getByText(/at most two complete fresh retries/i).waitFor()
+  await page.getByText(/blurry, poorly lit, off-center, or uncertain captures are rejected/i).waitFor()
   await page.getByText(/never fall back to the legacy opencv matcher/i).waitFor()
   await page.getByText(/move_closer-only basic challenge-response/i).waitFor()
   await page.getByText(/after go, move closer and hold until capture finishes/i).waitFor()
+  if (await page.getByText(/phase 10\.9b controlled policy enabled/i).count()) {
+    throw new Error('Controlled Phase 10.9B policy remained visible after final activation.')
+  }
+  if (await page.getByRole('button', { name: /start controlled #22/i }).count()) {
+    throw new Error('Controlled Student #22 action remained visible after final activation.')
+  }
 })
 
 if (process.env.FDAS_PHASE10_9_CONTROLLED_UI === '1') {
@@ -236,6 +242,24 @@ await check('operator login works', async () => {
 await check('operator dashboard opens', async () => {
   await page.getByRole('heading', { name: /department dashboard/i }).waitFor()
   await page.screenshot({ path: path.join(outputDir, '04-operator-dashboard.png'), fullPage: true })
+})
+
+await check('operator sees final normal attendance without development diagnostics', async () => {
+  await page.goto(`${baseUrl}/user/attendance`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('heading', { name: /attendance marking/i }).waitFor()
+  await page.getByText(/active session #\d+ loaded/i).waitFor({ timeout: 15000 })
+  await page.getByRole('button', { name: 'Start Scanning', exact: true }).waitFor()
+  if (await page.getByText(/identity integrity diagnostic/i).count()) {
+    throw new Error('Admin-only identity diagnostic was visible to an ordinary operator.')
+  }
+  if (await page.getByText(/admin policy/i).count()) {
+    throw new Error('Admin-only threshold details were visible to an ordinary operator.')
+  }
+  if (await page.getByRole('button', { name: /start controlled #22/i }).count()) {
+    throw new Error('Controlled Student #22 action was visible to an ordinary operator.')
+  }
+  await page.goto(`${baseUrl}/user/dashboard`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('heading', { name: /department dashboard/i }).waitFor()
 })
 
 await check('operator dashboard backend unavailable shows friendly error', async () => {

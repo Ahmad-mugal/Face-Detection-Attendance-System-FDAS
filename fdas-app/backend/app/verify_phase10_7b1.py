@@ -14,7 +14,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app import models  # noqa: F401
-from app.config import DEEP_ENROLLMENT_MIN_EMBEDDINGS, IDENTITY_MATCHING_SAFETY_HOLD
+from app.config import (
+    DEEP_ENROLLMENT_MIN_EMBEDDINGS,
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
+    IDENTITY_MATCHING_SAFETY_HOLD,
+)
 from app.database import Base
 from app.models.attendance_record import AttendanceRecord
 from app.models.classroom import ClassRoom
@@ -309,9 +313,12 @@ def main() -> None:
                 ),
                 "rejected_attempts_created_no_extra_rows": len(all_templates) == 27 and len(all_embeddings) == 20,
                 "attendance_not_created": attendance_before == attendance_after == 0,
-                "safety_hold_active": IDENTITY_MATCHING_SAFETY_HOLD is True,
+                "final_deep_activation_released_hold": (
+                    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is True
+                    and IDENTITY_MATCHING_SAFETY_HOLD is False
+                ),
                 "minimum_remains_20": DEEP_ENROLLMENT_MIN_EMBEDDINGS == 20,
-                "deep_matching_inactive": deep_face_capability(initialize=False)["activeForAttendance"] is False,
+                "deep_matching_active": deep_face_capability(initialize=False)["activeForAttendance"] is True,
                 "storage_only_added_expected_recovery_files": images_before != digest_files(storage_root) and len(recovery_files) == 2,
             }
 

@@ -24,6 +24,7 @@ from app.config import (
     DEEP_QUERY_BURST_COUNT,
     DEEP_QUERY_CONSENSUS_MIN_COUNT,
     DEEP_QUERY_MAX_RETRIES,
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
     FACE_MATCH_THRESHOLD,
     IDENTITY_MATCHING_SAFETY_HOLD,
     LIVENESS_ALLOWED_CHALLENGES,
@@ -300,6 +301,10 @@ def main() -> None:
             queries = [MemoryUpload(frame, index + 20) for index in range(3)]
             multiple = live_result(passed=False, status_value="MultipleFacesDetected", frame=frame)
             with patch("app.routers.attendance_marking.DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED", True), patch(
+                "app.routers.attendance_marking.DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE", False
+            ), patch(
+                "app.routers.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", True
+            ), patch(
                 "app.routers.attendance_marking.verify_liveness", return_value=multiple
             ), patch(
                 "app.routers.attendance_marking.match_deep_face_query_burst_for_attendance"
@@ -311,6 +316,10 @@ def main() -> None:
             queries = [MemoryUpload(frame, index + 20) for index in range(3)]
             passed_live = live_result(passed=True, status_value="LivenessPassed", frame=frame)
             with patch("app.routers.attendance_marking.DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED", True), patch(
+                "app.routers.attendance_marking.DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE", False
+            ), patch(
+                "app.routers.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", True
+            ), patch(
                 "app.routers.attendance_marking.verify_liveness", return_value=passed_live
             ), patch(
                 "app.routers.attendance_marking.match_deep_face_query_burst_for_attendance", return_value=accepted_match(24)
@@ -342,7 +351,10 @@ def main() -> None:
         "retry_limit_is_two_fresh_attempts": DEEP_QUERY_MAX_RETRIES == 2,
         "consensus_policy_is_two_of_three": DEEP_QUERY_BURST_COUNT == 3 and DEEP_QUERY_CONSENSUS_MIN_COUNT == 2,
         "legacy_threshold_unchanged": FACE_MATCH_THRESHOLD == 0.75,
-        "identity_safety_hold_remains_true": IDENTITY_MATCHING_SAFETY_HOLD is True,
+        "final_deep_activation_released_safety_hold": (
+            DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is True
+            and IDENTITY_MATCHING_SAFETY_HOLD is False
+        ),
         "controlled_test_default_remains_fail_closed": DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED is False,
         "liveness_thresholds_not_lowered": LIVENESS_MIN_CENTER_SHIFT_RATIO == 0.08 and LIVENESS_MIN_AREA_CHANGE_RATIO == 0.12,
         "closer_only_challenge_policy": LIVENESS_ALLOWED_CHALLENGES == ["MOVE_CLOSER"] and lateral_rejected,

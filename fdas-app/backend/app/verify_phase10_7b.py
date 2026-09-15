@@ -17,6 +17,7 @@ from app.config import (
     DEEP_FACE_EMBEDDING_DIMENSION,
     DEEP_FACE_ENCODING_VERSION,
     DEEP_FACE_MODEL_NAME,
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
     IDENTITY_MATCHING_SAFETY_HOLD,
 )
 from app.database import Base
@@ -291,10 +292,13 @@ def main() -> None:
             "attendance_untouched": attendance_before == attendance_after_apply == 0,
             "encoding_version_is_arcface_v1": DEEP_FACE_ENCODING_VERSION == "arcface_v1",
             "configured_minimum_is_20": migration.DEEP_ENROLLMENT_MIN_EMBEDDINGS == 20,
-            "attendance_hold_active": IDENTITY_MATCHING_SAFETY_HOLD is True,
-            "deep_recognition_inactive_for_attendance": (
-                capability["activeForAttendance"] is False
-                and capability["attendanceSafetyHold"] is True
+            "final_deep_activation_released_hold": (
+                DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is True
+                and IDENTITY_MATCHING_SAFETY_HOLD is False
+            ),
+            "deep_recognition_active_for_attendance": (
+                capability["activeForAttendance"] is True
+                and capability["attendanceSafetyHold"] is False
             ),
         }
         results["phase10_7b_passed"] = all(bool(value) for value in results.values())

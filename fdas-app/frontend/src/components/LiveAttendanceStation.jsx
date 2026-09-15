@@ -68,26 +68,38 @@ function buildResultMessage(result) {
   if (result.status === 'DuplicateAttendance') {
     return {
       tone: 'info',
-      text: `Attendance already marked for ${result.studentName || 'this student'} in this session.`,
+      text: 'Attendance already marked for this session.',
     }
   }
   if (result.status === 'MatchBelowThreshold') {
     return {
       tone: 'warning',
-      text: 'Face detected but match confidence is below threshold.',
+      text: 'Face could not be verified. Please try again.',
     }
   }
   if (result.status === 'AmbiguousMatch') {
     return {
       tone: 'warning',
-      text: 'Identity could not be determined confidently. Please try again.',
+      text: 'Identity could not be confirmed safely. Please try again.',
     }
   }
   if (result.status === 'QueryConsensusFailed') {
-    return { tone: 'warning', text: 'The three fresh images did not agree on one identity. Re-center and retry.' }
+    return { tone: 'warning', text: 'Identity could not be confirmed safely. Please try again.' }
   }
   if (result.status === 'PoorFaceQuality') {
-    return { tone: 'warning', text: 'Face image quality was insufficient. Hold still, face forward, and use even lighting.' }
+    const qualityReasons = (result.queryQuality || [])
+      .filter(query => query?.passed === false)
+      .flatMap(query => String(query.reason || '').split(','))
+    if (qualityReasons.includes('blurred')) {
+      return { tone: 'warning', text: 'Image is blurry. Hold still and look at the camera.' }
+    }
+    if (qualityReasons.some(reason => ['too_dark', 'too_bright'].includes(reason))) {
+      return { tone: 'warning', text: 'Lighting is too dark or too bright. Adjust your position.' }
+    }
+    if (qualityReasons.some(reason => ['face_too_small', 'face_near_edge'].includes(reason))) {
+      return { tone: 'warning', text: 'Keep your face centered in the camera.' }
+    }
+    return { tone: 'warning', text: 'Face image quality was insufficient. Hold still and look at the camera.' }
   }
   if (result.status === 'InvalidQueryBurst') {
     return { tone: 'error', text: 'The required three-image recognition burst was incomplete. Attendance was not marked.' }
@@ -101,8 +113,8 @@ function buildResultMessage(result) {
   if (result.status === 'DeepRecognitionUnavailable') {
     return { tone: 'error', text: 'Deep recognition is unavailable. Attendance was not marked and no legacy fallback was used.' }
   }
-  if (result.status === 'DeepEnrollmentIncomplete') {
-    return { tone: 'warning', text: 'No eligible deep-ready student gallery is available. Attendance was not marked.' }
+  if (result.status === 'DeepEnrollmentIncomplete' || result.status === 'DeepIncomplete') {
+    return { tone: 'warning', text: 'Face registration is incomplete. Please contact the administrator.' }
   }
   if (result.status === 'ControlledIdentityMismatch') {
     return { tone: 'warning', text: 'The face did not match the authorized controlled-test student. Attendance was not marked.' }
@@ -110,25 +122,25 @@ function buildResultMessage(result) {
   if (result.status === 'NoFaceDetected') {
     return {
       tone: 'warning',
-      text: 'No face detected. Please face the camera clearly.',
+      text: 'No face detected. Please face the camera.',
     }
   }
   if (result.status === 'MultipleFacesDetected') {
     return {
       tone: 'warning',
-      text: 'Multiple faces detected. Please allow only one student in front of the camera for attendance.',
+      text: 'Only one person should be in front of the camera.',
     }
   }
   if (result.status === 'FaceContinuityLost') {
     return {
       tone: 'warning',
-      text: 'The active face changed or disappeared. This attendance attempt was cancelled.',
+      text: 'Face tracking was lost. Please try again.',
     }
   }
   if (result.status === 'LivenessFailed') {
     return {
       tone: 'warning',
-      text: 'Liveness failed. Please try again with your real face in front of the camera. Possible photo/screen spoof detected.',
+      text: 'Movement was not detected clearly. Move closer after GO and hold.',
     }
   }
   if (result.status === 'LivenessPassed') {
@@ -508,8 +520,8 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
 
       const challenge = chooseChallenge()
       setCurrentChallenge(challenge)
-      setLivenessInstruction('Get ready: remain centered until GO')
-      setMessage({ tone: 'info', text: 'Get ready: remain centered until GO.' })
+      setLivenessInstruction('Stay centered')
+      setMessage({ tone: 'info', text: 'Stay centered.' })
       await wait(LIVENESS_CENTER_HOLD_MS)
       if (!scanningRef.current) return
 
@@ -847,12 +859,6 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
 
       <div className="rounded-xl px-4 py-3 text-sm font-bold" style={messageStyle}>
         {message.text}
-        {lastResult?.recognitionConfidence !== undefined && (
-          <span className="ml-2 font-mono">
-            Confidence {formatConfidence(lastResult.recognitionConfidence)}
-            {lastResult.thresholdUsed !== undefined ? ` / Threshold ${formatConfidence(lastResult.thresholdUsed)}` : ''}
-          </span>
-        )}
       </div>
 
       {controlledAttendanceMode && (
@@ -894,7 +900,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         </div>
       )}
 
-      {lastResult?.livenessDiagnostics && (
+      {mode === 'admin' && lastResult?.livenessDiagnostics && (
         <div className="rounded-xl px-4 py-3 text-xs space-y-1 border font-mono" style={{ backgroundColor: '#fff', borderColor: '#f0dfd8', color: '#55433b' }}>
           <p className="font-sans font-black text-sm" style={{ color: '#4A2B0F' }}>Liveness Diagnostic Measurements</p>
           <p>
@@ -923,7 +929,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         </div>
       )}
 
-      {lastResult?.queryQuality?.length > 0 && (
+      {mode === 'admin' && lastResult?.queryQuality?.length > 0 && (
         <div className="rounded-xl px-4 py-3 text-xs space-y-1 border font-mono" style={{ backgroundColor: '#fff', borderColor: '#d4a017', color: '#55433b' }}>
           <p className="font-sans font-black text-sm" style={{ color: '#4A2B0F' }}>Recognition Query Quality & Consensus</p>
           <p>Valid queries {lastResult.validQueryCount}/{lastResult.queryCount} | Consensus #{lastResult.consensusStudentId ?? '-'} {lastResult.consensusCount}/{lastResult.queryCount}</p>
@@ -953,15 +959,16 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         <ul className="list-disc list-inside space-y-0.5" style={{ color: '#887369' }}>
           <li><strong style={{ color: '#4A2B0F' }}>Liveness Mode:</strong> MOVE_CLOSER-only basic challenge-response with sustained face-area growth; this is not production-grade presentation-attack detection.</li>
           <li><strong style={{ color: '#4A2B0F' }}>livenessStatus:</strong> Displays <code className="font-mono text-[11px]">Passed</code>, <code className="font-mono text-[11px]">Failed</code>, or <code className="font-mono text-[11px]">NotChecked</code> depending on endpoint and scan result.</li>
-          <li><strong style={{ color: '#4A2B0F' }}>Face Matching:</strong> After liveness, return to center for three fresh quality-gated ArcFace queries. The decision uses 2-of-3 identity consensus, median aggregation, threshold 0.85, and margin 0.07.</li>
-          <li><strong style={{ color: '#4A2B0F' }}>Retries:</strong> A controlled reliability cycle permits at most two complete fresh retries; no prior frame or embedding is reused.</li>
+          <li><strong style={{ color: '#4A2B0F' }}>Face Matching:</strong> After liveness, return to center for three fresh quality-gated ArcFace queries. At least two queries must agree before attendance can be marked.</li>
+          {mode === 'admin' && <li><strong style={{ color: '#4A2B0F' }}>Admin Policy:</strong> Production ArcFace matching uses threshold 0.85 and identity margin 0.07.</li>}
+          <li><strong style={{ color: '#4A2B0F' }}>Safe Retry:</strong> Blurry, poorly lit, off-center, or uncertain captures are rejected without marking attendance.</li>
           <li><strong style={{ color: '#4A2B0F' }}>Fail Closed:</strong> Deep-unavailable or deep-incomplete states never fall back to the legacy OpenCV matcher.</li>
           <li><strong style={{ color: '#4A2B0F' }}>Single-Face Guard:</strong> Every required frame must contain exactly one continuous face before liveness or recognition can run.</li>
           <li><strong style={{ color: '#4A2B0F' }}>Duplicate Prevention:</strong> Duplicate attendance is prevented for the active session and is not an error.</li>
         </ul>
       </div>
 
-      <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: '#fff', borderColor: '#93000a' }}>
+      {mode === 'admin' && <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: '#fff', borderColor: '#93000a' }}>
         <div>
           <p className="font-black text-base" style={{ color: '#93000a' }}>Identity Integrity Diagnostic — Attendance Disabled for This Check</p>
           <p className="text-xs mt-1" style={{ color: '#55433b' }}>
@@ -1066,7 +1073,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5 min-w-0">
         <div className="rounded-xl overflow-hidden border-2 fdas-card" style={{ borderColor: '#FFF0E6' }}>
@@ -1114,7 +1121,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
                 <div className="absolute bottom-5 left-5 right-5 rounded-xl p-3 text-center font-bold text-sm" style={{ backgroundColor: scanning ? 'rgba(6,95,70,0.9)' : 'rgba(196,83,58,0.9)', color: '#fff' }}>
                   {scanning
                     ? (livenessInstruction || `Liveness challenge: ${currentChallenge?.label || 'Get ready'}`)
-                    : (!attendanceScanningEnabled ? 'Identity safety hold active. Use the no-attendance diagnostic only.' : (controlledAttendanceSessionAllowed ? `Camera ready for controlled Student #${deepAttendancePolicy.controlledAttendanceStudentId} test.` : 'Camera ready. Start scanning to mark attendance.'))}
+                    : (!attendanceScanningEnabled ? 'Attendance scanning is currently unavailable.' : (controlledAttendanceSessionAllowed ? `Camera ready for controlled Student #${deepAttendancePolicy.controlledAttendanceStudentId} test.` : 'Camera ready. Start scanning to mark attendance.'))}
                 </div>
               </>
             )}

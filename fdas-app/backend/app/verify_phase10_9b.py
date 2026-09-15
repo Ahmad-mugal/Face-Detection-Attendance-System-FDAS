@@ -16,6 +16,7 @@ from app.config import (
     DEEP_MATCH_MIN_IDENTITY_MARGIN,
     DEEP_MATCH_THRESHOLD,
     DEEP_QUERY_CONSENSUS_MIN_COUNT,
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
     IDENTITY_MATCHING_SAFETY_HOLD,
     LIVENESS_ALLOWED_CHALLENGES,
     LIVENESS_FRAME_COUNT,
@@ -143,6 +144,10 @@ def main() -> None:
             }
             passed_liveness = live_result(passed=True, status_value="LivenessPassed", frame=frame)
             with patch("app.routers.attendance_marking.DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED", True), patch(
+                "app.routers.attendance_marking.DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE", False
+            ), patch(
+                "app.routers.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", True
+            ), patch(
                 "app.routers.attendance_marking.verify_liveness", return_value=passed_liveness
             ), patch(
                 "app.routers.attendance_marking.match_deep_face_query_burst_for_attendance",
@@ -159,6 +164,10 @@ def main() -> None:
 
             failed_liveness = live_result(passed=False, status_value="LivenessFailed", frame=frame)
             with patch("app.routers.attendance_marking.DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED", True), patch(
+                "app.routers.attendance_marking.DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE", False
+            ), patch(
+                "app.routers.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", True
+            ), patch(
                 "app.routers.attendance_marking.verify_liveness", return_value=failed_liveness
             ), patch("app.routers.attendance_marking.match_deep_face_query_burst_for_attendance") as skipped_matcher:
                 uploads = [MemoryUpload(frame, index + 80) for index in range(LIVENESS_FRAME_COUNT)]
@@ -181,7 +190,10 @@ def main() -> None:
         "legacy_fallback_never_used": legacy_matcher.call_count == 0,
         "consensus_minimum_unchanged": DEEP_QUERY_CONSENSUS_MIN_COUNT == 2,
         "closer_liveness_safety_unchanged": LIVENESS_ALLOWED_CHALLENGES == ["MOVE_CLOSER"] and LIVENESS_MIN_AREA_CHANGE_RATIO == 0.12,
-        "identity_safety_hold_remains_true": IDENTITY_MATCHING_SAFETY_HOLD is True,
+        "final_deep_activation_released_safety_hold": (
+            DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is True
+            and IDENTITY_MATCHING_SAFETY_HOLD is False
+        ),
     }
     checks["phase10_9b_passed"] = all(checks.values())
     for name, passed in checks.items():

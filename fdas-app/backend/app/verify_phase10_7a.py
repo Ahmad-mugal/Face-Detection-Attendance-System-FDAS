@@ -19,6 +19,7 @@ from app.config import (
     DEEP_FACE_EXECUTION_PROVIDER,
     DEEP_FACE_MODEL_DIRECTORY,
     DEEP_FACE_MODEL_NAME,
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
     FACE_MATCH_THRESHOLD,
     IDENTITY_MATCHING_SAFETY_HOLD,
     MIN_IDENTITY_MARGIN,
@@ -282,8 +283,8 @@ def main() -> None:
             info_code == 200
             and info_body.get("deepRecognitionAvailable") is True
             and info_body.get("deepRecognitionReady") is True
-            and info_body.get("activeForAttendance") is False
-            and info_body.get("attendanceSafetyHold") is True
+            and info_body.get("activeForAttendance") is True
+            and info_body.get("attendanceSafetyHold") is False
         ),
         "protected_dry_run_succeeds": (
             dry_run_code == 200
@@ -303,7 +304,10 @@ def main() -> None:
         "legacy_templates_preserved": legacy_before == legacy_after and legacy_after > 0,
         "no_persistent_deep_templates": deep_before == 0 and deep_after == 0,
         "legacy_policy_unchanged": FACE_MATCH_THRESHOLD == 0.75 and MIN_IDENTITY_MARGIN == 0.05,
-        "attendance_hold_active": IDENTITY_MATCHING_SAFETY_HOLD is True,
+        "final_deep_attendance_activation_visible": (
+            DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is True
+            and IDENTITY_MATCHING_SAFETY_HOLD is False
+        ),
         "legacy_processing_still_operates": process_image_bytes(blank_png()).status == "NoFaceDetected",
     }
     results["phase10_7a_passed"] = all(bool(value) for value in results.values())

@@ -115,13 +115,13 @@ This verifies:
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-For the explicitly approved Phase 10.9 local Admin/Student #22 reliability test, use the scoped launcher instead:
+The ordinary command above is the final Phase 10.10 startup method and does not require a controlled-test environment flag. The historical Phase 10.9 launcher remains only as a diagnostic artifact:
 
 ```powershell
 .\start_phase10_9_controlled.ps1
 ```
 
-The launcher sets `FDAS_DEEP_ATTENDANCE_CONTROLLED_TEST=true` only for its Uvicorn process. Ordinary startup remains fail-closed, normal/global attendance remains disabled, and `IDENTITY_MATCHING_SAFETY_HOLD` remains active.
+The historical launcher sets `FDAS_DEEP_ATTENDANCE_CONTROLLED_TEST=true` only for its Uvicorn process, but final normal attendance does not depend on it. Phase 10.10 uses the production ArcFace policy (`0.85` threshold, `0.07` identity margin, and 2-of-3 fresh-query consensus) through ordinary startup. The controlled `0.80/0.10` experiment is not the production policy.
 
 Health check:
 
@@ -652,8 +652,12 @@ Recommended backend regression sequence:
 Run the backend final regression from `fdas-app/backend`:
 
 ```powershell
+.\.venv\Scripts\python.exe -m app.verify_phase10_10
+.\.venv\Scripts\python.exe -m app.report_phase10_10_readiness
 .\.venv\Scripts\python.exe -m app.run_final_verification
 ```
+
+The Phase 10.10 verifier checks the final ArcFace-only attendance policy and all fail-closed attendance guards. The readiness report is read-only and lists every student with valid `arcface_v1` embedding coverage before summarizing ready, incomplete, and inactive/excluded counts.
 
 The runner uses the recovered local virtual environment, creates a temporary repo-shaped copy of the backend database with empty isolated storage, starts an isolated local Uvicorn process, and runs every backend verifier sequentially. It stops on the first required failure, returns a non-zero exit code, and removes the temporary database/storage after completion. The active `fdas_local.db` and `storage/` are not used for verifier mutations.
 

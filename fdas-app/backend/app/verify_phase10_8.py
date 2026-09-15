@@ -177,6 +177,8 @@ async def call_live(db, admin: User, session_id: int, frame: bytes, live: Livene
     query_uploads = [MemoryUpload(frame, index + 20) for index in range(3)]
     patches = [
         patch("app.routers.attendance_marking.DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED", True),
+        patch("app.routers.attendance_marking.DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE", False),
+        patch("app.routers.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", True),
         patch("app.routers.attendance_marking.verify_liveness", return_value=live),
         patch("app.routers.attendance_marking.match_face_bytes"),
     ]
@@ -194,7 +196,7 @@ async def call_live(db, admin: User, session_id: int, frame: bytes, live: Livene
             current_user=admin,
             db=db,
         )
-        legacy_mock = started[2]
+        legacy_mock = started[4]
         return response, legacy_mock.call_count
     finally:
         for item in reversed(patches):
@@ -365,6 +367,10 @@ def main() -> None:
                 (admin, other_session.sessionId, 22),
             ):
                 with patch("app.routers.attendance_marking.DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED", True), patch(
+                    "app.routers.attendance_marking.DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE", False
+                ), patch(
+                    "app.routers.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", True
+                ), patch(
                     "app.routers.attendance_marking.verify_liveness"
                 ) as rejected_liveness, patch(
                     "app.routers.attendance_marking.match_deep_face_query_burst_for_attendance"
@@ -404,6 +410,10 @@ def main() -> None:
 
             with patch.object(matching, "get_deep_face_service", return_value=ControlledDeepService()):
                 with patch("app.routers.attendance_marking.DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED", True), patch(
+                    "app.routers.attendance_marking.DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE", False
+                ), patch(
+                    "app.routers.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", True
+                ), patch(
                     "app.routers.attendance_marking.verify_liveness", return_value=passed_liveness
                 ), patch("app.routers.attendance_marking.match_face_bytes") as legacy_matcher:
                     uploads = [MemoryUpload(frame, index) for index in range(LIVENESS_FRAME_COUNT)]
@@ -421,7 +431,9 @@ def main() -> None:
             with patch("app.services.attendance_marking.validate_single_face_bytes", return_value={"ready": True, "status": "SingleFaceDetected", "message": "ready"}):
                 no_liveness_result = mark_attendance_by_face(db, admin, 1, frame)
 
-            with patch("app.routers.attendance_marking.verify_liveness", return_value=passed_liveness), patch(
+            with patch("app.routers.attendance_marking.DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE", False), patch(
+                "app.routers.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", True
+            ), patch("app.routers.attendance_marking.verify_liveness", return_value=passed_liveness), patch(
                 "app.routers.attendance_marking.match_deep_face_query_burst_for_attendance"
             ) as held_deep_matcher:
                 uploads = [MemoryUpload(frame, index) for index in range(LIVENESS_FRAME_COUNT)]
@@ -430,7 +442,10 @@ def main() -> None:
 
             result = {
                 "arcface_matcher_integrated_for_attendance": DEEP_RECOGNITION_INTEGRATED_FOR_ATTENDANCE is True,
-                "global_deep_attendance_remains_disabled": DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is False,
+                "global_deep_attendance_is_finally_enabled": (
+                    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is True
+                    and IDENTITY_MATCHING_SAFETY_HOLD is False
+                ),
                 "legacy_matcher_not_used_for_automatic_decision": no_legacy_calls,
                 "active_deep_ready_candidates_only": candidate_ids == {22, 24},
                 "inactive_19_excluded": 19 not in candidate_ids,
@@ -472,9 +487,8 @@ def main() -> None:
                 ),
                 "raw_embeddings_not_exposed": "embedding" not in json.dumps(created, default=str).lower(),
                 "legacy_data_preserved_for_rollback": legacy_before == legacy_after == 1,
-                "safety_hold_blocks_noncontrolled_requests": (
-                    IDENTITY_MATCHING_SAFETY_HOLD is True
-                    and held.get("status") == "AttendanceSafetyHold"
+                "historical_safety_hold_still_blocks_when_enabled": (
+                    held.get("status") == "AttendanceSafetyHold"
                     and held.get("attendanceMarked") is False
                     and held_deep_matcher.call_count == 0
                 ),

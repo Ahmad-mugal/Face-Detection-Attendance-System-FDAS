@@ -31,5 +31,5 @@ def api_info():
         "appName": APP_NAME,
         "version": APP_VERSION,
         "database": str(DATABASE_FILE),
-        "note": "Local SQLite backend foundation only. No auth or face recognition in Phase 2.",
+        "note": "Local FYP backend with final fail-closed ArcFace attendance workflow.",
     }

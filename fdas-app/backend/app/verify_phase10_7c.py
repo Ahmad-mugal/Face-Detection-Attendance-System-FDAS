@@ -17,6 +17,7 @@ from app.config import (
     DEEP_MATCH_MIN_IDENTITY_MARGIN,
     DEEP_MATCH_SCORING_METHOD,
     DEEP_MATCH_THRESHOLD,
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
     IDENTITY_MATCHING_SAFETY_HOLD,
 )
 from app.database import Base
@@ -303,10 +304,11 @@ def main() -> None:
                 and diagnostic["thresholdUsed"] == 0.85
                 and diagnostic["requiredMargin"] == 0.07
             ),
-            "safety_hold_remains_true": (
-                IDENTITY_MATCHING_SAFETY_HOLD is True
-                and policy["attendanceSafetyHold"] is True
-                and policy["activeForAttendance"] is False
+            "final_deep_activation_released_hold": (
+                DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is True
+                and IDENTITY_MATCHING_SAFETY_HOLD is False
+                and policy["attendanceSafetyHold"] is False
+                and policy["activeForAttendance"] is True
             ),
         }
         engine.dispose()

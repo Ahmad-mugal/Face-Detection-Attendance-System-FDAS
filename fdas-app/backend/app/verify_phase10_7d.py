@@ -13,6 +13,7 @@ from app.config import (
     DEEP_MATCH_MIN_IDENTITY_MARGIN,
     DEEP_MATCH_SCORING_METHOD,
     DEEP_MATCH_THRESHOLD,
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
     IDENTITY_MATCHING_SAFETY_HOLD,
 )
 from app.database import SessionLocal
@@ -259,9 +260,10 @@ def main() -> None:
                 diagnostic["scoreMargin"] is None or diagnostic["scoreMargin"] >= 0.07
             )
         ),
-        "safety_hold_remains_active": (
-            IDENTITY_MATCHING_SAFETY_HOLD is True
-            and diagnostic["attendanceSafetyHold"] is True
+        "final_deep_activation_released_hold": (
+            DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is True
+            and IDENTITY_MATCHING_SAFETY_HOLD is False
+            and diagnostic["attendanceSafetyHold"] is False
         ),
     }
     result["phase10_7d_passed"] = all(bool(value) for value in result.values())

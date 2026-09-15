@@ -1,6 +1,8 @@
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from app.config import (
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
     FACE_MATCH_AGGREGATION,
     FACE_MATCH_THRESHOLD,
     IDENTITY_MATCHING_SAFETY_HOLD,
@@ -57,7 +59,8 @@ def main() -> None:
     below_result = build_match_response(None, 1, [0.707106, 0.707106], below_candidates)
     diagnostic = build_diagnostic_response(1, 22, [1.0, 0.0], ambiguous_candidates)
 
-    held_match = apply_identity_safety_hold(clear_result)
+    with patch("app.services.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", True):
+        held_match = apply_identity_safety_hold(clear_result)
     dummy_session = SimpleNamespace(sessionId=987654, departmentId=1, department=None)
     with SessionLocal() as db:
         attendance_before = db.query(AttendanceRecord).count()
@@ -124,7 +127,10 @@ def main() -> None:
             below_result.get("matched") is False
             and below_result.get("status") == "MatchBelowThreshold"
         ),
-        "backend_attendance_hold_active": IDENTITY_MATCHING_SAFETY_HOLD is True,
+        "final_deep_activation_released_global_hold": (
+            IDENTITY_MATCHING_SAFETY_HOLD is False
+            and DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE is True
+        ),
         "hold_removes_candidate_identity": (
             held_match.get("matched") is False
             and held_match.get("status") == "AttendanceSafetyHold"
@@ -149,7 +155,7 @@ def main() -> None:
             info.get("threshold") == 0.75
             and info.get("aggregationMethod") == "maximum"
             and info.get("requiredIdentityMargin") == 0.05
-            and info.get("attendanceSafetyHold") is True
+            and info.get("attendanceSafetyHold") is False
         ),
     }
     results["phase10_6b_automated_passed"] = all(results.values())
