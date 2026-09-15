@@ -115,6 +115,14 @@ This verifies:
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
+For the explicitly approved Phase 10.9 local Admin/Student #22 reliability test, use the scoped launcher instead:
+
+```powershell
+.\start_phase10_9_controlled.ps1
+```
+
+The launcher sets `FDAS_DEEP_ATTENDANCE_CONTROLLED_TEST=true` only for its Uvicorn process. Ordinary startup remains fail-closed, normal/global attendance remains disabled, and `IDENTITY_MATCHING_SAFETY_HOLD` remains active.
+
 Health check:
 
 ```powershell

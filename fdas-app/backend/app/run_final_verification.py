@@ -61,6 +61,9 @@ VERIFIERS: tuple[VerifierSpec, ...] = (
     VerifierSpec("Phase 10.7B.1 Enrollment Recovery", "app.verify_phase10_7b1"),
     VerifierSpec("Phase 10.7C Deep Recognition Calibration", "app.verify_phase10_7c"),
     VerifierSpec("Phase 10.7D Identity Record Integrity", "app.verify_phase10_7d"),
+    VerifierSpec("Phase 10.8 Deep Attendance Integration", "app.verify_phase10_8"),
+    VerifierSpec("Phase 10.9 Genuine-User Reliability", "app.verify_phase10_9"),
+    VerifierSpec("Phase 10.9B Controlled Policy Validation", "app.verify_phase10_9b"),
 )
 
 
@@ -243,6 +246,7 @@ def main() -> int:
 
     environment = os.environ.copy()
     environment[SKIP_PRIOR_ENV] = "1"
+    environment["FDAS_FINAL_VERIFICATION_ISOLATED"] = "1"
     environment["PYTHONUNBUFFERED"] = "1"
     environment["FDAS_DEEP_FACE_MODEL_DIR"] = str(
         SOURCE_BACKEND_DIR / "models" / "insightface" / "buffalo_l"

@@ -129,6 +129,10 @@ def attendance_record_to_dict(record: AttendanceRecord) -> dict:
         "markedAt": record.markedAt,
         "status": record.status,
         "recognitionConfidence": record.recognitionConfidence,
+        "recognitionProvider": record.recognitionProvider,
+        "recognitionEncodingVersion": record.recognitionEncodingVersion,
+        "recognitionMethod": record.recognitionMethod,
+        "identityMargin": record.identityMargin,
         "livenessStatus": record.livenessStatus,
     }
 
@@ -146,6 +150,10 @@ def records_to_csv(records: list[AttendanceRecord]) -> str:
         "markedAt",
         "status",
         "recognitionConfidence",
+        "recognitionProvider",
+        "recognitionEncodingVersion",
+        "recognitionMethod",
+        "identityMargin",
         "livenessStatus",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames)
@@ -163,6 +171,10 @@ def records_to_csv(records: list[AttendanceRecord]) -> str:
             "markedAt": row["markedAt"].isoformat() if row["markedAt"] else "",
             "status": row["status"],
             "recognitionConfidence": row["recognitionConfidence"],
+            "recognitionProvider": row["recognitionProvider"],
+            "recognitionEncodingVersion": row["recognitionEncodingVersion"],
+            "recognitionMethod": row["recognitionMethod"],
+            "identityMargin": row["identityMargin"],
             "livenessStatus": row["livenessStatus"],
         })
     return output.getvalue()

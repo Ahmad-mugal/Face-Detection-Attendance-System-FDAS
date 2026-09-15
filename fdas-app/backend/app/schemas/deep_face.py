@@ -10,6 +10,17 @@ class DeepFaceInfo(BaseModel):
     deepRecognitionReady: bool
     encodingVersion: str
     activeForAttendance: bool
+    integratedForAttendance: bool = False
+    controlledAttendanceEnabled: bool = False
+    controlledAttendanceStudentId: int | None = None
+    controlledAttendanceStudentName: str | None = None
+    controlledAttendanceStudentRollNo: str | None = None
+    controlledAttendanceDepartmentId: int | None = None
+    controlledAttendanceValidEmbeddingCount: int = 0
+    controlledAttendanceStudentReady: bool = False
+    controlledAttendanceReady: bool = False
+    controlledMatchingThreshold: float | None = None
+    controlledRequiredIdentityMargin: float | None = None
     attendanceSafetyHold: bool
     modelDirectory: str
     initializationMilliseconds: float | None = None
@@ -20,6 +31,14 @@ class DeepFaceInfo(BaseModel):
     requiredIdentityMargin: float | None = None
     calibrationLabel: str | None = None
     eligibleEmbeddingMinimum: int | None = None
+    queryBurstCount: int = 3
+    queryConsensusMinimum: int = 2
+    maximumRecognitionRetries: int = 2
+    queryMinimumFaceAreaRatio: float | None = None
+    queryMinimumBlurVariance: float | None = None
+    queryMinimumBrightness: float | None = None
+    queryMaximumBrightness: float | None = None
+    queryMinimumEdgeClearanceRatio: float | None = None
 
 
 class DeepEncodingDryRunResponse(BaseModel):

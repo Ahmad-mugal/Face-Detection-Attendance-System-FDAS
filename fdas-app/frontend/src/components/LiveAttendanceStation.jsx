@@ -10,20 +10,22 @@ import { useAuth } from '../context/useAuth'
 import Icon from './Icon'
 import StatsCard from './StatsCard'
 
-const SCAN_INTERVAL_MS = 2800
+const SCAN_INTERVAL_MS = 1800
 const LIVENESS_BASELINE_FRAME_COUNT = 2
-const LIVENESS_MOVEMENT_FRAME_COUNT = 7
+const LIVENESS_MOVEMENT_FRAME_COUNT = 10
 const LIVENESS_FRAME_COUNT = LIVENESS_BASELINE_FRAME_COUNT + LIVENESS_MOVEMENT_FRAME_COUNT
 const LIVENESS_BASELINE_DELAY_MS = 250
-const LIVENESS_FRAME_DELAY_MS = 500
-const LIVENESS_CENTER_HOLD_MS = 1000
-const LIVENESS_GO_RENDER_MS = 150
+const LIVENESS_FRAME_DELAY_MS = 300
+const LIVENESS_CENTER_HOLD_MS = 1500
+const LIVENESS_GO_RENDER_MS = 600
 const ATTENDANCE_SINGLE_FACE_STABLE_MS = 1000
-const IDENTITY_MATCHING_SAFETY_HOLD = true
+const RECOGNITION_RECENTER_HOLD_MS = 1200
+const RECOGNITION_QUERY_COUNT = 3
+const RECOGNITION_QUERY_DELAY_MS = 350
+const CONTROLLED_MAX_RETRIES = 2
+const CONTROLLED_RELIABILITY_CYCLES = 10
 const LIVENESS_CHALLENGES = [
-  { type: 'MOVE_LEFT', label: 'Move face slightly left' },
-  { type: 'MOVE_RIGHT', label: 'Move face slightly right' },
-  { type: 'MOVE_CLOSER', label: 'Move closer to camera' },
+  { type: 'MOVE_CLOSER', label: 'Move closer to camera and hold' },
 ]
 
 function formatDateTime(value) {
@@ -81,11 +83,29 @@ function buildResultMessage(result) {
       text: 'Identity could not be determined confidently. Please try again.',
     }
   }
+  if (result.status === 'QueryConsensusFailed') {
+    return { tone: 'warning', text: 'The three fresh images did not agree on one identity. Re-center and retry.' }
+  }
+  if (result.status === 'PoorFaceQuality') {
+    return { tone: 'warning', text: 'Face image quality was insufficient. Hold still, face forward, and use even lighting.' }
+  }
+  if (result.status === 'InvalidQueryBurst') {
+    return { tone: 'error', text: 'The required three-image recognition burst was incomplete. Attendance was not marked.' }
+  }
   if (result.status === 'AttendanceSafetyHold') {
     return {
       tone: 'warning',
       text: 'Attendance remains disabled while identity-integrity validation is incomplete.',
     }
+  }
+  if (result.status === 'DeepRecognitionUnavailable') {
+    return { tone: 'error', text: 'Deep recognition is unavailable. Attendance was not marked and no legacy fallback was used.' }
+  }
+  if (result.status === 'DeepEnrollmentIncomplete') {
+    return { tone: 'warning', text: 'No eligible deep-ready student gallery is available. Attendance was not marked.' }
+  }
+  if (result.status === 'ControlledIdentityMismatch') {
+    return { tone: 'warning', text: 'The face did not match the authorized controlled-test student. Attendance was not marked.' }
   }
   if (result.status === 'NoFaceDetected') {
     return {
@@ -136,6 +156,9 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
   const scanningRef = useRef(false)
   const scanInFlightRef = useRef(false)
   const scanTimeoutRef = useRef(null)
+  const lastChallengeIndexRef = useRef(-1)
+  const controlledCycleRef = useRef(1)
+  const controlledRetryRef = useRef(0)
   const { assignedDepartmentId, assignedDepartmentName, hasAllDepartmentsAccess } = useAuth()
   const { clearSession, registerCleanup, startSession: startNavigationSession, stopSession: stopNavigationSession } = useAttendanceSession()
 
@@ -152,6 +175,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [message, setMessage] = useState({ tone: 'info', text: 'Select or start an attendance session.' })
   const [lastResult, setLastResult] = useState(null)
+  const [controlledTestResults, setControlledTestResults] = useState([])
   const [currentChallenge, setCurrentChallenge] = useState(null)
   const [livenessInstruction, setLivenessInstruction] = useState(null)
   const [diagnosticStudents, setDiagnosticStudents] = useState([])
@@ -164,6 +188,45 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     message: 'No face detected.',
     ready: false,
   })
+  const [deepAttendancePolicy, setDeepAttendancePolicy] = useState({
+    integratedForAttendance: false,
+    activeForAttendance: false,
+    attendanceSafetyHold: true,
+    controlledAttendanceEnabled: false,
+    controlledAttendanceStudentId: null,
+    controlledAttendanceStudentName: null,
+    controlledAttendanceStudentRollNo: null,
+    controlledAttendanceDepartmentId: null,
+    controlledAttendanceValidEmbeddingCount: 0,
+    controlledAttendanceStudentReady: false,
+    controlledAttendanceReady: false,
+    controlledMatchingThreshold: null,
+    controlledRequiredIdentityMargin: null,
+    deepRecognitionReady: false,
+  })
+
+  const controlledAttendanceMode = (
+    mode === 'admin'
+    && deepAttendancePolicy.integratedForAttendance
+    && deepAttendancePolicy.attendanceSafetyHold
+    && !deepAttendancePolicy.activeForAttendance
+    && deepAttendancePolicy.controlledAttendanceEnabled
+    && deepAttendancePolicy.controlledAttendanceStudentId === 22
+    && deepAttendancePolicy.controlledAttendanceStudentReady
+    && deepAttendancePolicy.controlledAttendanceReady
+    && deepAttendancePolicy.deepRecognitionReady
+  )
+  const controlledAttendanceSessionAllowed = (
+    controlledAttendanceMode
+    && Boolean(activeSession)
+    && Number(activeSession.departmentId) === deepAttendancePolicy.controlledAttendanceDepartmentId
+    && Number(departmentId) === deepAttendancePolicy.controlledAttendanceDepartmentId
+  )
+  const normalAttendanceAllowed = (
+    deepAttendancePolicy.activeForAttendance
+    && !deepAttendancePolicy.attendanceSafetyHold
+  )
+  const attendanceScanningEnabled = normalAttendanceAllowed || controlledAttendanceSessionAllowed
 
   const selectedDepartment = useMemo(() => {
     const selectedId = Number(departmentId)
@@ -236,6 +299,18 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
       setMessage({ tone: 'error', text: getApiError(error, 'Unable to load active attendance session.') })
     }
   }, [loadRecords, pagePath, startNavigationSession, stopNavigationSession])
+
+  useEffect(() => {
+    let mounted = true
+    faceMatchingApi.getDeepInfo()
+      .then(info => {
+        if (mounted) setDeepAttendancePolicy(info)
+      })
+      .catch(error => {
+        if (mounted) setMessage({ tone: 'error', text: getApiError(error, 'Unable to load deep attendance safety state.') })
+      })
+    return () => { mounted = false }
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -367,7 +442,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
   const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
   const inspectAttendanceFrame = async (frame, referenceFile = null) => {
-    const result = await faceMatchingApi.validateSingleFace({ file: frame, referenceFile })
+    const result = await faceMatchingApi.validateSingleFace({ file: frame, referenceFile, attendanceMode: true })
     const message = result.status === 'NoFaceDetected'
       ? 'No face detected. Please stand in front of the camera.'
       : result.status === 'MultipleFacesDetected'
@@ -397,7 +472,11 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     return { frames, faceGuardFailure: null }
   }
 
-  const chooseChallenge = () => LIVENESS_CHALLENGES[Math.floor(Math.random() * LIVENESS_CHALLENGES.length)]
+  const chooseChallenge = () => {
+    const nextIndex = (lastChallengeIndexRef.current + 1) % LIVENESS_CHALLENGES.length
+    lastChallengeIndexRef.current = nextIndex
+    return LIVENESS_CHALLENGES[nextIndex]
+  }
 
   const runScan = useCallback(async () => {
     if (!scanningRef.current || !activeSession || !cameraOn || scanInFlightRef.current) return
@@ -429,15 +508,15 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
 
       const challenge = chooseChallenge()
       setCurrentChallenge(challenge)
-      setLivenessInstruction(`Center your face — ${challenge.label}`)
-      setMessage({ tone: 'info', text: `Center your face. Get ready to: ${challenge.label}.` })
+      setLivenessInstruction('Get ready: remain centered until GO')
+      setMessage({ tone: 'info', text: 'Get ready: remain centered until GO.' })
       await wait(LIVENESS_CENTER_HOLD_MS)
       if (!scanningRef.current) return
 
       const baselineCapture = await captureLivenessFrames(
         LIVENESS_BASELINE_FRAME_COUNT,
         LIVENESS_BASELINE_DELAY_MS,
-        initialFace,
+        stableFace,
       )
       if (baselineCapture.faceGuardFailure) {
         setMessage({ tone: 'warning', text: baselineCapture.faceGuardFailure.message })
@@ -449,15 +528,15 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         return
       }
 
-      setLivenessInstruction(`GO — ${challenge.label}`)
-      setMessage({ tone: 'info', text: `GO — ${challenge.label}` })
+      setLivenessInstruction('GO — move closer to the camera and HOLD')
+      setMessage({ tone: 'info', text: 'GO — move closer to the camera, then hold that position until capture finishes.' })
       await wait(LIVENESS_GO_RENDER_MS)
       if (!scanningRef.current) return
 
       const movementCapture = await captureLivenessFrames(
         LIVENESS_MOVEMENT_FRAME_COUNT,
         LIVENESS_FRAME_DELAY_MS,
-        initialFace,
+        stableFace,
       )
       if (movementCapture.faceGuardFailure) {
         setMessage({ tone: 'warning', text: movementCapture.faceGuardFailure.message })
@@ -469,16 +548,102 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         setMessage({ tone: 'warning', text: 'Camera frames are not ready yet. Please keep your face in view and retry.' })
         return
       }
-      setMessage({ tone: 'info', text: 'Checking liveness...' })
+      setLivenessInstruction('Return to center and hold still for recognition')
+      setMessage({ tone: 'info', text: 'Movement captured. Return to center, face forward, and hold still.' })
+      await wait(RECOGNITION_RECENTER_HOLD_MS)
+      if (!scanningRef.current) return
+      const queryCapture = await captureLivenessFrames(
+        RECOGNITION_QUERY_COUNT,
+        RECOGNITION_QUERY_DELAY_MS,
+        stableFace,
+      )
+      if (queryCapture.faceGuardFailure) {
+        setMessage({ tone: 'warning', text: queryCapture.faceGuardFailure.message })
+        return
+      }
+      if (queryCapture.frames.length !== RECOGNITION_QUERY_COUNT) {
+        setMessage({ tone: 'warning', text: 'Fresh recognition images were not ready. Please remain centered and retry.' })
+        return
+      }
+
+      const cycle = controlledAttendanceSessionAllowed ? controlledCycleRef.current : null
+      const retryNumber = controlledAttendanceSessionAllowed ? controlledRetryRef.current : 0
+      setMessage({ tone: 'info', text: 'Checking liveness and three-image identity consensus...' })
       const result = await attendanceMarkingApi.markByFaceLive({
         sessionId: activeSession.sessionId,
         challengeType: challenge.type,
         files: frames,
+        queryFiles: queryCapture.frames,
+        controlledTest: controlledAttendanceSessionAllowed,
+        expectedStudentId: controlledAttendanceSessionAllowed ? deepAttendancePolicy.controlledAttendanceStudentId : undefined,
       })
       setLastResult(result)
+      if (controlledAttendanceSessionAllowed) {
+        setControlledTestResults(previous => [
+          ...previous,
+          {
+            attempt: previous.length + 1,
+            cycle,
+            retryNumber,
+            observedAt: new Date().toISOString(),
+            status: result.status,
+            attendanceMarked: result.attendanceMarked,
+            attendanceRecordId: result.attendanceRecordId,
+            sessionId: result.sessionId,
+            studentId: result.studentId,
+            studentName: result.studentName,
+            rollNo: result.rollNo,
+            recognitionConfidence: result.recognitionConfidence,
+            recognitionProvider: result.recognitionProvider,
+            recognitionEncodingVersion: result.recognitionEncodingVersion,
+            recognitionMethod: result.recognitionMethod,
+            aggregationMethod: result.aggregationMethod,
+            identityMargin: result.identityMargin,
+            topStudentId: result.topStudentId,
+            topScore: result.topScore,
+            secondStudentId: result.secondStudentId,
+            secondScore: result.secondScore,
+            scoreMargin: result.scoreMargin,
+            thresholdUsed: result.thresholdUsed,
+            requiredMargin: result.requiredMargin,
+            livenessStatus: result.livenessStatus,
+            controlledTest: result.controlledTest,
+            queryCount: result.queryCount,
+            validQueryCount: result.validQueryCount,
+            consensusStudentId: result.consensusStudentId,
+            consensusCount: result.consensusCount,
+            queryTopStudentIds: result.queryTopStudentIds,
+            queryTopScores: result.queryTopScores,
+            queryQuality: result.queryQuality,
+            retryable: result.retryable,
+            livenessDiagnostics: result.livenessDiagnostics,
+          },
+        ])
+      }
       setMessage(buildResultMessage(result))
       if (result.attendanceMarked || result.status === 'DuplicateAttendance') {
         await loadRecords(activeSession.sessionId)
+      }
+      if (controlledAttendanceSessionAllowed) {
+        const retryable = result.retryable || [
+          'LivenessFailed',
+          'NoFaceDetected',
+          'FaceContinuityLost',
+          'PoorFaceQuality',
+          'MatchBelowThreshold',
+          'AmbiguousMatch',
+          'QueryConsensusFailed',
+        ].includes(result.status)
+        if (retryable && controlledRetryRef.current < CONTROLLED_MAX_RETRIES) {
+          controlledRetryRef.current += 1
+        } else {
+          controlledCycleRef.current += 1
+          controlledRetryRef.current = 0
+        }
+        if (controlledCycleRef.current > CONTROLLED_RELIABILITY_CYCLES) {
+          stopScanning()
+          setMessage({ tone: 'success', text: `Phase 10.9B controlled policy validation completed: ${CONTROLLED_RELIABILITY_CYCLES} cycles recorded.` })
+        }
       }
     } catch (error) {
       const detail = getApiError(error, 'Unable to mark attendance.')
@@ -494,7 +659,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         scanTimeoutRef.current = setTimeout(runScan, SCAN_INTERVAL_MS)
       }
     }
-  }, [activeSession, cameraOn, loadRecords, stopScanning])
+  }, [activeSession, cameraOn, controlledAttendanceSessionAllowed, deepAttendancePolicy.controlledAttendanceStudentId, loadRecords, stopScanning])
 
   const startScanning = () => {
     if (!activeSession) {
@@ -505,10 +670,82 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
       setMessage({ tone: 'warning', text: 'Start the camera before scanning.' })
       return
     }
+    if (!attendanceScanningEnabled) {
+      setMessage({ tone: 'warning', text: 'Deep attendance remains paused by the identity safety hold.' })
+      return
+    }
     scanningRef.current = true
+    if (controlledAttendanceSessionAllowed) {
+      controlledCycleRef.current = 1
+      controlledRetryRef.current = 0
+      lastChallengeIndexRef.current = -1
+      setControlledTestResults([])
+    }
     setScanning(true)
     setMessage({ tone: 'info', text: 'Scanning started. Complete one quick liveness challenge per scan.' })
     runScan()
+  }
+
+  const copyControlledTestReport = async () => {
+    const acceptedStatuses = ['AttendanceMarked', 'DuplicateAttendance']
+    const attemptedCycles = [...new Set(controlledTestResults.map(item => item.cycle).filter(Boolean))]
+    const firstAttemptAcceptedCycles = [...new Set(controlledTestResults.filter(item => item.retryNumber === 0 && acceptedStatuses.includes(item.status)).map(item => item.cycle))]
+    const retryAssistedAcceptedCycles = [...new Set(controlledTestResults.filter(item => item.retryNumber > 0 && acceptedStatuses.includes(item.status)).map(item => item.cycle))]
+    const livenessPassedAttempts = controlledTestResults.filter(item => item.livenessStatus === 'Passed')
+    const recognitionAttempts = controlledTestResults.filter(item => item.validQueryCount === RECOGNITION_QUERY_COUNT)
+    const genuineAccepts = recognitionAttempts.filter(item => acceptedStatuses.includes(item.status) && (item.studentId ?? item.topStudentId) === deepAttendancePolicy.controlledAttendanceStudentId)
+    const numericRange = (items, field) => {
+      const values = items.map(item => item[field]).filter(value => typeof value === 'number')
+      return values.length ? { minimum: Math.min(...values), maximum: Math.max(...values) } : null
+    }
+    const percentage = (numerator, denominator) => denominator ? Number(((numerator / denominator) * 100).toFixed(1)) : 0
+    const report = {
+      phase: '10.9B',
+      generatedAt: new Date().toISOString(),
+      sessionId: activeSession?.sessionId ?? null,
+      expectedStudentId: deepAttendancePolicy.controlledAttendanceStudentId,
+      identityMatchingSafetyHold: deepAttendancePolicy.attendanceSafetyHold,
+      deepRecognitionActiveForAttendance: deepAttendancePolicy.activeForAttendance,
+      controlledAttendanceEnabled: deepAttendancePolicy.controlledAttendanceEnabled,
+      productionThreshold: deepAttendancePolicy.threshold,
+      productionMargin: deepAttendancePolicy.requiredIdentityMargin,
+      controlledThreshold: deepAttendancePolicy.controlledMatchingThreshold,
+      controlledMargin: deepAttendancePolicy.controlledRequiredIdentityMargin,
+      consensusMinimum: 2,
+      reliabilityCyclesTarget: CONTROLLED_RELIABILITY_CYCLES,
+      maximumRetriesPerCycle: CONTROLLED_MAX_RETRIES,
+      cyclesAttempted: attemptedCycles.length,
+      totalAttempts: controlledTestResults.length,
+      livenessFirstAttemptPasses: controlledTestResults.filter(item => item.retryNumber === 0 && item.livenessStatus === 'Passed').length,
+      livenessRetryPasses: controlledTestResults.filter(item => item.retryNumber > 0 && item.livenessStatus === 'Passed').length,
+      livenessFailures: controlledTestResults.filter(item => item.livenessStatus === 'Failed').length,
+      recognitionAttemptsReachingArcFace: recognitionAttempts.length,
+      threeOfThreeConsensus: recognitionAttempts.filter(item => item.consensusCount === 3).length,
+      twoOfThreeConsensus: recognitionAttempts.filter(item => item.consensusCount === 2).length,
+      genuineAccepts: genuineAccepts.length,
+      genuineRejects: recognitionAttempts.length - genuineAccepts.length,
+      wrongTopIdentityCount: recognitionAttempts.filter(item => item.topStudentId && item.topStudentId !== deepAttendancePolicy.controlledAttendanceStudentId).length,
+      falseDistinctIdentityAcceptCount: controlledTestResults.filter(item => acceptedStatuses.includes(item.status) && (item.studentId ?? item.topStudentId) !== deepAttendancePolicy.controlledAttendanceStudentId).length,
+      scoreRange: numericRange(recognitionAttempts, 'topScore'),
+      secondPersonScoreRange: numericRange(recognitionAttempts, 'secondScore'),
+      marginRange: numericRange(recognitionAttempts, 'scoreMargin'),
+      retryAttemptsRequired: controlledTestResults.filter(item => item.retryNumber > 0).length,
+      livenessSuccessRatePercent: percentage(livenessPassedAttempts.length, controlledTestResults.length),
+      recognitionSuccessGivenLivenessPercent: percentage(genuineAccepts.length, recognitionAttempts.length),
+      firstAttemptCycleSuccessPercent: percentage(firstAttemptAcceptedCycles.length, attemptedCycles.length),
+      retryAssistedCycleSuccessPercent: percentage(retryAssistedAcceptedCycles.length, attemptedCycles.length),
+      overallCycleSuccessPercent: percentage(new Set([...firstAttemptAcceptedCycles, ...retryAssistedAcceptedCycles]).size, attemptedCycles.length),
+      firstAttemptAcceptedCycles: firstAttemptAcceptedCycles.length,
+      retryAssistedAcceptedCycles: retryAssistedAcceptedCycles.length,
+      falseAcceptCount: controlledTestResults.filter(item => item.attendanceMarked && item.studentId !== deepAttendancePolicy.controlledAttendanceStudentId).length,
+      results: controlledTestResults,
+    }
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(report, null, 2))
+      setMessage({ tone: 'success', text: 'Controlled Phase 10.9B policy evidence copied. Paste it into the Codex chat.' })
+    } catch {
+      setMessage({ tone: 'error', text: 'Unable to copy the controlled evidence. Please copy it from the panel manually.' })
+    }
   }
 
   const handleDepartmentChange = event => {
@@ -618,11 +855,53 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         )}
       </div>
 
+      {controlledAttendanceMode && (
+        <div className="rounded-xl border px-4 py-3 text-sm" style={{ backgroundColor: '#fff8e8', borderColor: '#d4a017', color: '#5f4300' }}>
+          <strong>Phase 10.9B controlled policy enabled:</strong> only canonical Student #{deepAttendancePolicy.controlledAttendanceStudentId} {deepAttendancePolicy.controlledAttendanceStudentName} ({deepAttendancePolicy.controlledAttendanceStudentRollNo}) may be persisted. Controlled threshold {formatConfidence(deepAttendancePolicy.controlledMatchingThreshold)} and margin {formatConfidence(deepAttendancePolicy.controlledRequiredIdentityMargin)} apply only here; production remains {formatConfidence(deepAttendancePolicy.threshold)} / {formatConfidence(deepAttendancePolicy.requiredIdentityMargin)}. Deep readiness: {deepAttendancePolicy.controlledAttendanceValidEmbeddingCount} valid embeddings. The global identity safety hold remains active; all other automatic attendance stays disabled.
+        </div>
+      )}
+
+      {controlledAttendanceMode && controlledTestResults.length > 0 && (
+        <div className="rounded-xl border px-4 py-3 text-xs space-y-3" style={{ backgroundColor: '#fff', borderColor: '#d4a017', color: '#55433b' }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-black text-sm" style={{ color: '#4A2B0F' }}>Phase 10.9B Controlled Policy Evidence</p>
+              <p>Runs 10 cycles with at most 2 fresh retries per cycle. Images and raw embeddings are never stored.</p>
+            </div>
+            <button type="button" onClick={copyControlledTestReport} className="rounded-lg px-3 py-2 font-bold text-white" style={{ backgroundColor: '#065f46' }}>
+              Copy Controlled Test Report
+            </button>
+          </div>
+          <div className="overflow-auto">
+            <table className="w-full text-left whitespace-nowrap">
+              <thead><tr><th className="py-1 pr-3">Attempt</th><th className="py-1 pr-3">Cycle / retry</th><th className="py-1 pr-3">Result</th><th className="py-1 pr-3">Top</th><th className="py-1 pr-3">Second</th><th className="py-1 pr-3">Margin</th><th className="py-1 pr-3">Consensus</th><th className="py-1">Liveness</th></tr></thead>
+              <tbody>
+                {controlledTestResults.map(result => (
+                  <tr key={`${result.attempt}-${result.observedAt}`} className="border-t" style={{ borderColor: '#f0dfd8' }}>
+                    <td className="py-1 pr-3 font-mono">{result.attempt}</td>
+                    <td className="py-1 pr-3 font-mono">{result.cycle ?? '-'} / {result.retryNumber ?? 0}</td>
+                    <td className="py-1 pr-3 font-bold">{result.status}</td>
+                    <td className="py-1 pr-3 font-mono">#{result.topStudentId ?? result.studentId ?? '-'} {formatConfidence(result.topScore ?? result.recognitionConfidence)}</td>
+                    <td className="py-1 pr-3 font-mono">#{result.secondStudentId ?? '-'} {formatConfidence(result.secondScore)}</td>
+                    <td className="py-1 pr-3 font-mono">{formatConfidence(result.scoreMargin ?? result.identityMargin)}</td>
+                    <td className="py-1 pr-3 font-mono">#{result.consensusStudentId ?? '-'} {result.consensusCount ?? 0}/{result.queryCount ?? 0}</td>
+                    <td className="py-1 font-mono">{result.livenessStatus || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {lastResult?.livenessDiagnostics && (
         <div className="rounded-xl px-4 py-3 text-xs space-y-1 border font-mono" style={{ backgroundColor: '#fff', borderColor: '#f0dfd8', color: '#55433b' }}>
           <p className="font-sans font-black text-sm" style={{ color: '#4A2B0F' }}>Liveness Diagnostic Measurements</p>
           <p>
             Challenge {lastResult.livenessDiagnostics.challenge} | Faces {lastResult.livenessDiagnostics.detectedFaceFrameCount}/{lastResult.livenessDiagnostics.submittedFrameCount} | Baseline {lastResult.livenessDiagnostics.baselineDetectedFaceFrameCount}/{lastResult.livenessDiagnostics.baselineFrameCount} | Movement {lastResult.livenessDiagnostics.movementDetectedFaceFrameCount}/{lastResult.livenessDiagnostics.movementFrameCount}
+          </p>
+          <p>
+            Haar multi-face frames {lastResult.livenessDiagnostics.haarMultipleFaceFrameCount ?? 0} | SCRFD background reconciliations {lastResult.livenessDiagnostics.deepReconciledFrameCount ?? 0}
           </p>
           <p>
             Center X start/end/min/max: {formatLivenessMeasurement(lastResult.livenessDiagnostics.startCenterX)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.endCenterX)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.minimumCenterX)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.maximumCenterX)}
@@ -636,8 +915,23 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
           <p>
             Area start/final/max: {formatLivenessMeasurement(lastResult.livenessDiagnostics.initialFaceArea)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.finalFaceArea)} / {formatLivenessMeasurement(lastResult.livenessDiagnostics.maximumFaceArea)} | Growth {formatLivenessMeasurement(lastResult.livenessDiagnostics.areaGrowthRatio)} | Max growth {formatLivenessMeasurement(lastResult.livenessDiagnostics.maximumAreaGrowthRatio)}
           </p>
+          <p>
+            Supporting frames {lastResult.livenessDiagnostics.directionalSupportingFrameCount ?? 0} | Maximum consecutive support {lastResult.livenessDiagnostics.maximumConsecutiveSupportingFrames ?? 0}/{lastResult.livenessDiagnostics.requiredConsecutiveSupportingFrames ?? 2}
+          </p>
           <p className="font-sans">Reason: {lastResult.livenessDiagnostics.reason || '-'}</p>
           <p className="font-sans">Method: {lastResult.livenessDiagnostics.evaluationMethod}</p>
+        </div>
+      )}
+
+      {lastResult?.queryQuality?.length > 0 && (
+        <div className="rounded-xl px-4 py-3 text-xs space-y-1 border font-mono" style={{ backgroundColor: '#fff', borderColor: '#d4a017', color: '#55433b' }}>
+          <p className="font-sans font-black text-sm" style={{ color: '#4A2B0F' }}>Recognition Query Quality & Consensus</p>
+          <p>Valid queries {lastResult.validQueryCount}/{lastResult.queryCount} | Consensus #{lastResult.consensusStudentId ?? '-'} {lastResult.consensusCount}/{lastResult.queryCount}</p>
+          {lastResult.queryQuality.map(query => (
+            <p key={query.queryIndex}>
+              Query {query.queryIndex}: {query.status} | area {formatLivenessMeasurement(query.faceAreaRatio)} | blur {formatLivenessMeasurement(query.blurVariance)} | brightness {formatLivenessMeasurement(query.brightness)} | edge {formatLivenessMeasurement(query.edgeClearanceRatio)}{query.haarBackgroundFalsePositiveReconciled ? ' | Haar false-positive reconciled by SCRFD' : ''}
+            </p>
+          ))}
         </div>
       )}
 
@@ -657,9 +951,11 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
       <div className="rounded-xl p-4 text-xs space-y-1.5 border" style={{ backgroundColor: '#fff1eb', borderColor: '#f0dfd8', color: '#55433b' }}>
         <p className="font-bold text-sm" style={{ color: '#4A2B0F' }}>Live Attendance & Liveness Operational Rules</p>
         <ul className="list-disc list-inside space-y-0.5" style={{ color: '#887369' }}>
-          <li><strong style={{ color: '#4A2B0F' }}>Liveness Mode:</strong> Basic Mode (lightweight challenge-response).</li>
+          <li><strong style={{ color: '#4A2B0F' }}>Liveness Mode:</strong> MOVE_CLOSER-only basic challenge-response with sustained face-area growth; this is not production-grade presentation-attack detection.</li>
           <li><strong style={{ color: '#4A2B0F' }}>livenessStatus:</strong> Displays <code className="font-mono text-[11px]">Passed</code>, <code className="font-mono text-[11px]">Failed</code>, or <code className="font-mono text-[11px]">NotChecked</code> depending on endpoint and scan result.</li>
-          <li><strong style={{ color: '#4A2B0F' }}>Face Matching:</strong> If recognition confidence is below threshold, attendance is not marked.</li>
+          <li><strong style={{ color: '#4A2B0F' }}>Face Matching:</strong> After liveness, return to center for three fresh quality-gated ArcFace queries. The decision uses 2-of-3 identity consensus, median aggregation, threshold 0.85, and margin 0.07.</li>
+          <li><strong style={{ color: '#4A2B0F' }}>Retries:</strong> A controlled reliability cycle permits at most two complete fresh retries; no prior frame or embedding is reused.</li>
+          <li><strong style={{ color: '#4A2B0F' }}>Fail Closed:</strong> Deep-unavailable or deep-incomplete states never fall back to the legacy OpenCV matcher.</li>
           <li><strong style={{ color: '#4A2B0F' }}>Single-Face Guard:</strong> Every required frame must contain exactly one continuous face before liveness or recognition can run.</li>
           <li><strong style={{ color: '#4A2B0F' }}>Duplicate Prevention:</strong> Duplicate attendance is prevented for the active session and is not an error.</li>
         </ul>
@@ -777,14 +1073,18 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
           <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b" style={{ borderColor: '#f0dfd8' }}>
             <div>
               <h2 className="font-black" style={{ color: '#4A2B0F' }}>Live Camera Preview</h2>
-              <p className="text-xs" style={{ color: '#887369' }}>Scanning uses one basic movement liveness challenge before matching.</p>
+              <p className="text-xs" style={{ color: '#887369' }}>After GO, move closer and hold until capture finishes; then return to center for three recognition images.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={cameraOn ? stopCamera : startCamera} disabled={!activeSession} className="px-3 py-2 rounded-lg text-xs font-bold border disabled:opacity-60" style={{ borderColor: '#C4533A', color: '#C4533A' }}>
                 {cameraOn ? 'Stop Camera' : 'Start Camera'}
               </button>
-              <button onClick={scanning ? stopScanning : startScanning} disabled={IDENTITY_MATCHING_SAFETY_HOLD || !activeSession || !cameraOn} className="px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ backgroundColor: scanning ? '#C4533A' : '#D4A017' }}>
-                {IDENTITY_MATCHING_SAFETY_HOLD ? 'Attendance Paused' : (scanning ? 'Stop Scanning' : 'Start Scanning')}
+              <button onClick={scanning ? stopScanning : startScanning} disabled={!attendanceScanningEnabled || !activeSession || !cameraOn} className="px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ backgroundColor: scanning ? '#C4533A' : '#D4A017' }}>
+                {scanning
+                  ? 'Stop Scanning'
+                  : (controlledAttendanceSessionAllowed && cameraOn
+                    ? 'Start Controlled #22 Phase 10.9B Test'
+                    : (normalAttendanceAllowed ? 'Start Scanning' : 'Attendance Paused'))}
               </button>
             </div>
           </div>
@@ -814,7 +1114,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
                 <div className="absolute bottom-5 left-5 right-5 rounded-xl p-3 text-center font-bold text-sm" style={{ backgroundColor: scanning ? 'rgba(6,95,70,0.9)' : 'rgba(196,83,58,0.9)', color: '#fff' }}>
                   {scanning
                     ? (livenessInstruction || `Liveness challenge: ${currentChallenge?.label || 'Get ready'}`)
-                    : (IDENTITY_MATCHING_SAFETY_HOLD ? 'Identity safety hold active. Use the no-attendance diagnostic only.' : 'Camera ready. Start scanning to mark attendance.')}
+                    : (!attendanceScanningEnabled ? 'Identity safety hold active. Use the no-attendance diagnostic only.' : (controlledAttendanceSessionAllowed ? `Camera ready for controlled Student #${deepAttendancePolicy.controlledAttendanceStudentId} test.` : 'Camera ready. Start scanning to mark attendance.'))}
                 </div>
               </>
             )}

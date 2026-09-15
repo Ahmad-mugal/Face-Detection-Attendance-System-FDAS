@@ -113,10 +113,44 @@ def single_face_descriptor(image_bytes: bytes) -> tuple[int, list[float] | None,
     return 1, generate_basic_descriptor(crop_face(image, face_box)), face_box
 
 
-def validate_single_face_bytes(image_bytes: bytes, reference_bytes: bytes | None = None) -> dict:
+def _guard_descriptor(
+    image_bytes: bytes,
+    *,
+    allow_deep_reconciliation: bool,
+) -> tuple[int, list[float] | None, tuple[int, int, int, int] | None, int, bool]:
+    image = decode_image_bytes(image_bytes)
+    haar_faces = detect_faces(image)
+    effective_faces = haar_faces
+    reconciled = False
+    if allow_deep_reconciliation and len(haar_faces) > 1:
+        try:
+            from app.services.deep_face import get_deep_face_service
+
+            deep_faces = get_deep_face_service().detect_face_boxes(image)
+            if len(deep_faces) == 1:
+                effective_faces = deep_faces
+                reconciled = True
+            elif len(deep_faces) > 1:
+                effective_faces = deep_faces
+        except Exception:
+            effective_faces = haar_faces
+    face_box = effective_faces[0] if len(effective_faces) == 1 else None
+    descriptor = generate_basic_descriptor(crop_face(image, face_box)) if face_box is not None else None
+    return len(effective_faces), descriptor, face_box, len(haar_faces), reconciled
+
+
+def validate_single_face_bytes(
+    image_bytes: bytes,
+    reference_bytes: bytes | None = None,
+    *,
+    allow_deep_reconciliation: bool = False,
+) -> dict:
     from app.config import FACE_CONTINUITY_MIN_SIMILARITY
 
-    face_count, descriptor, _ = single_face_descriptor(image_bytes)
+    face_count, descriptor, _, haar_face_count, reconciled = _guard_descriptor(
+        image_bytes,
+        allow_deep_reconciliation=allow_deep_reconciliation,
+    )
     if face_count == 0:
         return {
             "status": "NoFaceDetected",
@@ -126,6 +160,8 @@ def validate_single_face_bytes(image_bytes: bytes, reference_bytes: bytes | None
             "continuityPassed": None,
             "continuitySimilarity": None,
             "continuityThreshold": FACE_CONTINUITY_MIN_SIMILARITY,
+            "haarFaceCount": haar_face_count,
+            "deepReconciled": reconciled,
         }
     if face_count > 1:
         return {
@@ -136,12 +172,17 @@ def validate_single_face_bytes(image_bytes: bytes, reference_bytes: bytes | None
             "continuityPassed": None,
             "continuitySimilarity": None,
             "continuityThreshold": FACE_CONTINUITY_MIN_SIMILARITY,
+            "haarFaceCount": haar_face_count,
+            "deepReconciled": reconciled,
         }
 
     similarity = None
     continuity_passed = None
     if reference_bytes is not None:
-        reference_count, reference_descriptor, _ = single_face_descriptor(reference_bytes)
+        reference_count, reference_descriptor, _, _, _ = _guard_descriptor(
+            reference_bytes,
+            allow_deep_reconciliation=allow_deep_reconciliation,
+        )
         if reference_count != 1 or reference_descriptor is None:
             return {
                 "status": "FaceContinuityLost",
@@ -151,6 +192,8 @@ def validate_single_face_bytes(image_bytes: bytes, reference_bytes: bytes | None
                 "continuityPassed": False,
                 "continuitySimilarity": None,
                 "continuityThreshold": FACE_CONTINUITY_MIN_SIMILARITY,
+                "haarFaceCount": haar_face_count,
+                "deepReconciled": reconciled,
             }
         similarity = descriptor_similarity(reference_descriptor, descriptor)
         continuity_passed = similarity >= FACE_CONTINUITY_MIN_SIMILARITY
@@ -163,6 +206,8 @@ def validate_single_face_bytes(image_bytes: bytes, reference_bytes: bytes | None
                 "continuityPassed": False,
                 "continuitySimilarity": similarity,
                 "continuityThreshold": FACE_CONTINUITY_MIN_SIMILARITY,
+                "haarFaceCount": haar_face_count,
+                "deepReconciled": reconciled,
             }
 
     return {
@@ -173,6 +218,8 @@ def validate_single_face_bytes(image_bytes: bytes, reference_bytes: bytes | None
         "continuityPassed": continuity_passed,
         "continuitySimilarity": similarity,
         "continuityThreshold": FACE_CONTINUITY_MIN_SIMILARITY,
+        "haarFaceCount": haar_face_count,
+        "deepReconciled": reconciled,
     }
 
 

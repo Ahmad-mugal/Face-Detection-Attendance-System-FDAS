@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 
 import cv2
 import numpy as np
+from fastapi import HTTPException
 
 from app.config import BASE_DIR, FACE_MATCH_THRESHOLD, LIVENESS_FRAME_COUNT
 from app.database import SessionLocal, init_db
@@ -66,7 +67,7 @@ def multipart_liveness_request(
     frames: list[bytes],
     token: str | None,
     session_id: int,
-    challenge: str = "MOVE_RIGHT",
+    challenge: str = "MOVE_CLOSER",
 ) -> tuple[int, dict | list | str]:
     boundary = "----FDASPhase8CVerifyBoundary"
     chunks: list[bytes] = []
@@ -215,30 +216,26 @@ def controlled_liveness_checks() -> tuple[bool, bool, bool, bool]:
         ]
 
     baseline = [(50, 50, 60, 60), (50, 50, 60, 60)]
-    preview_left_frames = frames_from_boxes(
-        baseline + [(54, 50, 60, 60), (60, 50, 60, 60), (68, 50, 60, 60), (72, 50, 60, 60), (70, 50, 60, 60), (68, 50, 60, 60), (66, 50, 60, 60)]
-    )
-    preview_right_frames = frames_from_boxes(
-        baseline + [(46, 50, 60, 60), (40, 50, 60, 60), (32, 50, 60, 60), (28, 50, 60, 60), (30, 50, 60, 60), (32, 50, 60, 60), (34, 50, 60, 60)]
-    )
-    static_frames = frames_from_boxes(baseline + [(50, 50, 60, 60)] * 7)
+    static_frames = frames_from_boxes(baseline + [(50, 50, 60, 60)] * 10)
     closer_frames = frames_from_boxes(
         [(60, 60, 50, 50), (60, 60, 50, 50)]
-        + [(59, 59, 52, 52), (57, 57, 55, 55), (55, 55, 58, 58), (54, 54, 60, 60), (54, 54, 60, 60), (55, 55, 58, 58), (57, 57, 55, 55)]
+        + [(59, 59, 52, 52), (57, 57, 55, 55), (55, 55, 58, 58), (54, 54, 60, 60), (53, 53, 62, 62), (52, 52, 64, 64), (52, 52, 64, 64), (52, 52, 64, 64), (53, 53, 63, 63), (54, 54, 62, 62)]
     )
     one_spike_frames = frames_from_boxes(
-        baseline + [(50, 50, 60, 60), (50, 50, 60, 60), (70, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60)]
+        baseline + [(50, 50, 60, 60), (50, 50, 60, 60), (45, 45, 70, 70), (50, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60), (50, 50, 60, 60)]
     )
+    lateral_rejected = True
+    for removed_challenge in ("MOVE_LEFT", "MOVE_RIGHT"):
+        try:
+            evaluate_liveness_frames(static_frames, removed_challenge)
+            lateral_rejected = False
+        except HTTPException as exc:
+            lateral_rejected = lateral_rejected and exc.status_code == 422
     return (
-        evaluate_liveness_frames(preview_left_frames, "MOVE_LEFT").passed
-        and evaluate_liveness_frames(preview_right_frames, "MOVE_RIGHT").passed
-        and evaluate_liveness_frames(closer_frames, "MOVE_CLOSER").passed,
-        not evaluate_liveness_frames(static_frames, "MOVE_LEFT").passed
-        and not evaluate_liveness_frames(static_frames, "MOVE_RIGHT").passed
-        and not evaluate_liveness_frames(static_frames, "MOVE_CLOSER").passed,
-        not evaluate_liveness_frames(preview_right_frames, "MOVE_LEFT").passed
-        and not evaluate_liveness_frames(preview_left_frames, "MOVE_RIGHT").passed,
-        not evaluate_liveness_frames(one_spike_frames, "MOVE_LEFT").passed,
+        evaluate_liveness_frames(closer_frames, "MOVE_CLOSER").passed,
+        not evaluate_liveness_frames(static_frames, "MOVE_CLOSER").passed,
+        lateral_rejected,
+        not evaluate_liveness_frames(one_spike_frames, "MOVE_CLOSER").passed,
     )
 
 
@@ -324,7 +321,7 @@ def main() -> None:
         frames,
         admin_token,
         session_id,
-        challenge="MOVE_RIGHT",
+        challenge="MOVE_CLOSER",
     )
     no_face_after = record_count_for_session(session_id)
     no_face_diagnostics = no_face_body.get("livenessDiagnostics") if isinstance(no_face_body, dict) else None
@@ -332,7 +329,7 @@ def main() -> None:
     (
         controlled_liveness_pass,
         static_repeated_frame_fails,
-        wrong_direction_fails,
+        removed_lateral_challenges_rejected,
         single_frame_jitter_fails,
     ) = controlled_liveness_checks()
     liveness_failed_no_record = no_face_after == no_face_before
@@ -343,7 +340,7 @@ def main() -> None:
         frames,
         admin_token,
         closed_session_id,
-        challenge="MOVE_RIGHT",
+        challenge="MOVE_CLOSER",
     )
 
     results = {
@@ -364,7 +361,8 @@ def main() -> None:
             and info_body.get("mode") == "basic"
             and info_body.get("frameCount") == LIVENESS_FRAME_COUNT
             and info_body.get("baselineFrameCount") == 2
-            and info_body.get("movementFrameCount") == 7
+            and info_body.get("movementFrameCount") == 10
+            and info_body.get("allowedChallenges") == ["MOVE_CLOSER"]
             and info_body.get("diagnosticsExposed") is True
             and info_body.get("previewMirrored") is True
         ),
@@ -379,11 +377,11 @@ def main() -> None:
         ),
         "controlled_movement_liveness_passes": controlled_liveness_pass,
         "static_repeated_frame_fails": static_repeated_frame_fails,
-        "wrong_direction_movement_fails": wrong_direction_fails,
+        "removed_lateral_challenges_rejected": removed_lateral_challenges_rejected,
         "single_frame_detector_jitter_fails": single_frame_jitter_fails,
         "liveness_diagnostics_exposed_safely": (
             isinstance(no_face_diagnostics, dict)
-            and no_face_diagnostics.get("challenge") == "MOVE_RIGHT"
+            and no_face_diagnostics.get("challenge") == "MOVE_CLOSER"
             and no_face_diagnostics.get("submittedFrameCount") == LIVENESS_FRAME_COUNT
             and isinstance(no_face_diagnostics.get("detectedFaceFrameCount"), int)
             and "displacementRatio" in no_face_diagnostics

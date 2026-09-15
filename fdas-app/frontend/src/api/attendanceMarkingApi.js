@@ -9,12 +9,17 @@ export const attendanceMarkingApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(response => response.data)
   },
-  markByFaceLive: ({ sessionId, challengeType, files }) => {
+  markByFaceLive: ({ sessionId, challengeType, files, queryFiles = [], controlledTest = false, expectedStudentId }) => {
     const formData = new FormData()
     formData.append('sessionId', sessionId)
     formData.append('challengeType', challengeType)
+    formData.append('controlledTest', controlledTest ? 'true' : 'false')
+    if (expectedStudentId) formData.append('expectedStudentId', expectedStudentId)
     files.forEach((file, index) => {
       formData.append('files', file, `liveness_frame_${index + 1}_${Date.now()}.jpg`)
+    })
+    queryFiles.forEach((file, index) => {
+      formData.append('queryFiles', file, `recognition_query_${index + 1}_${Date.now()}.jpg`)
     })
     return apiClient.post('/api/attendance/mark-by-face-live', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

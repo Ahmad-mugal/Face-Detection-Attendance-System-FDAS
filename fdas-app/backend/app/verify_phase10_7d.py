@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -99,6 +100,7 @@ def storage_fingerprint(student_id: int) -> tuple[int, int, str]:
 
 
 def main() -> None:
+    isolated_final_run = os.getenv("FDAS_FINAL_VERIFICATION_ISOLATED") == "1"
     with SessionLocal() as db:
         duplicate = db.query(Student).filter(Student.studentId == 19).one()
         canonical = db.query(Student).filter(Student.studentId == 22).one()
@@ -124,6 +126,11 @@ def main() -> None:
         attendance_counts_before = {
             student_id: db.query(AttendanceRecord).filter(AttendanceRecord.studentId == student_id).count()
             for student_id in (19, 22)
+        }
+        global_counts_before = {
+            "templates": db.query(FaceTemplate).count(),
+            "embeddings": db.query(FaceTemplateEmbedding).count(),
+            "attendance": db.query(AttendanceRecord).count(),
         }
         row_fingerprints_before = {student_id: row_fingerprint(db, student_id) for student_id in (19, 22)}
         storage_before = {student_id: storage_fingerprint(student_id) for student_id in (19, 22)}
@@ -177,6 +184,11 @@ def main() -> None:
             student_id: db.query(AttendanceRecord).filter(AttendanceRecord.studentId == student_id).count()
             for student_id in (19, 22)
         }
+        global_counts_after = {
+            "templates": db.query(FaceTemplate).count(),
+            "embeddings": db.query(FaceTemplateEmbedding).count(),
+            "attendance": db.query(AttendanceRecord).count(),
+        }
         row_fingerprints_after = {student_id: row_fingerprint(db, student_id) for student_id in (19, 22)}
         storage_after = {student_id: storage_fingerprint(student_id) for student_id in (19, 22)}
 
@@ -197,6 +209,12 @@ def main() -> None:
             and attendance_counts_before[19] == attendance_counts_after[19] == 4
         ),
         "canonical_deep_ready": embedding_counts_before[22] >= DEEP_ENROLLMENT_MIN_EMBEDDINGS,
+        "canonical_relations_preserved": (
+            template_counts_before[22] == template_counts_after[22] == 33
+            and embedding_counts_before[22] == embedding_counts_after[22] == 22
+            and attendance_counts_before[22] == attendance_counts_after[22]
+            and (isolated_final_run or attendance_counts_before[22] == 4)
+        ),
         "inactive_duplicate_excluded_from_candidates": 19 not in candidate_ids,
         "canonical_included_in_candidates": 22 in candidate_ids,
         "candidate_scoping_matches_active_deep_ready_students": candidate_ids == expected_active_ids,
@@ -205,6 +223,23 @@ def main() -> None:
         "query_only_creates_no_attendance": attendance_counts_before == attendance_counts_after,
         "query_only_preserves_identity_rows": row_fingerprints_before == row_fingerprints_after,
         "query_only_preserves_storage": storage_before == storage_after,
+        "expected_physical_identity_storage_preserved": (
+            storage_before[19][0] == 50
+            and storage_before[19][1] == 2_647_386
+            and storage_before[22][0] == 33
+            and storage_before[22][1] == 2_497_505
+        ),
+        "production_totals_preserved": (
+            global_counts_before == global_counts_after
+            and (
+                isolated_final_run
+                or global_counts_before == {
+                    "templates": 4708,
+                    "embeddings": 171,
+                    "attendance": 22,
+                }
+            )
+        ),
         "diagnostic_response_declares_no_write": (
             diagnostic["attendanceCreated"] is False
             and diagnostic["persistentWrite"] is False

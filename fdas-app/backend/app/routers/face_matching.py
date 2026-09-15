@@ -45,11 +45,16 @@ async def diagnose_face_match(
 async def validate_single_face_capture(
     file: UploadFile = File(...),
     referenceFile: UploadFile | None = File(default=None),
+    attendanceMode: bool = Form(False),
     _current_user: User = Depends(require_operator_or_admin),
 ):
     image_bytes = await read_match_upload(file)
     reference_bytes = await read_match_upload(referenceFile) if referenceFile is not None else None
-    return validate_single_face_bytes(image_bytes, reference_bytes)
+    return validate_single_face_bytes(
+        image_bytes,
+        reference_bytes,
+        allow_deep_reconciliation=attendanceMode,
+    )
 
 
 @router.get("/api/face-matching/info", response_model=FaceMatchingInfo)

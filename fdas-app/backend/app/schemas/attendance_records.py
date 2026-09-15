@@ -16,6 +16,10 @@ class AttendanceRecordRead(BaseModel):
     markedAt: datetime
     status: str
     recognitionConfidence: float | None = None
+    recognitionProvider: str | None = None
+    recognitionEncodingVersion: str | None = None
+    recognitionMethod: str | None = None
+    identityMargin: float | None = None
     livenessStatus: str | None = None
 
 

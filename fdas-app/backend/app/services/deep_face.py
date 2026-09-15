@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import cv2
 import numpy as np
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -16,6 +17,15 @@ from app.config import (
     DEEP_FACE_EXECUTION_PROVIDER,
     DEEP_FACE_MODEL_DIRECTORY,
     DEEP_FACE_MODEL_NAME,
+    DEEP_QUERY_MAX_BRIGHTNESS,
+    DEEP_QUERY_MIN_BLUR_VARIANCE,
+    DEEP_QUERY_MIN_BRIGHTNESS,
+    DEEP_QUERY_MIN_EDGE_CLEARANCE_RATIO,
+    DEEP_QUERY_MIN_FACE_AREA_RATIO,
+    DEEP_ATTENDANCE_CONTROLLED_STUDENT_ID,
+    DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED,
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
+    DEEP_RECOGNITION_INTEGRATED_FOR_ATTENDANCE,
     IDENTITY_MATCHING_SAFETY_HOLD,
 )
 from app.models.face_template import FaceTemplate
@@ -43,6 +53,9 @@ class DeepEncodingResult:
     l2Norm: float | None
     processingMilliseconds: float
     embedding: np.ndarray | None = field(default=None, repr=False)
+    faceBox: tuple[int, int, int, int] | None = None
+    quality: dict[str, bool | float | str] | None = None
+    haarBackgroundFalsePositiveReconciled: bool = False
 
 
 class DeepFaceService:
@@ -137,6 +150,60 @@ class DeepFaceService:
                     f"Deep recognition initialization failed: {exc}"
                 ) from exc
 
+    def get_deep_faces(self, image: np.ndarray):
+        application = self.initialize()
+        with self._inference_lock:
+            return application.get(image, max_num=0)
+
+    def detect_face_boxes(self, image: np.ndarray) -> list[tuple[int, int, int, int]]:
+        height, width = image.shape[:2]
+        boxes: list[tuple[int, int, int, int]] = []
+        for face in self.get_deep_faces(image):
+            left, top, right, bottom = [float(value) for value in face.bbox[:4]]
+            x1 = max(0, min(width - 1, int(round(left))))
+            y1 = max(0, min(height - 1, int(round(top))))
+            x2 = max(x1 + 1, min(width, int(round(right))))
+            y2 = max(y1 + 1, min(height, int(round(bottom))))
+            boxes.append((x1, y1, x2 - x1, y2 - y1))
+        return boxes
+
+    @staticmethod
+    def _query_quality(image: np.ndarray, face_box: tuple[int, int, int, int]) -> dict[str, bool | float | str]:
+        frame_height, frame_width = image.shape[:2]
+        x, y, width, height = face_box
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        crop = gray[y:y + height, x:x + width]
+        frame_area = max(float(frame_width * frame_height), 1.0)
+        shortest_side = max(float(min(frame_width, frame_height)), 1.0)
+        area_ratio = float(width * height) / frame_area
+        blur_variance = float(cv2.Laplacian(crop, cv2.CV_64F).var()) if crop.size else 0.0
+        brightness = float(crop.mean()) if crop.size else 0.0
+        edge_clearance = float(min(x, y, frame_width - (x + width), frame_height - (y + height))) / shortest_side
+        failures: list[str] = []
+        if area_ratio < DEEP_QUERY_MIN_FACE_AREA_RATIO:
+            failures.append("face_too_small")
+        if blur_variance < DEEP_QUERY_MIN_BLUR_VARIANCE:
+            failures.append("blurred")
+        if brightness < DEEP_QUERY_MIN_BRIGHTNESS:
+            failures.append("too_dark")
+        if brightness > DEEP_QUERY_MAX_BRIGHTNESS:
+            failures.append("too_bright")
+        if edge_clearance < DEEP_QUERY_MIN_EDGE_CLEARANCE_RATIO:
+            failures.append("face_near_edge")
+        return {
+            "passed": not failures,
+            "reason": ",".join(failures) if failures else "quality_checks_passed",
+            "faceAreaRatio": round(area_ratio, 6),
+            "minimumFaceAreaRatio": DEEP_QUERY_MIN_FACE_AREA_RATIO,
+            "blurVariance": round(blur_variance, 3),
+            "minimumBlurVariance": DEEP_QUERY_MIN_BLUR_VARIANCE,
+            "brightness": round(brightness, 3),
+            "minimumBrightness": DEEP_QUERY_MIN_BRIGHTNESS,
+            "maximumBrightness": DEEP_QUERY_MAX_BRIGHTNESS,
+            "edgeClearanceRatio": round(edge_clearance, 6),
+            "minimumEdgeClearanceRatio": DEEP_QUERY_MIN_EDGE_CLEARANCE_RATIO,
+        }
+
     def encode_image_bytes(self, image_bytes: bytes) -> DeepEncodingResult:
         started = time.perf_counter()
         image = decode_image_bytes(image_bytes)
@@ -159,9 +226,7 @@ class DeepFaceService:
                 started,
             )
 
-        application = self.initialize()
-        with self._inference_lock:
-            deep_faces = application.get(image, max_num=0)
+        deep_faces = self.get_deep_faces(image)
         deep_count = len(deep_faces)
         if deep_count != haar_count:
             return self._failure(
@@ -212,6 +277,80 @@ class DeepFaceService:
             embedding=embedding,
         )
 
+    def encode_attendance_query_bytes(self, image_bytes: bytes) -> DeepEncodingResult:
+        """Encode one quality-gated query using SCRFD as the final face-count authority."""
+        started = time.perf_counter()
+        image = decode_image_bytes(image_bytes)
+        haar_faces = detect_faces(image)
+        haar_count = len(haar_faces)
+        if haar_count == 0:
+            return self._failure("NoFaceDetected", "No face detected.", 0, None, started)
+
+        deep_faces = self.get_deep_faces(image)
+        deep_count = len(deep_faces)
+        if deep_count > 1:
+            return self._failure(
+                "MultipleFacesDetected",
+                "Multiple genuine faces detected. Exactly one person is required.",
+                haar_count,
+                deep_count,
+                started,
+            )
+        if deep_count != 1:
+            return self._failure(
+                "FaceDetectionMismatch",
+                "The deep detector could not confirm exactly one face.",
+                haar_count,
+                deep_count,
+                started,
+            )
+
+        height, width = image.shape[:2]
+        left, top, right, bottom = [float(value) for value in deep_faces[0].bbox[:4]]
+        x1 = max(0, min(width - 1, int(round(left))))
+        y1 = max(0, min(height - 1, int(round(top))))
+        x2 = max(x1 + 1, min(width, int(round(right))))
+        y2 = max(y1 + 1, min(height, int(round(bottom))))
+        face_box = (x1, y1, x2 - x1, y2 - y1)
+        quality = self._query_quality(image, face_box)
+        reconciled = haar_count > 1
+        if not quality["passed"]:
+            return DeepEncodingResult(
+                success=False,
+                status="PoorFaceQuality",
+                message=f"Face quality needs a fresh capture: {quality['reason']}.",
+                haarFaceCount=haar_count,
+                deepFaceCount=deep_count,
+                embeddingDimension=None,
+                l2Norm=None,
+                processingMilliseconds=round((time.perf_counter() - started) * 1000.0, 3),
+                faceBox=face_box,
+                quality=quality,
+                haarBackgroundFalsePositiveReconciled=reconciled,
+            )
+
+        raw_embedding = np.asarray(deep_faces[0].embedding, dtype=np.float32).reshape(-1)
+        if raw_embedding.size != DEEP_FACE_EMBEDDING_DIMENSION or not np.all(np.isfinite(raw_embedding)):
+            return self._failure("InvalidEmbedding", "The deep model returned an invalid embedding.", haar_count, deep_count, started)
+        norm = float(np.linalg.norm(raw_embedding))
+        if norm <= 0.0 or not np.isfinite(norm):
+            return self._failure("InvalidEmbedding", "The deep model returned a zero or non-finite embedding.", haar_count, deep_count, started)
+        embedding = raw_embedding / norm
+        return DeepEncodingResult(
+            success=True,
+            status="Encoded",
+            message="Quality-gated ArcFace attendance query generated.",
+            haarFaceCount=haar_count,
+            deepFaceCount=deep_count,
+            embeddingDimension=int(embedding.size),
+            l2Norm=round(float(np.linalg.norm(embedding)), 6),
+            processingMilliseconds=round((time.perf_counter() - started) * 1000.0, 3),
+            embedding=embedding,
+            faceBox=face_box,
+            quality=quality,
+            haarBackgroundFalsePositiveReconciled=reconciled,
+        )
+
     @staticmethod
     def _failure(
         status_name: str,
@@ -254,7 +393,10 @@ def deep_face_capability(*, initialize: bool = False) -> dict:
         "deepRecognitionExecutionProvider": DEEP_FACE_EXECUTION_PROVIDER,
         "deepRecognitionReady": service.ready,
         "encodingVersion": DEEP_FACE_ENCODING_VERSION,
-        "activeForAttendance": False,
+        "integratedForAttendance": DEEP_RECOGNITION_INTEGRATED_FOR_ATTENDANCE,
+        "activeForAttendance": DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
+        "controlledAttendanceEnabled": DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED,
+        "controlledAttendanceStudentId": DEEP_ATTENDANCE_CONTROLLED_STUDENT_ID,
         "attendanceSafetyHold": IDENTITY_MATCHING_SAFETY_HOLD,
         "modelDirectory": str(service.model_directory),
         "initializationMilliseconds": service.initialization_milliseconds,

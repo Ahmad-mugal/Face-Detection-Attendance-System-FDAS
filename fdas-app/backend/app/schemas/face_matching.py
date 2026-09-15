@@ -88,3 +88,5 @@ class SingleFaceCheckResult(BaseModel):
     continuityPassed: bool | None = None
     continuitySimilarity: float | None = None
     continuityThreshold: float
+    haarFaceCount: int | None = None
+    deepReconciled: bool = False

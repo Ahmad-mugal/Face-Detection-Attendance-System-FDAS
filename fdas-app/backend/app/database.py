@@ -33,20 +33,29 @@ def init_db():
 
 def ensure_sqlite_compatibility_columns():
     inspector = inspect(engine)
-    if "face_templates" not in inspector.get_table_names():
-        return
-
-    existing_columns = {column["name"] for column in inspector.get_columns("face_templates")}
+    available_tables = set(inspector.get_table_names())
     compatibility_columns = {
-        "sampleIndex": "INTEGER",
-        "isActive": "BOOLEAN NOT NULL DEFAULT 1",
-        "createdByUserId": "INTEGER",
-        "encodingVersion": "VARCHAR(80)",
-        "faceBoxJson": "TEXT",
-        "processedAt": "DATETIME",
+        "face_templates": {
+            "sampleIndex": "INTEGER",
+            "isActive": "BOOLEAN NOT NULL DEFAULT 1",
+            "createdByUserId": "INTEGER",
+            "encodingVersion": "VARCHAR(80)",
+            "faceBoxJson": "TEXT",
+            "processedAt": "DATETIME",
+        },
+        "attendance_records": {
+            "recognitionProvider": "VARCHAR(40)",
+            "recognitionEncodingVersion": "VARCHAR(80)",
+            "recognitionMethod": "VARCHAR(40)",
+            "identityMargin": "FLOAT",
+        },
     }
 
     with engine.begin() as connection:
-        for column_name, column_sql in compatibility_columns.items():
-            if column_name not in existing_columns:
-                connection.execute(text(f"ALTER TABLE face_templates ADD COLUMN {column_name} {column_sql}"))
+        for table_name, columns in compatibility_columns.items():
+            if table_name not in available_tables:
+                continue
+            existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+            for column_name, column_sql in columns.items():
+                if column_name not in existing_columns:
+                    connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_sql}"))

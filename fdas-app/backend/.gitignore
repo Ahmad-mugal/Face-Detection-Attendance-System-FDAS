@@ -8,3 +8,4 @@ models/insightface/buffalo_l/
 models/insightface/buffalo_l.zip
 uvicorn*.log
 backups/
+output/

@@ -93,7 +93,7 @@ def login() -> str | None:
 def controlled_frames() -> list[LivenessFrame]:
     boxes = (
         [(50, 50, 60, 60), (50, 50, 60, 60)]
-        + [(54, 50, 60, 60), (60, 50, 60, 60), (68, 50, 60, 60), (72, 50, 60, 60), (70, 50, 60, 60), (68, 50, 60, 60), (66, 50, 60, 60)]
+        + [(49, 49, 62, 62), (47, 47, 65, 65), (45, 45, 68, 68), (44, 44, 70, 70), (43, 43, 72, 72), (43, 43, 72, 72), (43, 43, 72, 72), (44, 44, 70, 70), (44, 44, 70, 70), (44, 44, 70, 70)]
     )
     return [
         LivenessFrame(
@@ -137,7 +137,7 @@ def verify_router_short_circuit(blank_png: bytes) -> tuple[bool, bool]:
             result = asyncio.run(
                 mark_by_face_live(
                     sessionId=session.sessionId,
-                    challengeType="MOVE_LEFT",
+                    challengeType="MOVE_CLOSER",
                     files=uploads,
                     current_user=admin,
                     db=db,
@@ -185,16 +185,16 @@ def main() -> None:
     continuity_code = exception_code(lambda: ensure_enrollment_face_continuity(switched_results))
 
     frames = controlled_frames()
-    normal_liveness = evaluate_liveness_frames(frames, "MOVE_LEFT")
+    normal_liveness = evaluate_liveness_frames(frames, "MOVE_CLOSER")
     multiple_frames = list(frames)
     multiple_frames[4] = replace(multiple_frames[4], face_count=2, face_box=None, face_descriptor=None)
-    multiple_liveness = evaluate_liveness_frames(multiple_frames, "MOVE_LEFT")
+    multiple_liveness = evaluate_liveness_frames(multiple_frames, "MOVE_CLOSER")
     missing_frames = list(frames)
     missing_frames[4] = replace(missing_frames[4], face_count=0, face_box=None, face_descriptor=None)
-    missing_liveness = evaluate_liveness_frames(missing_frames, "MOVE_LEFT")
+    missing_liveness = evaluate_liveness_frames(missing_frames, "MOVE_CLOSER")
     switched_frames = list(frames)
     switched_frames[5] = replace(switched_frames[5], face_descriptor=[0.0, 1.0, 0.0])
-    switched_liveness = evaluate_liveness_frames(switched_frames, "MOVE_LEFT")
+    switched_liveness = evaluate_liveness_frames(switched_frames, "MOVE_CLOSER")
 
     with SessionLocal() as db:
         student = db.query(Student).filter(Student.departmentId == 1).order_by(Student.studentId).first()

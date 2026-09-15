@@ -4041,11 +4041,36 @@ Every click captures one fresh in-memory JPEG, checks exactly one Haar-detected 
 
 ### Independent #22 Results
 
-**Pending user-operated genuine webcam capture: 0/10 recorded.** Automated or fabricated webcam results are not substituted. Final score, second-candidate, margin, and classification counts will be added after the user completes the ten prompts and returns the metadata-only report.
+The user completed all ten prompted captures with the genuine webcam and returned the metadata-only diagnostic report. All ten requests used Student #22 as the expected identity, ranked #22 first, ranked distinct Student #24 second, passed both checks, and returned `attendanceCreated = false` plus `persistentWrite = false`.
+
+| Query | Variation | #22/top score | Second distinct identity | Second score | Margin | Threshold | Margin | Classification |
+| ---: | --- | ---: | --- | ---: | ---: | --- | --- | --- |
+| 1 | Frontal | 0.904451 | #24 Mani | 0.221537 | 0.682914 | Pass | Pass | DiagnosticMatched |
+| 2 | Frontal repeat | 0.904949 | #24 Mani | 0.237990 | 0.666959 | Pass | Pass | DiagnosticMatched |
+| 3 | Slight left | 0.850916 | #24 Mani | 0.239107 | 0.611809 | Pass | Pass | DiagnosticMatched |
+| 4 | Slight right | 0.882848 | #24 Mani | 0.299408 | 0.583440 | Pass | Pass | DiagnosticMatched |
+| 5 | Slightly closer | 0.904872 | #24 Mani | 0.257867 | 0.647005 | Pass | Pass | DiagnosticMatched |
+| 6 | Slightly farther | 0.897288 | #24 Mani | 0.255289 | 0.641999 | Pass | Pass | DiagnosticMatched |
+| 7 | Small upward angle | 0.868168 | #24 Mani | 0.235434 | 0.632734 | Pass | Pass | DiagnosticMatched |
+| 8 | Small downward angle | 0.850690 | #24 Mani | 0.219584 | 0.631106 | Pass | Pass | DiagnosticMatched |
+| 9 | Modest normal-lighting variation | 0.855995 | #24 Mani | 0.289732 | 0.566263 | Pass | Pass | DiagnosticMatched |
+| 10 | Neutral final capture | 0.899178 | #24 Mani | 0.210853 | 0.688325 | Pass | Pass | DiagnosticMatched |
+
+- Fresh independent genuine queries: `10`.
+- Correctly accepted: `10/10`.
+- Below-threshold genuine rejects: `0`.
+- Ambiguous rejects: `0`.
+- Wrong distinct-identity top-1: `0`.
+- False distinct-identity accepts: `0`.
+- #22 genuine score range: `0.850690-0.904949`.
+- Strongest-distinct/second-candidate score range: `0.210853-0.299408`.
+- Top-1/top-2 margin range: `0.566263-0.688325`.
+- #24 was the second-ranked distinct identity in `10/10`; its largest observed score was `0.299408`.
+- #19 did not remain a competitor because the user-confirmed duplicate is inactive and correctly excluded from the active candidate pool.
 
 ### Preliminary 0.85 / 0.07 Rule Results
 
-The independent live result is pending. The implementation still evaluates `mean_top_3`, threshold `0.85`, then distinct-identity margin `0.07` in fail-closed order. No threshold, margin, method, or recognition algorithm was tuned in Phase 10.7D.
+The implementation evaluated `mean_top_3`, threshold `0.85`, then distinct-identity margin `0.07` in fail-closed order. The preliminary rule correctly accepted all `10/10` fresh #22 queries with no ambiguity, wrong top-1 identity, or false distinct-identity acceptance in this limited set. The minimum genuine score was `0.850690`, only `0.000690` above threshold, so the result supports the current preliminary value but does not justify lowering it or claiming population-level calibration. No threshold, margin, method, or recognition algorithm was tuned in Phase 10.7D.
 
 ### Test-vs-Enrollment Separation Confirmation
 
@@ -4055,7 +4080,7 @@ The independent live result is pending. The implementation still evaluates `mean
 
 ### Automated Verification
 
-- `app.verify_phase10_7d`: PASS. It verifies #19 preserved/inactive, #22 active/deep-ready, candidate scoping, no template/embedding/attendance/storage writes, unchanged identity rows, unchanged `mean_top_3 / 0.85 / 0.07`, and active safety hold.
+- `app.verify_phase10_7d`: PASS before and after the live query set. The strengthened post-capture run verifies #19 preserved/inactive, #22 active/deep-ready, candidate scoping, no template/embedding/attendance/storage writes, unchanged identity rows, unchanged `mean_top_3 / 0.85 / 0.07`, and active safety hold. It also confirms exact totals of 4,708 templates, 171 deep embeddings, and 21 attendance records.
 - `app.verify_phase10_7c`: PASS.
 - Unified isolated regression: PASS, all 19 sequential suites.
 - Frontend lint: PASS.
@@ -4065,13 +4090,13 @@ The independent live result is pending. The implementation still evaluates `mean
 
 ### Final Identity Integrity Decision
 
-Current decision: **A. #19/#22 USER-CONFIRMED DUPLICATE**, with #22 canonical and #19 safely excluded from active recognition without destructive data changes. The deep matcher is behaving consistently with that confirmed relationship in the available evidence. Phase 10.7D cannot receive its final PASS/PARTIAL/FAIL classification until the required ten independent #22 live queries are completed.
+Final decision: **A. #19/#22 USER-CONFIRMED DUPLICATE, and the deep matcher otherwise behaved correctly in the available Phase 10.7D evidence.** Student #22 is canonical; #19 is safely excluded from active recognition without destructive data changes. All ten fresh #22 queries selected #22 over a genuinely distinct competitor by margins above `0.56`.
 
 ### Remaining Manual Limitations
 
-- Ten independent #22 live diagnostic queries remain required.
 - #27/#28 genuine live tests and a genuinely unknown-person live test remain unavailable and outside this phase's available-person constraint.
 - The preliminary policy remains small-dataset FYP evidence, not a population-level FAR/FRR claim.
+- Two accepted #22 queries were close to the `0.85` threshold (`0.850690` and `0.850916`), so broader camera/pose/lighting evidence remains important before any future attendance activation decision.
 
 ### Safety State
 
@@ -4080,10 +4105,465 @@ Current decision: **A. #19/#22 USER-CONFIRMED DUPLICATE**, with #22 canonical an
 - `DEEP_MATCH_SCORING_METHOD = mean_top_3`, deep threshold `0.85`, and deep margin `0.07` are unchanged.
 - Legacy `FACE_MATCH_THRESHOLD = 0.75` and legacy margin `0.05` are unchanged.
 - Phase 10.6C exact-one-face/continuity protections and liveness are preserved.
-- Database size remains `4,395,008` bytes. Live-file hashing was intentionally not forced while the active backend held the SQLite file; row/storage fingerprints in the isolated verifier remained identical across diagnostic execution.
+- Database size remains `4,395,008` bytes. Exact post-capture row/storage checks retained 4,708 templates, 171 deep embeddings, 21 attendance records, 50 #19 files (`2,647,386` bytes), and 33 #22 files (`2,497,505` bytes).
 - Production database, attendance history, templates, embeddings, and storage are preserved except for the explicitly authorized #19 Active-to-Inactive status update.
 - Phase 10.8 was not started.
 
-### Current Phase Status
+### Final Phase Status
 
-**IN PROGRESS - awaiting the required ten independent Student #22 webcam diagnostic queries.**
+**PASS - the #19/#22 duplicate identity was user-confirmed and safely remediated without deleting or merging history; distinct-person statistics were corrected; and all 10 independent #22 live queries were accepted as #22 with no wrong top-1 or false distinct-identity acceptance.** This is a Phase 10.7D scoped pass, not authorization to enable attendance. The safety hold remains active and Phase 10.8 was not started.
+
+## Phase 10.8 - Deep Recognition Attendance Integration & Controlled End-to-End Verification
+
+### Goal
+
+Integrate the validated ArcFace matcher into the real post-liveness attendance path without globally enabling attendance, then perform one tightly restricted Student #22 end-to-end test while all Phase 10.6C protections and the identity safety hold remain active.
+
+### Starting Safety State
+
+- `IDENTITY_MATCHING_SAFETY_HOLD = True`.
+- Normal deep attendance was disabled with `DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE = False`.
+- Legacy automatic matching had been proven unsafe and was not permitted as a fallback.
+- Student #22 Ahmad Mughal (`cs-2026-789`) was the only identity authorized for the controlled test and had 22 active valid `arcface_v1` embeddings.
+
+### Final Attendance Pipeline
+
+The integrated path is exactly-one stable face, face continuity, liveness, ArcFace query encoding, active/eligible deep candidate filtering, per-student `mean_top_3` scoring, threshold/margin checks, department eligibility, duplicate checking, and attendance persistence. Every failure before persistence creates no attendance. The ordinary single-frame endpoint requires liveness and does not make an automatic legacy identity decision.
+
+### Deep Candidate Eligibility
+
+Candidates must be Active, belong to the session department, have at least 20 active valid `arcface_v1` embeddings attached to active templates, and remain within the caller's department authorization. Student #19 remains Inactive and excluded. Deep-incomplete students are excluded without legacy fallback.
+
+### Deep Scoring Rule
+
+Automatic deep identity decisions use InsightFace/ArcFace `arcface_v1` embeddings and `mean_top_3` per-student aggregation. Responses expose only candidate metadata and scores; raw embeddings are never sent to the frontend.
+
+### Threshold & Margin
+
+The preliminary deep threshold remains `0.85` and the minimum distinct-identity margin remains `0.07`. The separate legacy threshold `FACE_MATCH_THRESHOLD = 0.75` and legacy margin `0.05` remain unchanged.
+
+### Legacy Fallback Policy
+
+There is no automatic fallback to `opencv_basic_v1`. Deep model, deep enrollment, detection, threshold, ambiguity, single-face, continuity, or liveness failures all fail closed. Legacy data and tooling remain available only for rollback, history, and explicitly historical diagnostics.
+
+### #19 Duplicate Exclusion
+
+Student #19 remains preserved and Inactive. Its historical identity row, attendance, templates, embeddings, and storage were not deleted or merged, but it cannot enter the active automatic candidate pool.
+
+### Attendance Metadata
+
+Additive nullable attendance columns record recognition provider, encoding version, aggregation method, and identity margin. Deep-created rows retain confidence/top score and liveness status without rewriting historical rows.
+
+### Controlled #22 End-to-End Test
+
+The first manual attempt was blocked before capture by a UI/wiring issue. The user confirmed Computer Science, active session #449, an active camera, and the new ArcFace operational rule were visible, but `Start Controlled #22 Test` was absent and only the separate no-attendance identity diagnostic was available.
+
+Root cause: the frontend source already contained the controlled button and the running Vite process served the correct project source, but the restarted backend reported `controlledAttendanceEnabled = false`. The controlled feature had depended on a transient `FDAS_DEEP_ATTENDANCE_CONTROLLED_TEST=true` process environment variable whose default was false, so an ordinary backend restart silently removed the test capability. The global safety hold itself was not the faulty condition.
+
+The controlled gate was made restart-safe for the scoped Phase 10.8 local test without activating normal attendance. The capability response reports the canonical student's name, roll number, department, valid embedding count, student readiness, model readiness, and combined controlled readiness. The frontend independently separates `normalAttendanceAllowed` from the Admin-only controlled path and shows `Start Controlled #22 Test` only when the model, #22 enrollment, active CS session, selected department, and camera prerequisites pass. After the controlled evidence was collected, the temporary gate was closed again by default; a future explicitly approved test can reopen it with `FDAS_DEEP_ATTENDANCE_CONTROLLED_TEST=true`.
+
+Backend enforcement independently requires the feature gate, `IDENTITY_MATCHING_SAFETY_HOLD = True`, normal attendance disabled, Admin role, exact expected Student ID 22, active session, #22 Active/deep-ready state, and the session department matching #22. Attempts targeting another student, using an Operator, or using a different department are rejected before liveness and recognition.
+
+Files changed for this blocker correction: `backend/app/config.py`, `backend/app/schemas/deep_face.py`, `backend/app/services/deep_face_matching.py`, `backend/app/routers/deep_face.py`, `backend/app/routers/attendance_marking.py`, `backend/app/verify_phase10_8.py`, `frontend/src/components/LiveAttendanceStation.jsx`, and `frontend/scripts/phase5-smoke.mjs`.
+
+After restart, the live capability result was: controlled enabled/ready `true`, Student #22 resolved to Ahmad Mughal / `cs-2026-789` / department #1, 22 valid embeddings, deep model ready `true`, safety hold `true`, normal attendance active `false`, threshold `0.85`, and margin `0.07`. Session #449 was independently confirmed Active in department #1. Production had zero #22 attendance rows for session #449 before the user began the final controlled test in a fresh Computer Science session #450.
+
+The user returned the metadata-only report for all 12 automatically repeated scan attempts:
+
+| Attempt | Challenge | Result | #22/top score | Second candidate | Second score | Margin | Liveness | Attendance effect |
+| ---: | --- | --- | ---: | --- | ---: | ---: | --- | --- |
+| 1 | MOVE_CLOSER | AttendanceMarked | 0.884575 | #24 | 0.274239 | 0.610336 | Passed | Created record #40 |
+| 2 | MOVE_RIGHT | MatchBelowThreshold | 0.848377 | #24 | 0.295957 | 0.552420 | Passed | None |
+| 3 | MOVE_LEFT | MatchBelowThreshold | 0.841062 | #24 | 0.294573 | 0.546489 | Passed | None |
+| 4 | MOVE_CLOSER | LivenessFailed | - | - | - | - | Failed | None |
+| 5 | MOVE_RIGHT | LivenessFailed | - | - | - | - | Failed | None |
+| 6 | MOVE_CLOSER | MatchBelowThreshold | 0.845205 | #24 | 0.255785 | 0.589420 | Passed | None |
+| 7 | MOVE_CLOSER | MatchBelowThreshold | 0.848254 | #24 | 0.250478 | 0.597776 | Passed | None |
+| 8 | MOVE_LEFT | LivenessFailed | - | - | - | - | Failed | None |
+| 9 | MOVE_LEFT | LivenessFailed | - | - | - | - | Failed | None |
+| 10 | MOVE_LEFT | LivenessFailed | - | - | - | - | Failed | None |
+| 11 | MOVE_LEFT | LivenessFailed | - | - | - | - | Failed | None |
+| 12 | MOVE_RIGHT | DuplicateAttendance | 0.856475 | #24 | 0.303922 | 0.552553 | Passed | Reused record #40; no new row |
+
+All attempts contained exactly one detected face in all 9/9 submitted frames, zero multi-face frames, and passed continuity. Liveness passed 6/12. ArcFace ran only after those six passes, ranked #22 first in all 6/6, and ranked distinct Student #24 second in all 6/6. Both accepted scores passed `0.85`; all six identity margins comfortably passed `0.07`. Four genuine scores (`0.841062-0.848377`) safely failed just below the threshold. There was no wrong top identity, ambiguity acceptance, legacy fallback, or unintended attendance write.
+
+Database validation confirmed record #40 is the single Student #22 row for session #450. Its persisted metadata is provider `InsightFace`, encoding `arcface_v1`, method `mean_top_3`, confidence `0.884575`, identity margin `0.610336`, liveness `Passed`, and attendance status `Present`. The duplicate response carried the existing record confidence while separately returning the new query top score `0.856475`, second score `0.303922`, and margin `0.552553`.
+
+### Duplicate Test
+
+PASS. Attempt 12 passed liveness and deep matching, returned `DuplicateAttendance` for existing attendance record #40, and did not create a second row. Production validation found exactly one Student #22 attendance row in session #450.
+
+### Negative Safety Tests
+
+The isolated verifier passes no-face, multiple-face, continuity-loss, liveness-fail, below-threshold, ambiguous-match, deep-unavailable, deep-incomplete, inactive-candidate, unauthorized identity, Operator-role, and wrong-department cases without attendance creation or legacy matching. The real run additionally produced six liveness failures and four below-threshold deep results, all with no extra attendance. No real no-face, multiple-face, continuity-loss, ambiguity, or deep-incomplete event was fabricated; those classifications remain isolated-verifier evidence.
+
+### Automated Verification
+
+- Backend compilation: PASS.
+- `app.verify_phase10_8`: PASS after the live test and controlled-gate closure, including the strengthened Admin/#22/department checks, exactly-one-face failures, liveness ordering, threshold/margin behavior, one-row success, duplicate prevention, metadata, inactive/deep-incomplete exclusion, no raw embeddings, and no legacy fallback.
+- Frontend lint: PASS.
+- Frontend production build: PASS with only the existing non-blocking large-chunk warning.
+- Required isolated `node scripts/phase5-smoke.mjs`: PASS; all route, validation, authorization, enrollment-recovery, attendance guard, and expected error-state checks passed with zero page errors.
+- Focused UI checks: PASS. No active session kept the controlled action unavailable. Active CS session #449 plus Admin and fake camera readiness displayed exactly `Start Controlled #22 Test`, did not display general `Start Scanning`, and retained the separate Identity Integrity Diagnostic.
+- The in-app browser surface was unavailable in the agent session; the repository's required Playwright smoke runner supplied the rendered focused verification instead.
+
+### Regression Results
+
+The required Phase 10.8 and prior-phase backend sequence passed before the controlled run. After record #40 was created, the standalone Phase 10.7D preservation baseline was advanced from three to four canonical #22 attendance rows and from 21 to 22 global attendance rows while retaining strict before/after immutability. `app.verify_phase10_7d` then passed, followed by the complete isolated unified regression: all 20 suites PASS, including Phase 10.8. Existing non-blocking warnings remain the SQLAlchemy subquery-coercion warning and InsightFace/scikit-image `estimate` deprecation.
+
+### Rollback
+
+Deep attendance remains independently disableable, the controlled gate is closed by default after the test, and the global hold stays authoritative for normal attendance. Legacy templates, deep embeddings, database history, and `opencv_basic_v1` historical tooling remain preserved; no unsafe automatic fallback exists.
+
+### Remaining Limitations
+
+- #27 live validation is pending.
+- #28 live validation is pending.
+- Unknown-person live validation is pending.
+- Broader classroom/background testing is pending.
+- The patterned-background false multi-face issue observed previously remains a known limitation.
+- Controlled #22 usability was imperfect: liveness passed 6/12 and only 2/6 post-liveness deep queries passed the preliminary threshold. This is fail-closed behavior rather than false acceptance, but it should be monitored in any limited rollout and does not support a 100% accuracy claim.
+
+### Safety Hold Decision
+
+**READY FOR LIMITED DEEP ATTENDANCE APPROVAL.** The real controlled path marked the correct canonical identity once, prevented a duplicate row, and failed closed on every intervening liveness/threshold rejection. This recommendation is limited by the single-person evidence and observed false-reject/retry rate. `IDENTITY_MATCHING_SAFETY_HOLD` remains `True`, normal attendance remains disabled, and the controlled gate is closed pending explicit user approval.
+
+### Final Status
+
+**PASS - ArcFace attendance integration, fail-closed safety behavior, one-row Student #22 persistence, duplicate prevention, metadata, rollback preservation, focused UI wiring, and all automated regressions passed. The result supports only limited approval; it does not authorize global attendance or claim broad recognition accuracy.**
+
+## Phase 10.9 - Genuine-User Reliability & Retry Hardening
+
+### Phase 10.8 Real-Test Baseline
+
+The complete controlled Student #22 log was audited before changing the implementation. It contained 12 attempts: 6 liveness passes, 6 liveness failures, one `AttendanceMarked`, one `DuplicateAttendance`, and four genuine `MatchBelowThreshold` results. The rejected genuine scores were `0.841062`, `0.845205`, `0.848254`, and `0.848377`. Accepted scores were `0.884575` and `0.856475`, with respective distinct-identity margins `0.610336` and `0.552553`. Student #22 was top-ranked in every post-liveness recognition result; no wrong identity or false attendance occurred.
+
+### Root-Cause Audit
+
+Every failed liveness attempt still contained one detected face in all 9/9 frames and passed face continuity, so face loss, multi-face entry, and subject switching were not the cause. The failures clustered as follows:
+
+| Attempt | Challenge | Requested-direction evidence | Required | Supporting frames | Classification |
+| ---: | --- | ---: | ---: | ---: | --- |
+| 4 | `MOVE_CLOSER` | area growth `0.086149` | `0.12` | 0 | movement evidence/timing failure |
+| 5 | `MOVE_RIGHT` | directional ratio `0.076172` | `0.08` | 0 | borderline movement evidence/timing failure |
+| 8 | `MOVE_LEFT` | directional ratio `0.050391` | `0.08` | 0 | movement evidence/timing failure |
+| 9 | `MOVE_LEFT` | directional ratio `-0.008594` | `0.08` | 0 | baseline/reset timing failure |
+| 10 | `MOVE_LEFT` | directional ratio `0.025781` | `0.08` | 0 | baseline/reset timing failure |
+| 11 | `MOVE_LEFT` | directional ratio `0.025000` | `0.08` | 0 | baseline/reset timing failure |
+
+The four near-threshold identity rejections were also traced to capture selection rather than weak identity separation: Phase 10.8 used the last movement frame as the only ArcFace query. That frame can retain an extreme left/right/closer pose, movement blur, or uneven exposure. Fresh centered diagnostic captures had substantially more stable scores and very large identity margins.
+
+### Query Quality Changes
+
+Attendance queries now use a lightweight fail-closed quality gate. Each fresh query must contain exactly one SCRFD-confirmed face and pass measured face-area, blur, brightness, and edge-clearance checks. Failure returns `PoorFaceQuality`, creates no attendance, and asks for a fresh capture; it is not recorded as a wrong identity.
+
+The conservative initial limits were selected after measuring 21 existing valid Student #22 deep-gallery images: face-area ratio minimum `0.095186` (median `0.115052`), Laplacian blur variance minimum `91.725` (median `175.595`), brightness minimum `73.356` (median `88.116`, maximum `152.330`), and edge-clearance ratio minimum `0.233333` (median `0.285417`). The implemented limits leave substantial tolerance below/around those observations: face-area ratio `>= 0.05`, blur variance `>= 50`, brightness `45-210`, and edge clearance `>= 0.02`. The checks expose numerical metadata only; query images and raw embeddings are not stored or returned.
+
+### Multi-Query Consensus
+
+After liveness succeeds, the UI explicitly asks the user to return to center and hold still, waits 1.2 seconds, and captures three new query images at 350 ms spacing. The liveness movement frame is no longer the identity query. The backend independently requires exactly three files, quality-gates and embeds each one, obtains a per-student `mean_top_3` gallery score for each query, and requires:
+
+- the same top identity in at least 2 of 3 queries;
+- median-of-three identity score `>= 0.85`;
+- median top-1/top-2 identity margin `>= 0.07`.
+
+No query embedding is persisted, reused, logged, or exposed. Existing Phase 10.7D live diagnostic evidence supported this choice: its nine centered Student #22 captures form three independent 3-query bursts whose median top scores/margins are `0.904451/0.666461`, `0.897288/0.639421`, and `0.855995/0.620561`, with Student #22 top-ranked in all 9/9 queries. In contrast, grouping the Phase 10.8 movement-end queries remained around `0.848`, confirming that consensus without re-centering would not resolve the capture-quality cause.
+
+### Retry Policy
+
+The controlled Phase 10.9 harness runs 10 reliability cycles. A transient liveness, quality, below-threshold, ambiguity, or query-consensus rejection can receive at most two additional attempts. Every retry performs a complete fresh single-face check, baseline, challenge, liveness sequence, return-to-center hold, and three-image query burst; no failed frame or embedding is reused, and being close to the threshold never causes acceptance. Attendance is created only when the unchanged normal consensus, threshold, and margin rules pass. After two retries, that cycle fails safely and the harness advances. Evidence records cycle number, retry number, liveness diagnostics, query quality, top/second scores, margin, consensus, and final result.
+
+### Liveness Changes
+
+The movement definitions, thresholds, and anti-static requirements are unchanged: `MOVE_LEFT`, `MOVE_RIGHT`, `MOVE_CLOSER`, center-shift ratio `0.08`, area-growth ratio `0.12`, and at least two supporting movement frames remain enforced. Reliability changes are limited to capture timing and instructions: stable single-face reference now comes from the completed one-second stability check, center hold increased from 1.0 to 1.5 seconds, GO render allowance increased from 150 to 350 ms, movement frames are sampled every 350 ms, the instruction says to move only after GO and hold the position, and challenges rotate left/right/closer so the same random challenge cannot repeat immediately.
+
+### Patterned-Background Face Detection
+
+The previously confirmed curtain/shadow Haar false multi-face event is explicitly addressed. If Haar reports more than one attendance face, the backend invokes the existing local InsightFace/SCRFD detector as a stricter reconciliation step. One SCRFD face converts the patterned-background case to one final face and records the reconciliation. Two or more SCRFD faces remain `MultipleFacesDetected`; detector uncertainty retains the Haar multi-face rejection. The rule is enforced in both the pre-capture attendance guard and every backend liveness frame. Enrollment behavior remains unchanged and fail-closed.
+
+### Controlled #22 Retest
+
+Implementation and automated verification are complete. The required real-webcam Student #22 retest is pending user execution. The UI is prepared to collect 10 cycles with no more than two fresh retries per cycle and to copy a metadata-only Phase 10.9 report. No real attempt counts or success rates are claimed before that report is returned.
+
+### Reliability Metrics
+
+Pending the controlled #22 report. The report will calculate separately: liveness success rate, recognition success rate given liveness passed, overall first-attempt success rate, and success after permitted retries.
+
+### Safety Metrics
+
+Automated evidence confirms zero attendance for poor quality, split identity consensus, below-threshold, insufficient margin, multiple faces, liveness failure, and controlled wrong-identity results. The isolated retry test created no row on its first two transient failures, created exactly one row only after a valid consensus, and created no second row on duplicate. Real-webcam wrong-identity and false-attendance counts remain pending the controlled report.
+
+### Threshold Decision
+
+No threshold was changed. `DEEP_MATCH_THRESHOLD = 0.85`, `DEEP_MATCH_MIN_IDENTITY_MARGIN = 0.07`, and legacy `FACE_MATCH_THRESHOLD = 0.75` remain exactly unchanged. The preferred decision is to retain `0.85`; the final decision waits for the improved real-webcam evidence. No automatic threshold adjustment is permitted.
+
+### Automated Verification
+
+- Backend compilation: PASS.
+- `app.verify_phase10_9`: PASS, including three-query consensus, split-identity rejection, quality rejection, no premature retry persistence, controlled wrong-identity blocking, liveness ordering, genuine multi-face rejection, patterned-background reconciliation, unchanged thresholds, duplicate prevention, no legacy fallback, and active safety hold.
+- `app.verify_phase10_8`: PASS after adapting the prior integration verifier to the required three-query interface.
+- `app.verify_phase10_7d`: PASS.
+- Full isolated `app.run_final_verification` on alternate port 8011: PASS, all 21 suites including Phase 10.9.
+- Frontend `npm.cmd run lint`: PASS.
+- Frontend `npm.cmd run build`: PASS; the existing non-blocking large-chunk warning remains.
+- Required Playwright `node scripts/phase5-smoke.mjs`: PASS against disposable backend/database and frontend services on ports 8012/5174; all checks passed and page errors were zero. Expected console network/HTTP errors were produced only by the smoke cases that intentionally simulate conflict, unavailable backend, and invalid credentials.
+- The first unified invocation stopped safely because the user's server occupied port 8000; it was rerun successfully on isolated port 8011 without stopping or changing that server.
+
+### Attendance Safety Decision
+
+**KEEP SAFETY HOLD pending the controlled #22 retest.** `IDENTITY_MATCHING_SAFETY_HOLD = True`, `DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE = False`, and no legacy automatic fallback is present. The controlled gate opens only when the explicit local Phase 10.9 launcher sets its process-scoped flag, and remains restricted to the Admin/#22/department-bound reliability harness; it does not enable ordinary attendance.
+
+### Data Preservation
+
+Production validation after all automated tests retained 21 students, 4,708 face templates, 171 deep embeddings, and 22 attendance records. `fdas_local.db` remains `4,395,008` bytes. Storage retains 15,549 files (`27,447,638` bytes), including all 33 Student #22 files (`2,497,505` bytes). Automated tests used temporary isolated databases/storage and did not rewrite production history.
+
+### Remaining Limitations
+
+- The controlled #22 real-webcam reliability retest is pending.
+- #27 live validation is pending.
+- #28 live validation is pending.
+- Unknown-person live validation is pending.
+- Quality limits are conservative initial engineering limits, not population-calibrated production thresholds.
+- Basic movement liveness is not certified production-grade presentation-attack detection.
+- The existing SQLAlchemy subquery-coercion warning, InsightFace/scikit-image deprecation warning, and frontend large-chunk warning remain non-blocking.
+
+### Current Status
+
+**IN PROGRESS - implementation and automated verification PASS; final Phase 10.9 status and reliability/safety recommendation await the required controlled 10-cycle Student #22 webcam report. Phase 10.10 has not been started.**
+
+### Controlled Reliability Button Blocker and Recovery
+
+The real-webcam retest was paused when the user confirmed the Phase 10.9 rules, Admin login, Computer Science selection, active session #451, Active status, and active camera were visible, but the action remained `Attendance Paused` and `Start Controlled #22 Reliability Test` was absent. The separate Identity Integrity Diagnostic remained visible and was correctly not used as a substitute.
+
+The live backend on port 8000 was queried directly. Before the fix it reported:
+
+- `integratedForAttendance = true`;
+- `activeForAttendance = false`;
+- `attendanceSafetyHold = true`;
+- `deepRecognitionReady = true`;
+- `controlledAttendanceStudentId = 22`;
+- `controlledAttendanceStudentReady = true` with 22 valid embeddings;
+- `controlledAttendanceDepartmentId = 1`;
+- session #451 was Active in Computer Science department #1;
+- `controlledAttendanceEnabled = false`;
+- `controlledAttendanceReady = false`.
+
+The actual flag is `FDAS_DEEP_ATTENDANCE_CONTROLLED_TEST`. The backend process had been started by an ordinary Uvicorn command without that transient environment variable. This single false capability made the frontend's `controlledAttendanceMode` false even though every identity, department, session, model, role, camera, and safety prerequisite was satisfied.
+
+The full frontend expression requires Admin mode, deep attendance integration, the safety hold to remain active, global deep attendance to remain inactive, the controlled flag enabled, controlled Student ID exactly 22, Student #22 deep-ready, combined controlled readiness true, and the local deep model ready. Session eligibility then additionally requires an active session whose department and selected department both equal Student #22's controlled department. The button itself is enabled only when this controlled-session state, the active session, and the camera-ready state are all true.
+
+The repository configuration was corrected to remain fail-closed by default: absent `FDAS_DEEP_ATTENDANCE_CONTROLLED_TEST`, `controlledAttendanceEnabled` is false. A reliable local-only launcher was added at `backend/start_phase10_9_controlled.ps1`. It validates the existing `.venv`, sets `FDAS_DEEP_ATTENDANCE_CONTROLLED_TEST=true` only in the launcher/Uvicorn process, and starts the normal backend on `127.0.0.1:8000`. `backend/README.md` documents this method. This avoids permanent production enablement while preventing accidental omission during the explicitly approved controlled test.
+
+The previously running PID 15436 was verified as the FDAS Uvicorn process serving the production `fdas_local.db`, then only that process was stopped and replaced through the scoped launcher. After restart the live capability result was `controlledAttendanceEnabled = true`, `controlledAttendanceReady = true`, safety hold `true`, global attendance active `false`, controlled Student #22 ready, controlled department #1, and session #451 eligible.
+
+Rendered verification used the required isolated Playwright smoke workflow because no in-app browser was available to inspect the user's existing tab. With a disposable copy of the session #451 database, process-scoped controlled flag, Admin login, selected Computer Science department, and fake camera readiness, the checks `phase10.9 no session keeps controlled action unavailable` and `phase10.9 active CS admin camera shows only controlled #22 action` both passed. The latter found exactly `Start Controlled #22 Reliability Test`, did not expose normal `Start Scanning`, and retained the separate diagnostic. The user's already-open real page must be refreshed once so it re-fetches the corrected capability.
+
+Verification after the fix:
+
+- `app.verify_phase10_9`: PASS, including the new assertion that ordinary configuration remains fail-closed.
+- `app.verify_phase10_8`: PASS, including fail-closed default plus scoped Admin/#22/department enforcement.
+- `npm.cmd run lint`: PASS.
+- `npm.cmd run build`: PASS; only the existing large-chunk warning remains.
+- Required isolated `node scripts/phase5-smoke.mjs`: PASS, including both focused Phase 10.9 controlled-button checks and zero page errors. The six console errors were expected from intentional conflict, unavailable-backend, and invalid-credential smoke cases.
+- Database, storage, face templates, deep embeddings, and attendance history were not changed by the configuration/startup repair; browser mutations occurred only in the disposable smoke database.
+
+### Updated Current Status
+
+**IN PROGRESS - the controlled reliability harness has been restored without weakening the safety hold or production defaults. The real 10-cycle Student #22 webcam test may resume after the user refreshes the page and confirms the restored button.**
+
+## Phase 10.9A - Reliability Recalibration After Real Webcam Evidence
+
+### Scope and Decision
+
+Phase 10.9 remains open. This subphase audited the returned session #452 evidence, implemented only the explicitly approved liveness simplification, recalculated the deep threshold/margin grid without changing recognition policy, and stopped before requesting another webcam test. Normal attendance remains disabled.
+
+The real evidence showed that the existing pipeline was fail-closed but not sufficiently reliable. The lightweight active challenge set is therefore intentionally reduced from `MOVE_LEFT`, `MOVE_RIGHT`, and `MOVE_CLOSER` to **`MOVE_CLOSER` only** for this FYP prototype. This is a usability-focused engineering decision, not a claim of production-grade presentation-attack detection. Advanced randomized PAD, including protection against moving-screen/video replay, remains future work.
+
+### Session #452 Evidence Audit
+
+The controlled report contains 5 cycles and 15 total attempts for expected Student #22 Ahmad Mughal. No cycle reached final acceptance: first-attempt accepted cycles `0`, retry-assisted accepted cycles `0`, false accepts `0`.
+
+Liveness passed 8/15 and failed 7/15, a `53.3%` pass rate. All detected faces remained continuous and there was no identity switch. Failures by challenge were:
+
+| Challenge | Failures | Evidence-based cause |
+| --- | ---: | --- |
+| `MOVE_LEFT` | 4 | Timing/support-window failure. Ratios included about `0.046875`, `0.069141`, and `0.064453`; one attempt reached `0.080859` against `0.08` but only one sampled frame supported it. |
+| `MOVE_RIGHT` | 2 | Timing/support-window failure. Ratios about `0.039844` and `0.054297` did not remain above `0.08` for enough sampled frames. |
+| `MOVE_CLOSER` | 1 | Late/brief sampled support, not insufficient movement magnitude. Maximum area growth was about `0.474063`, far above `0.12`, but only one frame supported it. |
+
+Eight attempts reached ArcFace. All 8/8 selected Student #22 as top-1 and all 8/8 had 3-of-3 query consensus. Final scores were `0.816142`, `0.787559`, `0.822095`, `0.811141`, `0.810322`, `0.810170`, `0.795756`, and `0.811310`, giving range `0.787559-0.822095`. Student #24 was second at approximately `0.266-0.296`; margins were approximately `0.503-0.553`. Wrong identities and false accepts were both zero. All recognition query frames passed face area, blur, brightness, edge-clearance, and exact-one-deep-face quality checks. The Haar `2` / SCRFD `1` patterned-background reconciliation operated correctly and remains preserved.
+
+### Implemented MOVE_CLOSER Timing and Hold Rule
+
+The area-growth threshold remains exactly `0.12`. Baseline remains two frames. After the UI displays `GO - move closer to the camera and HOLD`, it now waits 600 ms before the first movement frame, increased from 350 ms. It captures 10 movement frames instead of 7 at 300 ms spacing, so the nominal first-to-last sampling span is 2.7 seconds and the nominal GO-to-last-frame span is about 3.3 seconds, excluding face-guard request latency. The prior span was 2.1 seconds with a 350 ms pre-capture allowance.
+
+Liveness passes only when face-area growth reaches at least `0.12` for at least **two consecutive sampled movement frames**. A single large spike no longer satisfies the hold rule. Diagnostics now expose total supporting frames, maximum consecutive supporting frames, and the required consecutive count. The frontend clearly separates the centered baseline instruction, `GO` movement/hold instruction, and return-to-center recognition instruction.
+
+The backend capability now advertises only `allowedChallenges = ["MOVE_CLOSER"]`; API requests for removed lateral challenges receive `422`. Exact-one-face checks, face continuity, Haar/SCRFD reconciliation, deep recognition, three-query consensus, duplicate prevention, eligibility filtering, and the no-legacy-fallback rule are unchanged.
+
+### Read-Only Distinct-Identity Calibration
+
+`app.analyze_phase10_9a` provides a reproducible, read-only recalculation. It used `mean_top_3` over 148 preserved embeddings from distinct active identities #18, #22, #23, #24, #25, #27, #28, and #29. Student #19 was excluded because the user confirmed that #19 and #22 are the same physical person. Exact query rows and matching source hashes were excluded. The stored genuine evaluation produced 0/148 wrong top-1 identities, score range `0.553266-0.962594`, and margin range `0.035050-0.812506`. The 148 correct-identity-removed leakage-safe proxy attempts had score range `0.110673-0.798565`.
+
+The live column combines 24 valid #22 webcam recognition observations from Phases 10.7D, 10.8, and 10.9. The Phase 10.9-only column contains the latest eight results. All live margins exceed every evaluated margin; for Phase 10.9 the conservative lower bound `0.503` was used. Each margin cell below is `stored genuine accepted / rejected; ambiguity rejects`. Proxy accepts were `0/148` for every requested combination, and stored wrong top-1 remained `0/148`.
+
+| Threshold | Margin .07 | Margin .10 | Margin .15 | Margin .20 | Margin .25 | Live A/R (all margins) | Phase 10.9 live A/R | Proxy accepts (.07-.25) |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| .80 | 136/12; 3 | 133/15; 6 | 110/38; 29 | 104/44; 35 | 101/47; 38 | 22/2 | 6/2 | 0, 0, 0, 0, 0 |
+| .81 | 134/14; 3 | 131/17; 6 | 108/40; 29 | 103/45; 34 | 100/48; 37 | 22/2 | 6/2 | 0, 0, 0, 0, 0 |
+| .82 | 131/17; 3 | 129/19; 5 | 106/42; 28 | 101/47; 33 | 98/50; 36 | 17/7 | 1/7 | 0, 0, 0, 0, 0 |
+| .83 | 128/20; 2 | 127/21; 3 | 105/43; 25 | 100/48; 30 | 97/51; 33 | 16/8 | 0/8 | 0, 0, 0, 0, 0 |
+| .84 | 126/22; 1 | 125/23; 2 | 103/45; 24 | 98/50; 29 | 95/53; 32 | 16/8 | 0/8 | 0, 0, 0, 0, 0 |
+| .85 | 122/26; 1 | 121/27; 2 | 99/49; 24 | 95/53; 28 | 92/56; 31 | 12/12 | 0/8 | 0, 0, 0, 0, 0 |
+
+The absolute threshold is the dominant genuine-rejection cause. At the unchanged `.85/.07` policy, only 12/24 combined live observations and 122/148 stored genuine queries pass, while none of the latest 8/8 Phase 10.9 recognitions pass. A provisional `.80/.10` rule would accept 22/24 combined live observations, 6/8 latest observations, and 133/148 stored queries, with zero proxy accepts in this dataset. It also retains stronger separation than `.07` plus the existing 2-of-3 same-top-identity consensus; 3-of-3 remains preferred where available.
+
+This is a **recommendation for review, not an applied policy change**. The highest observed proxy score `0.798565` is only `0.001435` below `.80`, and live evidence still represents one physical person. More distinct live impostor and genuine-user evidence is required before production adoption or removal of the safety hold. `DEEP_MATCH_THRESHOLD` remains `0.85` and `DEEP_MATCH_MIN_IDENTITY_MARGIN` remains `0.07` in code.
+
+### Automated Safety Results
+
+- Sustained synthetic closer movement: PASS.
+- Stationary person/unchanged face boxes: correctly failed.
+- Static photo/screen represented by unchanged frames: correctly failed.
+- One-frame area-growth spike: correctly failed because consecutive support was `1`, below required `2`.
+- No face, multiple faces, and `FaceContinuityLost`: correctly failed through the preserved guard paths.
+- Removed `MOVE_LEFT` and `MOVE_RIGHT` API challenges: correctly rejected.
+- No claim is made against a photo/screen that is physically moved or an advanced video replay.
+
+Verification completed:
+
+- Python compilation: PASS.
+- `app.verify_phase10_9`: PASS, including closer-only configuration, sustained movement, static failure, one-frame-spike failure, 12-frame window, consensus, identity safety, no legacy fallback, and unchanged thresholds.
+- `app.verify_phase10_8`: PASS.
+- `app.verify_phase10_6c`: PASS after updating its synthetic liveness fixture from the retired lateral challenge to sustained closer movement.
+- Full isolated `app.run_final_verification` on port 8013: PASS, all 21 suites. The first run correctly exposed the stale Phase 10.6C verifier fixture and stopped; after correcting only that test assumption, the full rerun passed.
+- Frontend `npm.cmd run lint`: PASS.
+- Frontend `npm.cmd run build`: PASS; the existing non-blocking large-chunk warning remains.
+- Isolated fake-camera `node scripts/phase5-smoke.mjs` on ports 8014/5175: PASS, including closer-only instructions and both controlled-action safety checks; `page_errors=0`. Its eight console errors came from smoke cases intentionally exercising conflict, unavailable-backend, and invalid-credential handling.
+- Existing non-blocking SQLAlchemy subquery-coercion and InsightFace/scikit-image deprecation warnings remain.
+
+### Data and Configuration Safety
+
+Production inventory after verification is 21 students, 4,708 face templates, 171 deep embeddings, 22 attendance records, a 4,395,008-byte `fdas_local.db`, and 15,549 storage files totalling 27,447,638 bytes. Calibration was read-only. Mutation-capable unified and browser tests used disposable copied data, and their temporary services/workspace were removed. No template, embedding, attendance record, or storage image was deleted or rewritten.
+
+`FACE_MATCH_THRESHOLD = 0.75`, `DEEP_MATCH_THRESHOLD = 0.85`, `DEEP_MATCH_MIN_IDENTITY_MARGIN = 0.07`, `IDENTITY_MATCHING_SAFETY_HOLD = True`, and `DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE = False` remain unchanged. Normal attendance remains disabled, and controlled mode remains fail-closed unless its explicit process-scoped launcher is used.
+
+### Phase 10.9A Status
+
+**PASS - real Phase 10.9 evidence was audited, the approved MOVE_CLOSER-only sustained-hold liveness design was implemented without lowering its threshold, the requested distinct-identity recognition grid was completed without applying recognition parameter changes, and all focused/unified/frontend checks passed. Phase 10.9 remains open for review; no new webcam test is requested and no later phase has started.**
+
+## Phase 10.9B - Controlled Validation of Revised Deep Recognition Policy
+
+### Phase 10.9A Baseline and Scope
+
+Phase 10.9A established a provisional `0.80` threshold plus `0.10` identity margin while retaining at least 2-of-3 same-top-identity consensus. That rule was not activated globally because the strongest leakage-safe proxy score was `0.798565`, only `0.001435` below the candidate threshold. Phase 10.9B therefore exposes the revised rule only through the existing Admin/#22/department-bound controlled harness. Production remains `DEEP_MATCH_THRESHOLD = 0.85` and `DEEP_MATCH_MIN_IDENTITY_MARGIN = 0.07`; `IDENTITY_MATCHING_SAFETY_HOLD = True` and `DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE = False` remain authoritative.
+
+### Near-Threshold Distinct-Person Proxy Audit
+
+The read-only `app.analyze_phase10_9b` audit evaluated every Phase 10.9A distinct-person proxy query with `mean_top_3` score at least `0.75`. It retained the existing distinct identity set #18, #22, #23, #24, #25, #27, #28, and #29, with user-confirmed duplicate physical identity #19 excluded. Exact embedding rows and identical source hashes were leakage-excluded, then the query identity's entire gallery was removed to create the proxy condition.
+
+All 23 near-threshold cases were between query identities #18 `asher` and #29 `asher ahmed`. In this proxy construction the reported top candidate is necessarily wrong relative to the known query identity. Every case exceeded margin `0.10`, but every score remained below `0.80`; consequently all 23 were rejected by the absolute-score component and none passed the combined controlled rule. The similarly named #18/#29 records remain treated as distinct because no user confirmation says otherwise.
+
+| Query (template/embedding/sample) | Wrong top | Top score | Second | Second score | Margin | Score >= .80 | Margin >= .10 | Combined pass |
+| --- | --- | ---: | --- | ---: | ---: | --- | --- | --- |
+| #29 (5374/162/24) | #18 | .798565 | #28 | .179263 | .619302 | No | Yes | No |
+| #18 (1711/9/11) | #29 | .789027 | #28 | .158229 | .630798 | No | Yes | No |
+| #18 (1714/12/14) | #29 | .788647 | #28 | .163874 | .624773 | No | Yes | No |
+| #18 (1715/13/15) | #29 | .784473 | #24 | .182030 | .602443 | No | Yes | No |
+| #29 (5365/153/15) | #18 | .784312 | #28 | .143019 | .641293 | No | Yes | No |
+| #18 (1719/17/19) | #29 | .783155 | #24 | .160956 | .622199 | No | Yes | No |
+| #18 (1721/19/21) | #29 | .778869 | #24 | .199919 | .578950 | No | Yes | No |
+| #29 (5368/156/18) | #18 | .777654 | #28 | .152224 | .625430 | No | Yes | No |
+| #29 (5367/155/17) | #18 | .776159 | #28 | .147057 | .629102 | No | Yes | No |
+| #29 (5375/163/25) | #18 | .772465 | #28 | .146817 | .625648 | No | Yes | No |
+| #29 (5363/151/13) | #18 | .771126 | #28 | .210391 | .560735 | No | Yes | No |
+| #29 (5353/145/3) | #18 | .770798 | #28 | .177872 | .592926 | No | Yes | No |
+| #29 (5364/152/14) | #18 | .766817 | #28 | .160528 | .606289 | No | Yes | No |
+| #29 (5354/146/4) | #18 | .763126 | #28 | .209424 | .553702 | No | Yes | No |
+| #18 (1712/10/12) | #29 | .763066 | #28 | .177485 | .585581 | No | Yes | No |
+| #18 (1725/21/25) | #29 | .763036 | #28 | .174249 | .588787 | No | Yes | No |
+| #29 (5366/154/16) | #18 | .761690 | #28 | .149864 | .611826 | No | Yes | No |
+| #18 (1720/18/20) | #29 | .760489 | #28 | .166190 | .594299 | No | Yes | No |
+| #18 (1703/2/3) | #29 | .759404 | #28 | .206279 | .553125 | No | Yes | No |
+| #29 (5355/147/5) | #18 | .757208 | #25 | .149064 | .608144 | No | Yes | No |
+| #18 (1704/3/4) | #29 | .753396 | #28 | .188059 | .565337 | No | Yes | No |
+| #18 (1701/1/1) | #29 | .751258 | #28 | .167453 | .583805 | No | Yes | No |
+| #18 (1713/11/13) | #29 | .750412 | #28 | .176726 | .573686 | No | Yes | No |
+
+No same-attempt three-query impostor burst is available for these stored-image cases. Each row is an independent stored embedding query, so no consensus result is inferred. The real #22 evidence continues to show 3-of-3 consensus, but it is genuine evidence rather than an impostor test. The audit therefore permits a controlled #22 retest but does not support global enablement.
+
+### Controlled Policy Implementation
+
+Two separate constants define the controlled candidate rule: `DEEP_CONTROLLED_MATCH_THRESHOLD = 0.80` and `DEEP_CONTROLLED_MATCH_MIN_IDENTITY_MARGIN = 0.10`. The three-query matcher accepts explicit internal threshold/margin arguments but defaults to production `0.85/0.07`. Only the already-authorized controlled branch in `mark-by-face-live` supplies `0.80/0.10`; callers cannot submit policy values. Non-controlled attendance retains the production defaults and remains blocked by the global hold.
+
+The deep capability response now reports both controlled values separately from `threshold = 0.85` and `requiredIdentityMargin = 0.07`. The frontend banner displays both policies simultaneously and labels the action `Start Controlled #22 Phase 10.9B Test`. The copied metadata-only report is versioned `phase: 10.9B` and calculates cycles/attempts, first-attempt and retry liveness passes, liveness failures, ArcFace attempts, 3-of-3 and 2-of-3 consensus, genuine accepts/rejects, wrong top identities, false distinct-identity accepts, score/second/margin ranges, retries, and all requested success rates.
+
+All other safeguards are unchanged: `MOVE_CLOSER` only, area growth `0.12`, two consecutive supporting frames, exact-one-face enforcement, continuity, Haar/SCRFD reconciliation, quality gating, ArcFace-only recognition, 2-of-3 minimum consensus, deep-ready candidate filtering, controlled expected-identity enforcement, duplicate prevention, and no legacy fallback.
+
+### Automated Verification Before Live Test
+
+- `app.verify_phase10_9b`: PASS. Controlled `0.80/0.10` accepts a safe 2-of-3 fixture while the same evidence is rejected under production `0.85/0.07`; 1-of-3, score `0.799`, and margin `0.099` all fail closed. Failed liveness skips recognition and attendance, the controlled router alone supplies the override, duplicate prevention creates exactly one row, the legacy matcher is never called, and the safety hold remains true.
+- `app.verify_phase10_9`: PASS.
+- `app.verify_phase10_8`: PASS after its controlled-route metadata assertion was updated to distinguish controlled `0.80/0.10` from unchanged production `0.85/0.07`.
+- Backend compilation: PASS.
+- Expanded isolated `app.run_final_verification` on port 8016: PASS, all 22 suites including Phase 10.9B.
+- Frontend `npm.cmd run lint`: PASS.
+- Frontend `npm.cmd run build`: PASS; existing non-blocking plugin-timing and large-chunk warnings remain.
+- Isolated fake-camera `node scripts/phase5-smoke.mjs` on ports 8017/5176: PASS after correcting one stale Phase 10.9 banner selector. It verifies the controlled action is absent without session/camera readiness, normal `Start Scanning` is absent during controlled mode, and the UI shows controlled `0.80/0.10` beside production `0.85/0.07`; `page_errors=0`. Eight expected console errors came only from intentional conflict, unavailable-backend, and invalid-credential cases.
+- The temporary smoke services and copied-data workspace were removed after verification.
+
+The previously running FDAS Uvicorn listener on port 8000 was verified before restart as PID 18324 and as the expected Python 3.11 `app.main:app` process. It was the pre-10.9B process image: health/database were connected and the hold was active, but the new controlled policy capability fields were null. Only that verified listener was stopped, and the existing process-scoped controlled launcher started the updated backend as PID 8668. Post-restart capability verification reported production `0.85/0.07`, controlled `0.80/0.10`, consensus minimum `2`, `controlledAttendanceEnabled = true`, `controlledAttendanceReady = true`, `attendanceSafetyHold = true`, and `activeForAttendance = false`. No environment recreation, dependency installation, database reset, or storage change was performed.
+
+### Session #453 Runtime-Control Recovery
+
+The Phase 10.9B webcam test was paused when the real Admin page for Computer Science session #453 showed Camera Active but did not show either the controlled `0.80/0.10` policy banner or `Start Controlled #22 Phase 10.9B Test`. The page instead showed the normal safety-hold message and kept attendance paused. This evidence correctly indicated that the current browser was not receiving an enabled controlled capability.
+
+Port inspection found `127.0.0.1:8000` owned by an ordinary `.venv` Uvicorn launch: project-interpreter PID 7804 with host-Python worker PID 13380, command `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`. No `start_phase10_9_controlled.ps1` process was present in that listener's ancestry. An authenticated call to the exact frontend capability endpoint, `GET /api/deep-face/info`, confirmed the actual pre-recovery runtime state: `controlledAttendanceEnabled = false`, `controlledAttendanceReady = false`, `attendanceSafetyHold = true`, `activeForAttendance = false`, production threshold/margin `0.85/0.07`, controlled threshold/margin metadata `0.80/0.10`, and consensus minimum `2`. The root cause was therefore stale/ordinary backend runtime configuration, not frontend code.
+
+Only the verified PIDs 13380 and 7804 were stopped. The backend was then started with the process-scoped controlled launcher `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\WELCOME\Desktop\FDAS Project\fdas-app\backend\start_phase10_9_controlled.ps1"`. Final ancestry verification showed port-8000 worker PID 16784 under project-interpreter PID 15492 under launcher PowerShell PID 4520. `/health` returned `status = ok` and `database = connected`.
+
+After recovery, the authenticated capability endpoint reported `controlledAttendanceEnabled = true`, `controlledAttendanceReady = true`, Student #22 ready with 22 valid embeddings, `deepRecognitionReady = true`, controlled `0.80/0.10`, production `0.85/0.07`, consensus minimum `2`, `attendanceSafetyHold = true`, and `activeForAttendance = false`. A headless real-browser check against the current frontend selected Computer Science, loaded active session #453, activated a fake camera without starting a scan, and confirmed the controlled policy banner and `Start Controlled #22 Phase 10.9B Test` are visible. General `Start Scanning` remained absent. Evidence was captured at `frontend/output/playwright/phase10_9b-runtime-restored.png`.
+
+The focused `app.verify_phase10_9b` rerun passed under Python 3.11.9, including unchanged production `0.85/0.07`, controlled `0.80/0.10`, 2-of-3 consensus, controlled-only routing, failed-liveness non-persistence, duplicate prevention, no legacy fallback, and `IDENTITY_MATCHING_SAFETY_HOLD = True`. No frontend code change was required, so lint/build/full smoke were not repeated for this runtime-only recovery. The database, templates, attendance history, storage, liveness implementation, ArcFace policy, and all Phase 10.6C protections were not modified.
+
+### Session #453 Controlled Real-Webcam Evidence
+
+The user returned a metadata-only Phase 10.9B report generated at `2026-09-15T21:44:51.842Z` for Computer Science session #453. The report preserved `identityMatchingSafetyHold = true`, `deepRecognitionActiveForAttendance = false`, controlled mode `true`, production `0.85/0.07`, controlled `0.80/0.10`, and consensus minimum `2`.
+
+The report contains 10 scan attempts but only 5 distinct controlled cycles, not the requested 10 cycles. Retries account for the difference: cycles 1 and 2 each consumed the initial attempt plus both allowed retries, cycles 3 and 4 succeeded on their first attempts, and cycle 5 contains its initial attempt plus one retry. This distinction is retained rather than treating `totalAttempts = 10` as `cyclesAttempted = 10`.
+
+| Cycle | Attempts | Liveness | Recognition/quality result | Identity result | Attendance effect |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | 1-3 | Passed on all 3 | `PoorFaceQuality` on all 3; the failing blur values were `38.749`, `40.793`, and `42.713`, below the unchanged minimum `50` | No identity decision | None |
+| 2 | 4-6 | Passed on all 3 | `PoorFaceQuality` on all 3; failing blur `45.431`, `42.455`, and `46.152` | No identity decision | None |
+| 3 | 7 | Passed | All 3 fresh queries passed quality | 3-of-3 #22; score `0.874795`, #24 second `0.260877`, margin `0.613918` | `DuplicateAttendance`; no new row |
+| 4 | 8 | Passed | All 3 fresh queries passed quality | 3-of-3 #22; score `0.882518`, #24 second `0.260527`, margin `0.621991` | `DuplicateAttendance`; no new row |
+| 5 | 9-10 | Passed on both | `PoorFaceQuality` on both; failing blur `41.507` and `33.860` | No identity decision | None |
+
+Interim metrics from the supplied report:
+
+- Distinct cycles attempted: `5/10`; total scan attempts: `10`.
+- Liveness: `10/10` attempts passed, including `5` first attempts and `5` retries; liveness failures: `0`; reported attempt-level liveness success: `100%`.
+- Every liveness submission contained 12 detected single-face frames and zero multi-face frames. Sustained area-growth support was 7-10 consecutive frames, always above the required 2, with final area-growth ratios `0.282460-1.033606`.
+- Post-liveness recognition quality: `8/10` attempts stopped at `PoorFaceQuality`, always because blur variance fell below `50`. Two attempts completed all three fresh ArcFace queries.
+- Completed ArcFace decisions: `2`; 3-of-3 consensus: `2`; 2-of-3 consensus: `0`; both selected canonical Student #22 over distinct Student #24.
+- Completed-decision score range: `0.874795-0.882518`; second-person score range: `0.260527-0.260877`; margin range: `0.613918-0.621991`.
+- Genuine accepts among completed decisions: `2/2`; genuine rejects: `0`; wrong top identities: `0`; false distinct-identity accepts: `0`.
+- Retry attempts: `5`. Accepted cycles were both first-attempt cycles; retry-assisted accepted cycles: `0`.
+- First-attempt, retry-assisted, and overall cycle-success figures in the report are `40%`, `0%`, and `40%`, respectively, over the five attempted cycles.
+- `attendanceMarked = false` on all 10 attempts. The two accepted identity decisions returned `DuplicateAttendance`, so duplicate prevention produced no new attendance row.
+- Haar patterned-background false positives were reconciled on attempts 7, 9, and 10 without weakening the exact-one-deep-face decision.
+
+The report's `recognitionSuccessGivenLivenessPercent = 100` describes only the two attempts that completed all three quality-gated queries. It must not be read as end-to-end recognition reliability: 8 of 10 liveness-passed attempts never reached a completed identity decision because the unchanged blur gate rejected at least one query. The safety gate behaved correctly, but genuine-user capture reliability did not satisfy the Phase 10.9B readiness requirement in this evidence.
+
+### Controlled-Test Safety Decision
+
+No distinct proxy passed `0.80 + 0.10`, so the pre-live stop condition was not triggered and the scoped Student #22 test was permitted. The live harness used `MOVE_CLOSER`, three fresh centered ArcFace queries, exact quality checks, 2-of-3 minimum consensus, controlled threshold `0.80`, controlled margin `0.10`, and at most two complete fresh retries per cycle.
+
+The supplied live evidence is insufficient for `READY FOR LIMITED DEEP ATTENDANCE ENABLEMENT`: only 5 of 10 required cycles were attempted, overall cycle success was `40%`, and 8 of 10 liveness-passed attempts were stopped by the preserved blur-quality gate. The two completed recognition decisions were strong and correct, but they do not establish reliable end-to-end capture.
+
+The decision is **KEEP SAFETY HOLD**. Normal attendance remains disabled, production remains `0.85/0.07`, controlled policy remains isolated at `0.80/0.10`, and no global recognition or quality parameter is changed. The missing five protocol cycles are explicitly recorded as uncollected rather than fabricated or inferred. No later phase has started.
+
+### Current Status
+
+**PARTIAL / KEEP SAFETY HOLD - the controlled implementation and safety gates passed, liveness passed 10/10 attempts, and both completed ArcFace decisions correctly selected #22 with 3-of-3 consensus and no new attendance; however, only 5/10 cycles were collected and post-liveness blur rejection limited overall cycle success to 40%. Phase 10.9B does not recommend attendance enablement, and no later phase has started.**

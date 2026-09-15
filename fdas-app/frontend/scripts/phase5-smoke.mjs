@@ -3,17 +3,23 @@ import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 
 const baseUrl = process.env.FDAS_FRONTEND_BASE_URL || 'http://127.0.0.1:5173'
+if (process.env.FDAS_SMOKE_ISOLATED !== '1') {
+  throw new Error('phase5-smoke performs registration checks and must run only with FDAS_SMOKE_ISOLATED=1.')
+}
 const outputDir = path.resolve('output/playwright')
 await mkdir(outputDir, { recursive: true })
 
-const browser = await chromium.launch({ headless: true })
+const browser = await chromium.launch({
+  headless: true,
+  args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
+})
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 page.setDefaultTimeout(8000)
 const consoleErrors = []
 const pageErrors = []
 const results = []
 const unavailableMessage = 'Unable to connect to the FDAS server. Please make sure the backend is running.'
-const browserRegistrationEmail = 'phase10.4.browser@fdas.local'
+const browserRegistrationEmail = `phase10.4.browser.${Date.now()}@fdas.local`
 
 page.on('console', message => {
   if (message.type() === 'error') {
@@ -172,7 +178,45 @@ await check('single-face attendance guard is visible', async () => {
   await page.getByText(/every required frame must contain exactly one continuous face/i).waitFor()
   await page.getByText(/compares maximum, top-3 mean, top-5 mean, and top-5 median scores/i).waitFor()
   await page.getByRole('button', { name: /attendance paused/i }).waitFor()
+  await page.getByText(/three fresh quality-gated arcface queries/i).waitFor()
+  await page.getByText(/at most two complete fresh retries/i).waitFor()
+  await page.getByText(/never fall back to the legacy opencv matcher/i).waitFor()
+  await page.getByText(/move_closer-only basic challenge-response/i).waitFor()
+  await page.getByText(/after go, move closer and hold until capture finishes/i).waitFor()
 })
+
+if (process.env.FDAS_PHASE10_9_CONTROLLED_UI === '1') {
+  await check('phase10.9 no session keeps controlled action unavailable', async () => {
+    await page.route('**/api/attendance-sessions/active**', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    }))
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.getByRole('heading', { name: /attendance marking/i }).waitFor()
+    await page.getByRole('button', { name: /attendance paused/i }).waitFor()
+    if (await page.getByRole('button', { name: 'Start Controlled #22 Phase 10.9B Test', exact: true }).count()) {
+      throw new Error('Controlled action was visible without an active session and camera.')
+    }
+    await page.unroute('**/api/attendance-sessions/active**')
+  })
+
+  await check('phase10.9 active CS admin camera shows only controlled #22 action', async () => {
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.locator('select').first().selectOption({ label: 'Computer Science' })
+    await page.getByText(/active session #\d+ loaded/i).waitFor({ timeout: 15000 })
+    await page.getByText(/phase 10\.9b controlled policy enabled/i).waitFor({ timeout: 15000 })
+    await page.getByText(/22 valid embeddings/i).waitFor()
+    await page.getByRole('button', { name: 'Start Camera', exact: true }).click()
+    await page.getByText(/phase 10\.9b controlled policy enabled/i).waitFor()
+    await page.getByText(/controlled threshold 0\.800000 and margin 0\.100000 apply only here; production remains 0\.850000 \/ 0\.070000/i).waitFor()
+    await page.getByRole('button', { name: 'Start Controlled #22 Phase 10.9B Test', exact: true }).waitFor()
+    if (await page.getByRole('button', { name: 'Start Scanning', exact: true }).count()) {
+      throw new Error('General attendance action became available during the controlled test.')
+    }
+    await page.getByText(/identity integrity diagnostic/i).waitFor()
+  })
+}
 
 await check('admin timing page opens', async () => {
   await page.goto(`${baseUrl}/admin/timing`, { waitUntil: 'domcontentloaded' })

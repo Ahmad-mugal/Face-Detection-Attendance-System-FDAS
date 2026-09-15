@@ -11,7 +11,11 @@ from app.schemas.deep_face import (
     DeepRecoverySampleValidation,
 )
 from app.services.deep_face import deep_face_capability, dry_run_template_encoding, get_deep_face_service
-from app.services.deep_face_matching import deep_matching_policy, diagnose_deep_face_bytes
+from app.services.deep_face_matching import (
+    controlled_attendance_student_capability,
+    deep_matching_policy,
+    diagnose_deep_face_bytes,
+)
 from app.services.face_matching import read_match_upload
 
 
@@ -21,10 +25,22 @@ router = APIRouter(tags=["deep-face-diagnostics"])
 @router.get("/api/deep-face/info", response_model=DeepFaceInfo)
 def get_deep_face_info(
     _current_user: User = Depends(require_operator_or_admin),
+    db: Session = Depends(get_db),
 ):
+    capability = deep_face_capability(initialize=True)
+    controlled_student = controlled_attendance_student_capability(db)
+    policy = deep_matching_policy()
     return {
-        **deep_face_capability(initialize=True),
-        **deep_matching_policy(),
+        **capability,
+        **policy,
+        **controlled_student,
+        "controlledAttendanceReady": bool(
+            policy["controlledAttendanceEnabled"]
+            and policy["attendanceSafetyHold"]
+            and not policy["activeForAttendance"]
+            and capability["deepRecognitionReady"]
+            and controlled_student["controlledAttendanceStudentReady"]
+        ),
     }
 
 

@@ -21,6 +21,10 @@ class AttendanceRecord(Base):
     markedAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False)
     recognitionConfidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    recognitionProvider: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    recognitionEncodingVersion: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    recognitionMethod: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    identityMargin: Mapped[float | None] = mapped_column(Float, nullable=True)
     livenessStatus: Mapped[str | None] = mapped_column(String(30), nullable=True)
     createdAt: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
 

@@ -31,6 +31,15 @@ LIVENESS_STATUS_PASSED = "Passed"
 LIVENESS_STATUS_FAILED = "Failed"
 
 
+def maximum_consecutive_true(values: list[bool]) -> int:
+    maximum = 0
+    current = 0
+    for value in values:
+        current = current + 1 if value else 0
+        maximum = max(maximum, current)
+    return maximum
+
+
 @dataclass
 class LivenessFrame:
     image_bytes: bytes
@@ -39,6 +48,8 @@ class LivenessFrame:
     face_count: int
     face_box: tuple[int, int, int, int] | None
     face_descriptor: list[float] | None
+    haar_face_count: int | None = None
+    deep_reconciled: bool = False
 
 
 @dataclass
@@ -86,19 +97,40 @@ def analyze_liveness_frames(frame_bytes: list[bytes]) -> list[LivenessFrame]:
         image = decode_image_bytes(content)
         height, width = image.shape[:2]
         faces = detect_faces(image)
-        face_box = faces[0] if len(faces) == 1 else None
+        haar_face_count = len(faces)
+        effective_faces = faces
+        deep_reconciled = False
+        if haar_face_count > 1:
+            # Patterned backgrounds can produce extra Haar rectangles. SCRFD may
+            # reconcile that case, but two genuine deep detections still fail closed.
+            try:
+                from app.services.deep_face import get_deep_face_service
+
+                deep_faces = get_deep_face_service().detect_face_boxes(image)
+                if len(deep_faces) == 1:
+                    effective_faces = deep_faces
+                    deep_reconciled = True
+                elif len(deep_faces) > 1:
+                    effective_faces = deep_faces
+            except Exception:
+                # Deep detection uncertainty must never turn a multi-face Haar
+                # result into an allowed liveness frame.
+                effective_faces = faces
+        face_box = effective_faces[0] if len(effective_faces) == 1 else None
         frames.append(
             LivenessFrame(
                 image_bytes=content,
                 width=width,
                 height=height,
-                face_count=len(faces),
+                face_count=len(effective_faces),
                 face_box=face_box,
                 face_descriptor=(
                     generate_basic_descriptor(crop_face(image, face_box))
                     if face_box is not None
                     else None
                 ),
+                haar_face_count=haar_face_count,
+                deep_reconciled=deep_reconciled,
             )
         )
     return frames
@@ -187,6 +219,8 @@ def build_liveness_diagnostics(
         "zeroFaceFrameCount": sum(frame.face_count == 0 for frame in frames),
         "singleFaceFrameCount": sum(frame.face_count == 1 for frame in frames),
         "multipleFaceFrameCount": sum(frame.face_count > 1 for frame in frames),
+        "haarMultipleFaceFrameCount": sum((frame.haar_face_count or 0) > 1 for frame in frames),
+        "deepReconciledFrameCount": sum(frame.deep_reconciled for frame in frames),
         "frameWidth": int(frame_width) if frame_width is not None else None,
         "startCenterX": rounded(baseline_center),
         "endCenterX": rounded(end_center),
@@ -200,6 +234,8 @@ def build_liveness_diagnostics(
         "rawRightwardExcursionRatio": rounded(raw_rightward_excursion_ratio),
         "requestedDirectionalDisplacementRatio": None,
         "directionalSupportingFrameCount": 0,
+        "maximumConsecutiveSupportingFrames": 0,
+        "requiredConsecutiveSupportingFrames": LIVENESS_MIN_DIRECTIONAL_FRAME_COUNT,
         "initialFaceArea": rounded(baseline_area),
         "finalFaceArea": rounded(final_area),
         "maximumFaceArea": rounded(maximum_area),
@@ -211,7 +247,7 @@ def build_liveness_diagnostics(
         "continuityMinimumSimilarity": None,
         "continuityPassed": None,
         "previewMirrored": LIVENESS_PREVIEW_MIRRORED,
-        "evaluationMethod": "median_stable_baseline_to_max_directional_excursion",
+        "evaluationMethod": "median_stable_baseline_to_sustained_movement",
         "reason": None,
     }
 
@@ -353,18 +389,21 @@ def evaluate_liveness_frames(frames: list[LivenessFrame], challengeType: str) ->
     else:
         area_growth_ratios = [(area - baseline_area) / baseline_area for area in movement_areas]
         area_change_ratio = max(area_growth_ratios)
-        supporting_frames = sum(ratio >= LIVENESS_MIN_AREA_CHANGE_RATIO for ratio in area_growth_ratios)
+        support_flags = [ratio >= LIVENESS_MIN_AREA_CHANGE_RATIO for ratio in area_growth_ratios]
+        supporting_frames = sum(support_flags)
+        consecutive_supporting_frames = maximum_consecutive_true(support_flags)
         passed = (
             area_change_ratio >= LIVENESS_MIN_AREA_CHANGE_RATIO
-            and supporting_frames >= LIVENESS_MIN_DIRECTIONAL_FRAME_COUNT
+            and consecutive_supporting_frames >= LIVENESS_MIN_DIRECTIONAL_FRAME_COUNT
         )
         detail = "Move closer to camera"
         diagnostics["requestedDirectionalDisplacementRatio"] = round(area_change_ratio, 6)
         diagnostics["directionalSupportingFrameCount"] = supporting_frames
+        diagnostics["maximumConsecutiveSupportingFrames"] = consecutive_supporting_frames
         diagnostics["reason"] = (
-            "Face-area growth met the threshold in enough movement frames."
+            "Face-area growth met the threshold for enough consecutive movement frames."
             if passed
-            else "Face-area growth did not meet the threshold in enough movement frames."
+            else "Face-area growth did not remain above the threshold for enough consecutive movement frames."
         )
 
     if not passed:
@@ -404,5 +443,5 @@ def liveness_info() -> dict:
         "diagnosticsExposed": True,
         "previewMirrored": LIVENESS_PREVIEW_MIRRORED,
         "productionGradePad": False,
-        "notes": "Basic movement challenge-response liveness foundation only; not certified production-grade presentation attack detection.",
+        "notes": "MOVE_CLOSER-only basic challenge-response using sustained face-area growth; not certified production-grade presentation attack detection.",
     }

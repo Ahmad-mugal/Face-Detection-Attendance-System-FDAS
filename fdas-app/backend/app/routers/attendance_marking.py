@@ -2,6 +2,17 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.config import (
+    DEEP_ATTENDANCE_CONTROLLED_STUDENT_ID,
+    DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED,
+    DEEP_CONTROLLED_MATCH_MIN_IDENTITY_MARGIN,
+    DEEP_CONTROLLED_MATCH_THRESHOLD,
+    DEEP_MATCH_MIN_IDENTITY_MARGIN,
+    DEEP_MATCH_THRESHOLD,
+    DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE,
+    DEEP_QUERY_BURST_COUNT,
+    IDENTITY_MATCHING_SAFETY_HOLD,
+)
 from app.dependencies import require_operator_or_admin
 from app.models.attendance_record import AttendanceRecord
 from app.models.user import User
@@ -12,10 +23,15 @@ from app.services.attendance_marking import (
     ensure_active_session,
     list_session_records,
     mark_attendance_by_face,
+    no_attendance_result,
 )
 from app.services.attendance_sessions import ensure_session_access, get_session_or_404
 from app.services.face_matching import match_face_bytes
 from app.services.face_matching import read_match_upload
+from app.services.deep_face_matching import (
+    controlled_attendance_student_capability,
+    match_deep_face_query_burst_for_attendance,
+)
 from app.services.liveness import LIVENESS_STATUS_FAILED, LIVENESS_STATUS_PASSED, read_liveness_uploads, verify_liveness
 
 
@@ -36,6 +52,10 @@ def to_record_read(record: AttendanceRecord) -> AttendanceSessionRecordRead:
         markedAt=record.markedAt,
         status=record.status,
         recognitionConfidence=record.recognitionConfidence,
+        recognitionProvider=record.recognitionProvider,
+        recognitionEncodingVersion=record.recognitionEncodingVersion,
+        recognitionMethod=record.recognitionMethod,
+        identityMargin=record.identityMargin,
         livenessStatus=record.livenessStatus,
     )
 
@@ -56,6 +76,9 @@ async def mark_by_face_live(
     sessionId: int = Form(...),
     challengeType: str = Form(...),
     files: list[UploadFile] = File(...),
+    queryFiles: list[UploadFile] | None = File(None),
+    controlledTest: bool = Form(False),
+    expectedStudentId: int | None = Form(None),
     current_user: User = Depends(require_operator_or_admin),
     db: Session = Depends(get_db),
 ):
@@ -63,6 +86,27 @@ async def mark_by_face_live(
     session = get_session_or_404(db, sessionId)
     ensure_session_access(current_user, session)
     ensure_active_session(session)
+
+    role_name = current_user.role.roleName if current_user.role else ""
+    controlled_student = controlled_attendance_student_capability(db)
+    controlled_allowed = (
+        controlledTest
+        and DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED
+        and IDENTITY_MATCHING_SAFETY_HOLD
+        and not DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE
+        and role_name == "Admin"
+        and expectedStudentId == DEEP_ATTENDANCE_CONTROLLED_STUDENT_ID
+        and controlled_student["controlledAttendanceStudentReady"]
+        and controlled_student["controlledAttendanceDepartmentId"] == session.departmentId
+    )
+    if controlledTest and not controlled_allowed:
+        return no_attendance_result(
+            session,
+            {
+                "status": "ControlledAttendanceUnavailable",
+                "message": "The controlled deep-attendance test prerequisites are unavailable or not authorized.",
+            },
+        )
 
     liveness_result = verify_liveness(frame_bytes, challengeType)
     if not liveness_result.passed or not liveness_result.bestFrameBytes:
@@ -84,10 +128,64 @@ async def mark_by_face_live(
             "thresholdUsed": None,
             "livenessStatus": LIVENESS_STATUS_FAILED,
             "livenessDiagnostics": liveness_result.diagnostics,
+            "controlledTest": controlledTest,
         }
 
-    match_result = match_face_bytes(db, current_user, session.departmentId, liveness_result.bestFrameBytes)
-    match_result = apply_identity_safety_hold(match_result)
+    globally_allowed = DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE and not IDENTITY_MATCHING_SAFETY_HOLD
+    if not controlled_allowed and not globally_allowed:
+        held_result = no_attendance_result(
+            session,
+            {
+                "status": "AttendanceSafetyHold",
+                "message": "Deep attendance is integrated but remains disabled pending explicit approval.",
+            },
+            liveness_status=LIVENESS_STATUS_PASSED,
+        )
+        held_result["livenessDiagnostics"] = liveness_result.diagnostics
+        held_result["controlledTest"] = False
+        return held_result
+
+    if not queryFiles or len(queryFiles) != DEEP_QUERY_BURST_COUNT:
+        missing_query_result = no_attendance_result(
+            session,
+            {
+                "status": "InvalidQueryBurst",
+                "message": f"Exactly {DEEP_QUERY_BURST_COUNT} fresh centered recognition images are required after liveness.",
+                "queryCount": len(queryFiles or []),
+            },
+            liveness_status=LIVENESS_STATUS_PASSED,
+        )
+        missing_query_result["livenessDiagnostics"] = liveness_result.diagnostics
+        missing_query_result["controlledTest"] = controlled_allowed
+        return missing_query_result
+
+    query_bytes = [await read_match_upload(query_file) for query_file in queryFiles]
+    match_result = match_deep_face_query_burst_for_attendance(
+        db,
+        current_user,
+        session.departmentId,
+        query_bytes,
+        threshold=(DEEP_CONTROLLED_MATCH_THRESHOLD if controlled_allowed else DEEP_MATCH_THRESHOLD),
+        required_margin=(
+            DEEP_CONTROLLED_MATCH_MIN_IDENTITY_MARGIN
+            if controlled_allowed
+            else DEEP_MATCH_MIN_IDENTITY_MARGIN
+        ),
+    )
+    if controlled_allowed and match_result.get("matched") is True and match_result.get("studentId") != expectedStudentId:
+        match_result = {
+            **match_result,
+            "matched": False,
+            "status": "ControlledIdentityMismatch",
+            "message": "The controlled query did not match the authorized test student.",
+            "studentId": None,
+            "studentName": None,
+            "rollNo": None,
+            "classId": None,
+            "className": None,
+        }
+    if not controlled_allowed:
+        match_result = apply_identity_safety_hold(match_result)
     attendance_result = create_attendance_from_match_result(
         db,
         session,
@@ -95,6 +193,7 @@ async def mark_by_face_live(
         liveness_status=LIVENESS_STATUS_PASSED,
     )
     attendance_result["livenessDiagnostics"] = liveness_result.diagnostics
+    attendance_result["controlledTest"] = controlled_allowed
     return attendance_result
 
 
