@@ -78,7 +78,7 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5 min-w-0">
         <AttendanceChart data={summary?.weeklyChart || []} title="Weekly Attendance Trend" />
-        <AttendanceLogSidebar records={summary?.recentRecords || []} title="Live Attendance Log" />
+        <AttendanceLogSidebar records={summary?.recentRecords || []} title="Live Attendance Log" actionPath="/admin/analytics" actionLabel="Open Analytics" />
       </div>
     </section>
   )

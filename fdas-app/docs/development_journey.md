@@ -4695,3 +4695,93 @@ All mutation-capable verifiers and browser tests used disposable copies. No data
 ### Final Status
 
 **PASS - final InsightFace/ArcFace attendance is active through ordinary startup with production `0.85/0.07`, 2-of-3 fresh-query consensus, MOVE_CLOSER liveness, quality and Phase 10.6C safeguards, no legacy fallback, and a released safety hold after all required verification passed. Phase 10.10 is complete with the documented limitations above. No later phase has started.**
+
+## Phase 10.11 — Production UI/UX Hardening & Account Experience
+
+### Goal
+
+Harden the active FDAS frontend into a consistent production-facing experience without changing the Phase 10.10 attendance pipeline. The work covered the normal attendance workspace, reusable dialogs and feedback, management actions, account pages, navigation, responsiveness, accessibility, and automated browser coverage. The InsightFace/ArcFace recognition policy, liveness policy, attendance eligibility, duplicate prevention, enrollment data, and persistence behavior were not changed.
+
+### Attendance Page Cleanup
+
+The normal Admin and Operator live-attendance pages no longer render the Operational Rules panel, Identity Integrity Diagnostic, diagnostic student selector, Capture Diagnostic action, raw identity-query measurements, raw liveness measurements, or controlled-test policy labels. Diagnostic implementation remains available internally through the existing diagnostic mode and was not deleted from the backend. Normal routes never enable that mode.
+
+### Production Attendance Layout
+
+The page now presents the department, session, present count, and session status first, with clear session controls. The main workspace places Live Camera and its camera/scanning actions beside Session Records on desktop and stacks records below the full-width camera on smaller screens. Instructions and failure states use short user-facing language, while the existing single-face, continuity, MOVE_CLOSER, quality, three-query ArcFace, consensus, eligibility, duplicate, and persistence sequence remains untouched. The optional recent-record refresh preference now controls a genuine 15-second refresh interval.
+
+### Modal / Dialog System
+
+`Modal`, `FormDialog`, and `ConfirmDialog` were added as shared portal-based components. They use a centered responsive panel, restrained translucent backdrop, consistent spacing, rounded corners and shadow, internal scrolling for long content, close controls, and processing-state protection. Ordinary forms close through Cancel, the close button, Escape, or backdrop selection; destructive actions have explicit danger styling and cannot be dismissed while their server operation is in progress.
+
+### Popup and Overlay Bug Audit
+
+The active frontend was searched for browser-native `alert`, `confirm`, and `prompt` calls and custom full-screen action overlays. The active-session navigation confirmation was moved from `window.confirm` to the shared confirmation dialog. The browser `beforeunload` guard remains intentionally because it protects an active attendance session during an actual page unload; it is not used as an application action dialog. The reusable modal always restores the previous body overflow value, removes its portal/backdrop on unmount, and returns focus to the opener. Browser tests verified that Cancel, Escape, and backdrop dismissal remove the overlay and restore page clickability.
+
+### Student / Class / User Action Dialogs
+
+Admin Students now uses shared form, confirmation, recovery, and diagnostic dialogs; student edit uses `Save Changes`, while activation and deactivation use explicit confirmations. Operator Students uses the same enrollment-recovery and status-confirmation behavior, and no longer exposes operator diagnostic capture UI. Admin Classes, Timing, Users, and Requests were converted to shared form/confirmation dialogs for edit, activate/deactivate, grant-access, approve, and reject actions. Student action icons now expose accurate Activate/Deactivate titles and accessible names.
+
+### Toast and Feedback System
+
+A shared accessible, non-blocking `Toast` component now reports successful and failed management operations. Messages are human-readable, avoid raw backend exceptions, auto-dismiss, and can be dismissed manually. Mutation controls use busy states to prevent duplicate submissions.
+
+### Account Profile Page
+
+The shared `/account/profile` route works for Admin and Operator layouts. It shows initials, name, email, role, department/scope, status, and real created/updated timestamps. A signed-in user may change only their display/full name. Email, role, department, scope, and administrative state remain read-only. The password form requires the current password, applies the existing password validator, rejects reuse of the current password, and stores the replacement through the unchanged PBKDF2 hashing helper; hashes are never returned.
+
+### Account Preferences Page
+
+The shared `/account/preferences` route contains only working browser-local settings: comfortable or compact table density, automatic recent-attendance refresh, and reduced animation. Settings persist in `localStorage` and are applied at application startup. No cosmetic-preference database schema was added.
+
+### Account Menu Wiring
+
+Both Admin and Operator account menus route View Profile to `/account/profile`, Account Preferences to `/account/preferences`, and Logout to the existing logout flow. Menus now expose appropriate menu semantics, keyboard focus, `aria-expanded`/`aria-haspopup`, responsive positioning, and close on navigation, outside selection, or Escape. Long account names truncate safely instead of colliding with navigation.
+
+### Dashboard Analytics Navigation
+
+The Admin Dashboard Live Attendance Log now has an `Open Analytics` action linked directly to the existing `/admin/analytics` route. The Operator dashboard uses its existing reports destination rather than duplicating analytics. Placeholder notification items were removed; an empty notification menu now states that there are no new notifications.
+
+### Responsive UI Audit
+
+Automated browser checks covered widths `375`, `480`, `768`, `1024`, `1280`, `1440`, and `1920` across attendance, profile, and preferences. No document-level horizontal overflow was detected. Cards and forms stack, the camera remains responsive, records move below it, tables retain their horizontal-scroll container, controls do not overlap, menus remain within the viewport, and mobile dialogs fit with usable actions.
+
+### Accessibility Improvements
+
+Dialogs use semantic dialog markup, labels/descriptions, focus placement and trapping, logical tab order, Escape handling, focus restoration, and visible close controls. Menus expose menu roles and state. Interactive student actions received accurate labels, global `:focus-visible` styling was standardized, toasts use live-region semantics, and the reduced-animation preference plus `prefers-reduced-motion` are honored.
+
+### Browser Verification
+
+The expanded isolated `node scripts/phase5-smoke.mjs` run passed on disposable ports 8024/5179 with `page_errors=0` and `native_dialogs=0`. It verified removal of both attendance debug sections, normal Start Camera/Start Scanning behavior, profile-menu navigation, functional profile update and password change against disposable data, preference persistence, logout coverage, Dashboard-to-Analytics navigation, student edit Cancel/Escape/backdrop cleanup, restored page clickability, custom destructive confirmation, responsive dialog/profile behavior, and all seven required viewport widths. Nine console errors were expected results of deliberate conflict, unavailable-backend, invalid-login, and incorrect-current-password test cases.
+
+Visual review was completed for `phase10_11-live-attendance.png`, `phase10_11-student-edit-dialog.png`, `phase10_11-student-status-dialog.png`, `phase10_11-account-profile.png`, `phase10_11-account-preferences.png`, `phase10_11-dashboard-analytics-cta.png`, `phase10_11-mobile-dialog.png`, and `phase10_11-mobile-profile.png`. The review found and corrected a stale stopped-camera message, full-page dialog screenshot distortion, profile column stretching, and screenshots taken before transition completion. Final recaptures passed alignment, spacing, clipping, overflow, z-index, backdrop, contrast, and responsive review.
+
+### Backend Regression
+
+- Python compilation: PASS.
+- `app.verify_phase10_10`: PASS, including active `0.85/0.07`, 2-of-3 consensus, MOVE_CLOSER, Phase 10.6C enforcement, duplicate safety, and no legacy attendance fallback.
+- Isolated `app.run_final_verification`: PASS on port 8023, all 23 suites.
+- Frontend `npm.cmd run lint`: PASS.
+- Frontend `npm.cmd run build`: PASS; the existing non-blocking large-JavaScript-chunk warning remains.
+- Existing non-blocking SQLAlchemy subquery-coercion and InsightFace/scikit-image deprecation warnings remain.
+- The ordinary backend was restarted with the project `.venv`; `/health` reports `status = ok` and `database = connected`, while `/api/info` reports version `1.0.1`.
+
+### Data Preservation
+
+Before and after Phase 10.11, production contained 21 students, 4,708 face templates, 171 deep embeddings, 23 attendance records, and 15,549 storage files totaling 27,447,638 bytes. `fdas_local.db` remained 4,395,008 bytes with Phase 10.11 baseline/final SHA-256 `4DA6B46FAB1FE8AFEB3F2E5DEAED711165DE0D5E95532D93927C65B3627A3322`.
+
+All mutation-capable backend and browser verification used disposable database/storage copies. The disposable runtime was removed after testing. No dependency reinstall, database reset/reseed, template deletion, embedding deletion, attendance deletion, or production storage rewrite occurred. Phase 10.10 production recognition remains InsightFace `buffalo_l`/`arcface_v1`, three fresh queries, 2-of-3 consensus, threshold `0.85`, identity margin `0.07`, with MOVE_CLOSER area growth `0.12`. `FACE_MATCH_THRESHOLD` remains `0.75` for the preserved legacy subsystem.
+
+### Remaining UI Limitations
+
+- Notification menus correctly show an empty state; FDAS still has no backend notification service.
+- Preferences are intentionally browser-local and do not synchronize across devices.
+- Email, role, department, and scope remain administrator-controlled; there is no self-service email-verification workflow.
+- Password change preserves the current JWT architecture and does not revoke already-issued tokens.
+- The production bundle still emits a non-blocking large-chunk warning; route-level code splitting can be considered later.
+- The native browser `beforeunload` confirmation remains only for protecting an active attendance session during a real page unload.
+- Diagnostic UI code remains internal for authorized development use but is not exposed by normal attendance routes.
+
+### Final Status
+
+**PASS — Phase 10.11 completed the production UI/UX hardening, shared dialog/toast system, functional account profile/preferences experience, analytics navigation, responsive/accessibility audit, and full regression verification without changing attendance logic or production data. No later phase has started.**

@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ConfirmDialog } from '../components/ui/Modal'
 import { ATTENDANCE_PATHS, AttendanceSessionContext, LEAVE_ATTENDANCE_MESSAGE } from './attendanceSessionCore'
 
 export function AttendanceSessionProvider({ children }) {
+  const navigate = useNavigate()
   const cleanupRef = useRef(null)
   const [session, setSession] = useState({ active: false, path: null })
+  const [pendingNavigation, setPendingNavigation] = useState(null)
 
   const registerCleanup = useCallback(cleanup => {
     cleanupRef.current = typeof cleanup === 'function' ? cleanup : null
@@ -24,15 +28,22 @@ export function AttendanceSessionProvider({ children }) {
     setSession({ active: false, path: null })
   }, [])
 
-  const confirmNavigation = useCallback((nextPath, currentPath) => {
+  const confirmNavigation = useCallback((nextPath, currentPath, onConfirmed) => {
     if (!session.active) return true
     if (!ATTENDANCE_PATHS.includes(currentPath)) return true
     if (nextPath === currentPath) return true
 
-    const shouldLeave = window.confirm(LEAVE_ATTENDANCE_MESSAGE)
-    if (shouldLeave) stopSession()
-    return shouldLeave
-  }, [session.active, stopSession])
+    setPendingNavigation({ nextPath, onConfirmed })
+    return false
+  }, [session.active])
+
+  const leaveAttendance = useCallback(() => {
+    const pending = pendingNavigation
+    setPendingNavigation(null)
+    stopSession()
+    if (pending?.onConfirmed) pending.onConfirmed()
+    else if (pending?.nextPath) navigate(pending.nextPath)
+  }, [navigate, pendingNavigation, stopSession])
 
   useEffect(() => {
     const handleBeforeUnload = event => {
@@ -58,6 +69,15 @@ export function AttendanceSessionProvider({ children }) {
   return (
     <AttendanceSessionContext.Provider value={value}>
       {children}
+      <ConfirmDialog
+        open={Boolean(pendingNavigation)}
+        onClose={() => setPendingNavigation(null)}
+        onConfirm={leaveAttendance}
+        title="Leave live attendance?"
+        description={LEAVE_ATTENDANCE_MESSAGE}
+        confirmLabel="Leave Page"
+        destructive
+      />
     </AttendanceSessionContext.Provider>
   )
 }

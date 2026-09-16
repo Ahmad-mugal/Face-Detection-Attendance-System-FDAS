@@ -78,6 +78,29 @@ class UserProfile(BaseModel):
     accessScope: str
     assignedDepartmentId: int | None = None
     assignedDepartmentName: str | None = None
+    createdAt: datetime | None = None
+    updatedAt: datetime | None = None
+
+
+class ProfileUpdateRequest(BaseModel):
+    fullName: str
+
+    @field_validator("fullName")
+    @classmethod
+    def validate_full_name(cls, value: str) -> str:
+        return RegisterRequest.validate_full_name(value)
+
+
+class ChangePasswordRequest(BaseModel):
+    currentPassword: str
+    newPassword: str
+
+    _validate_current_password = field_validator("currentPassword")(validate_login_password)
+
+    @field_validator("newPassword")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return RegisterRequest.validate_password(value)
 
 
 class LoginResponse(BaseModel):

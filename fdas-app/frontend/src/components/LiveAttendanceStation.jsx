@@ -8,6 +8,7 @@ import { studentsApi } from '../api/studentsApi'
 import { useAttendanceSession } from '../context/useAttendanceSession'
 import { useAuth } from '../context/useAuth'
 import Icon from './Icon'
+import { loadPreferences } from '../utils/preferences'
 import StatsCard from './StatsCard'
 
 const SCAN_INTERVAL_MS = 1800
@@ -162,6 +163,8 @@ function buildResultMessage(result) {
 }
 
 export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
+  const showDevelopmentDiagnostics = mode === 'diagnostic'
+  const autoRefreshAttendance = loadPreferences().autoRefreshAttendance
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
@@ -350,6 +353,11 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
 
   useEffect(() => {
     let mounted = true
+    if (!showDevelopmentDiagnostics) {
+      setDiagnosticStudents([])
+      setExpectedStudentId('')
+      return () => { mounted = false }
+    }
     if (!departmentId) {
       setDiagnosticStudents([])
       setExpectedStudentId('')
@@ -370,7 +378,13 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         if (mounted) setMessage({ tone: 'error', text: getApiError(error, 'Unable to load diagnostic students.') })
       })
     return () => { mounted = false }
-  }, [departmentId])
+  }, [departmentId, showDevelopmentDiagnostics])
+
+  useEffect(() => {
+    if (!autoRefreshAttendance || !activeSession?.sessionId) return undefined
+    const interval = window.setInterval(() => loadRecords(activeSession.sessionId), 15000)
+    return () => window.clearInterval(interval)
+  }, [activeSession?.sessionId, autoRefreshAttendance, loadRecords])
 
   useEffect(() => {
     registerCleanup(cleanupAttendance)
@@ -861,13 +875,13 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         {message.text}
       </div>
 
-      {controlledAttendanceMode && (
+      {showDevelopmentDiagnostics && controlledAttendanceMode && (
         <div className="rounded-xl border px-4 py-3 text-sm" style={{ backgroundColor: '#fff8e8', borderColor: '#d4a017', color: '#5f4300' }}>
           <strong>Phase 10.9B controlled policy enabled:</strong> only canonical Student #{deepAttendancePolicy.controlledAttendanceStudentId} {deepAttendancePolicy.controlledAttendanceStudentName} ({deepAttendancePolicy.controlledAttendanceStudentRollNo}) may be persisted. Controlled threshold {formatConfidence(deepAttendancePolicy.controlledMatchingThreshold)} and margin {formatConfidence(deepAttendancePolicy.controlledRequiredIdentityMargin)} apply only here; production remains {formatConfidence(deepAttendancePolicy.threshold)} / {formatConfidence(deepAttendancePolicy.requiredIdentityMargin)}. Deep readiness: {deepAttendancePolicy.controlledAttendanceValidEmbeddingCount} valid embeddings. The global identity safety hold remains active; all other automatic attendance stays disabled.
         </div>
       )}
 
-      {controlledAttendanceMode && controlledTestResults.length > 0 && (
+      {showDevelopmentDiagnostics && controlledAttendanceMode && controlledTestResults.length > 0 && (
         <div className="rounded-xl border px-4 py-3 text-xs space-y-3" style={{ backgroundColor: '#fff', borderColor: '#d4a017', color: '#55433b' }}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -900,7 +914,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         </div>
       )}
 
-      {mode === 'admin' && lastResult?.livenessDiagnostics && (
+      {showDevelopmentDiagnostics && lastResult?.livenessDiagnostics && (
         <div className="rounded-xl px-4 py-3 text-xs space-y-1 border font-mono" style={{ backgroundColor: '#fff', borderColor: '#f0dfd8', color: '#55433b' }}>
           <p className="font-sans font-black text-sm" style={{ color: '#4A2B0F' }}>Liveness Diagnostic Measurements</p>
           <p>
@@ -929,7 +943,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         </div>
       )}
 
-      {mode === 'admin' && lastResult?.queryQuality?.length > 0 && (
+      {showDevelopmentDiagnostics && lastResult?.queryQuality?.length > 0 && (
         <div className="rounded-xl px-4 py-3 text-xs space-y-1 border font-mono" style={{ backgroundColor: '#fff', borderColor: '#d4a017', color: '#55433b' }}>
           <p className="font-sans font-black text-sm" style={{ color: '#4A2B0F' }}>Recognition Query Quality & Consensus</p>
           <p>Valid queries {lastResult.validQueryCount}/{lastResult.queryCount} | Consensus #{lastResult.consensusStudentId ?? '-'} {lastResult.consensusCount}/{lastResult.queryCount}</p>
@@ -950,25 +964,11 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
             color: attendanceFaceGuard.ready ? '#065f46' : '#93000a',
           }}
         >
-          {attendanceFaceGuard.message} Face count: {attendanceFaceGuard.faceCount ?? '-'}.
+          {attendanceFaceGuard.message}
         </div>
       )}
 
-      <div className="rounded-xl p-4 text-xs space-y-1.5 border" style={{ backgroundColor: '#fff1eb', borderColor: '#f0dfd8', color: '#55433b' }}>
-        <p className="font-bold text-sm" style={{ color: '#4A2B0F' }}>Live Attendance & Liveness Operational Rules</p>
-        <ul className="list-disc list-inside space-y-0.5" style={{ color: '#887369' }}>
-          <li><strong style={{ color: '#4A2B0F' }}>Liveness Mode:</strong> MOVE_CLOSER-only basic challenge-response with sustained face-area growth; this is not production-grade presentation-attack detection.</li>
-          <li><strong style={{ color: '#4A2B0F' }}>livenessStatus:</strong> Displays <code className="font-mono text-[11px]">Passed</code>, <code className="font-mono text-[11px]">Failed</code>, or <code className="font-mono text-[11px]">NotChecked</code> depending on endpoint and scan result.</li>
-          <li><strong style={{ color: '#4A2B0F' }}>Face Matching:</strong> After liveness, return to center for three fresh quality-gated ArcFace queries. At least two queries must agree before attendance can be marked.</li>
-          {mode === 'admin' && <li><strong style={{ color: '#4A2B0F' }}>Admin Policy:</strong> Production ArcFace matching uses threshold 0.85 and identity margin 0.07.</li>}
-          <li><strong style={{ color: '#4A2B0F' }}>Safe Retry:</strong> Blurry, poorly lit, off-center, or uncertain captures are rejected without marking attendance.</li>
-          <li><strong style={{ color: '#4A2B0F' }}>Fail Closed:</strong> Deep-unavailable or deep-incomplete states never fall back to the legacy OpenCV matcher.</li>
-          <li><strong style={{ color: '#4A2B0F' }}>Single-Face Guard:</strong> Every required frame must contain exactly one continuous face before liveness or recognition can run.</li>
-          <li><strong style={{ color: '#4A2B0F' }}>Duplicate Prevention:</strong> Duplicate attendance is prevented for the active session and is not an error.</li>
-        </ul>
-      </div>
-
-      {mode === 'admin' && <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: '#fff', borderColor: '#93000a' }}>
+      {showDevelopmentDiagnostics && <div className="rounded-xl p-4 border space-y-4" style={{ backgroundColor: '#fff', borderColor: '#93000a' }}>
         <div>
           <p className="font-black text-base" style={{ color: '#93000a' }}>Identity Integrity Diagnostic — Attendance Disabled for This Check</p>
           <p className="text-xs mt-1" style={{ color: '#55433b' }}>
@@ -1079,19 +1079,17 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         <div className="rounded-xl overflow-hidden border-2 fdas-card" style={{ borderColor: '#FFF0E6' }}>
           <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b" style={{ borderColor: '#f0dfd8' }}>
             <div>
-              <h2 className="font-black" style={{ color: '#4A2B0F' }}>Live Camera Preview</h2>
-              <p className="text-xs" style={{ color: '#887369' }}>After GO, move closer and hold until capture finishes; then return to center for three recognition images.</p>
+              <h2 className="font-black" style={{ color: '#4A2B0F' }}>Live Camera</h2>
+              <p className="text-xs" style={{ color: '#887369' }}>Follow the on-screen instruction, then return to the center and hold still.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={cameraOn ? stopCamera : startCamera} disabled={!activeSession} className="px-3 py-2 rounded-lg text-xs font-bold border disabled:opacity-60" style={{ borderColor: '#C4533A', color: '#C4533A' }}>
+              <button onClick={cameraOn ? () => { stopCamera(); setMessage({ tone: 'info', text: 'Camera stopped.' }) } : startCamera} disabled={!activeSession} className="px-3 py-2 rounded-lg text-xs font-bold border disabled:opacity-60" style={{ borderColor: '#C4533A', color: '#C4533A' }}>
                 {cameraOn ? 'Stop Camera' : 'Start Camera'}
               </button>
               <button onClick={scanning ? stopScanning : startScanning} disabled={!attendanceScanningEnabled || !activeSession || !cameraOn} className="px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ backgroundColor: scanning ? '#C4533A' : '#D4A017' }}>
                 {scanning
                   ? 'Stop Scanning'
-                  : (controlledAttendanceSessionAllowed && cameraOn
-                    ? 'Start Controlled #22 Phase 10.9B Test'
-                    : (normalAttendanceAllowed ? 'Start Scanning' : 'Attendance Paused'))}
+                  : (attendanceScanningEnabled ? 'Start Scanning' : 'Attendance Paused')}
               </button>
             </div>
           </div>
@@ -1110,7 +1108,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
               <div className="text-center relative z-10 p-8">
                 <Icon name="videocam_off" size={80} className="block mx-auto mb-3" style={{ color: '#887369' }} />
                 <p className="text-lg font-black" style={{ color: '#fff8f6' }}>Camera stopped</p>
-                <p className="mt-2 text-sm font-bold px-4 py-2 rounded-full inline-flex" style={{ backgroundColor: '#C4533A', color: '#fff' }}>Start camera after session is active</p>
+                <p className="mt-2 text-sm font-bold px-4 py-2 rounded-full inline-flex" style={{ backgroundColor: '#C4533A', color: '#fff' }}>{activeSession ? 'Start the camera when you are ready' : 'Start a session to enable the camera'}</p>
               </div>
             )}
             {cameraOn && (
@@ -1121,7 +1119,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
                 <div className="absolute bottom-5 left-5 right-5 rounded-xl p-3 text-center font-bold text-sm" style={{ backgroundColor: scanning ? 'rgba(6,95,70,0.9)' : 'rgba(196,83,58,0.9)', color: '#fff' }}>
                   {scanning
                     ? (livenessInstruction || `Liveness challenge: ${currentChallenge?.label || 'Get ready'}`)
-                    : (!attendanceScanningEnabled ? 'Attendance scanning is currently unavailable.' : (controlledAttendanceSessionAllowed ? `Camera ready for controlled Student #${deepAttendancePolicy.controlledAttendanceStudentId} test.` : 'Camera ready. Start scanning to mark attendance.'))}
+                    : (!attendanceScanningEnabled ? 'Attendance scanning is currently unavailable.' : 'Camera ready. Start scanning to mark attendance.')}
                 </div>
               </>
             )}

@@ -3,11 +3,14 @@ import CSVExportButton from '../../components/CSVExportButton'
 import { adminUsersApi } from '../../api/adminUsersApi'
 import { departmentsApi } from '../../api/departmentsApi'
 import { getApiError } from '../../api/client'
+import { ConfirmDialog, FormDialog } from '../../components/ui/Modal'
+import Toast from '../../components/ui/Toast'
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([])
   const [departments, setDepartments] = useState([])
   const [modalUser, setModalUser] = useState(null)
+  const [actionDialog, setActionDialog] = useState(null)
   const [accessForm, setAccessForm] = useState({ accessScope: 'Department', assignedDepartmentId: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -43,7 +46,8 @@ export default function AdminUsers() {
     setModalUser(user)
   }
 
-  const saveAccess = async () => {
+  const saveAccess = async event => {
+    event.preventDefault()
     setSaving(true)
     setError('')
     try {
@@ -62,6 +66,7 @@ export default function AdminUsers() {
   }
 
   const changeStatus = async user => {
+    setSaving(true)
     setError('')
     try {
       if (user.status === 'Disabled') {
@@ -74,10 +79,14 @@ export default function AdminUsers() {
       await loadData()
     } catch (err) {
       setError(getApiError(err, 'Unable to update user status.'))
+    } finally {
+      setSaving(false)
+      setActionDialog(null)
     }
   }
 
   const grantAll = async user => {
+    setSaving(true)
     setError('')
     try {
       await adminUsersApi.updateAccess(user.userId, { accessScope: 'AllDepartments', assignedDepartmentId: null })
@@ -85,6 +94,9 @@ export default function AdminUsers() {
       await loadData()
     } catch (err) {
       setError(getApiError(err, 'Unable to grant access.'))
+    } finally {
+      setSaving(false)
+      setActionDialog(null)
     }
   }
 
@@ -98,7 +110,7 @@ export default function AdminUsers() {
         <CSVExportButton data={users} filename="fdas_users.csv" />
       </div>
 
-      {message && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#d1fae5', borderColor: '#86efac', color: '#065f46' }}>{message}</div>}
+      <Toast message={message} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
       <div className="rounded-xl fdas-card overflow-hidden">
@@ -134,8 +146,8 @@ export default function AdminUsers() {
                     <td className="p-4">
                       <div className="flex justify-end gap-2 flex-wrap">
                         <button onClick={() => openAccessModal(user)} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: '#D4A017', color: '#715300' }}>Change Access</button>
-                        <button onClick={() => grantAll(user)} className="px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: '#D4A017' }}>Grant All</button>
-                        <button onClick={() => changeStatus(user)} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: user.status === 'Disabled' ? '#065f46' : '#C4533A', color: user.status === 'Disabled' ? '#065f46' : '#C4533A' }}>
+                        <button onClick={() => setActionDialog({ type: 'grant', user })} className="px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: '#D4A017' }}>Grant All</button>
+                        <button onClick={() => setActionDialog({ type: 'status', user })} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: user.status === 'Disabled' ? '#065f46' : '#C4533A', color: user.status === 'Disabled' ? '#065f46' : '#C4533A' }}>
                           {user.status === 'Disabled' ? 'Enable' : 'Disable'}
                         </button>
                       </div>
@@ -148,11 +160,7 @@ export default function AdminUsers() {
         )}
       </div>
 
-      {modalUser && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-md rounded-xl p-5 fdas-card">
-            <h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>Change Access</h2>
-            <p className="text-sm mt-1" style={{ color: '#55433b' }}>{modalUser.fullName}</p>
+      <FormDialog open={Boolean(modalUser)} onClose={() => setModalUser(null)} onSubmit={saveAccess} title="Change User Access" description={modalUser?.fullName} submitLabel="Save Access" busy={saving}>
             <div className="grid gap-4 mt-5">
               <label>
                 <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Access Scope</span>
@@ -170,13 +178,15 @@ export default function AdminUsers() {
                 </label>
               )}
             </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setModalUser(null)} className="px-4 py-2 rounded-lg border font-bold" style={{ borderColor: '#dbc1b7', color: '#55433b' }}>Cancel</button>
-              <button disabled={saving} onClick={saveAccess} className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60" style={{ backgroundColor: '#C4533A' }}>{saving ? 'Saving...' : 'Save Access'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      </FormDialog>
+
+      <ConfirmDialog open={actionDialog?.type === 'status'} onClose={() => setActionDialog(null)} onConfirm={() => changeStatus(actionDialog.user)} title={actionDialog?.user?.status === 'Disabled' ? 'Activate User?' : 'Deactivate User?'} description={actionDialog?.user?.fullName} confirmLabel={actionDialog?.user?.status === 'Disabled' ? 'Activate' : 'Deactivate'} destructive={actionDialog?.user?.status !== 'Disabled'} busy={saving}>
+        <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>{actionDialog?.user?.status === 'Disabled' ? 'This user will regain access according to their assigned scope.' : 'This user will no longer be able to sign in until reactivated.'}</p>
+      </ConfirmDialog>
+
+      <ConfirmDialog open={actionDialog?.type === 'grant'} onClose={() => setActionDialog(null)} onConfirm={() => grantAll(actionDialog.user)} title="Grant All-Department Access?" description={actionDialog?.user?.fullName} confirmLabel="Grant Access" busy={saving}>
+        <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>This user will be able to operate across every department.</p>
+      </ConfirmDialog>
     </section>
   )
 }

@@ -21,6 +21,9 @@ import UserStudents from './pages/user/UserStudents'
 import UserAddStudent from './pages/user/UserAddStudent'
 import UserAttendance from './pages/user/UserAttendance'
 import UserReports from './pages/user/UserReports'
+import AccountLayout from './layouts/AccountLayout'
+import AccountProfile from './pages/account/AccountProfile'
+import AccountPreferences from './pages/account/AccountPreferences'
 
 export default function App() {
   return (
@@ -29,6 +32,13 @@ export default function App() {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+
+      <Route element={<ProtectedRoute />}>
+        <Route path="/account" element={<AccountLayout />}>
+          <Route path="profile" element={<AccountProfile />} />
+          <Route path="preferences" element={<AccountPreferences />} />
+        </Route>
+      </Route>
 
       {/* Admin Routes */}
       <Route element={<ProtectedRoute role="admin" />}>

@@ -1,4 +1,5 @@
 import Icon from './Icon'
+import { Link } from 'react-router-dom'
 
 /**
  * AttendanceLogSidebar — Live scrollable attendance log
@@ -7,7 +8,7 @@ import Icon from './Icon'
  *   records - Array of { id, studentName, rollNumber, markedAt, confidence }
  *   title   - Sidebar title
  */
-export default function AttendanceLogSidebar({ records = [], title = "Today's Log" }) {
+export default function AttendanceLogSidebar({ records = [], title = "Today's Log", actionPath, actionLabel = 'Open Analytics' }) {
   return (
     <div
       className="rounded-xl border-t-[3px] flex flex-col overflow-hidden"
@@ -75,13 +76,14 @@ export default function AttendanceLogSidebar({ records = [], title = "Today's Lo
         className="px-5 py-3 border-t text-center"
         style={{ borderColor: 'rgba(232,146,74,0.15)', backgroundColor: 'rgba(255,255,255,0.5)' }}
       >
-        <button
+        <Link
+          to={actionPath}
           className="text-sm font-semibold flex items-center justify-center gap-1 w-full transition-colors"
           style={{ color: '#C4533A' }}
         >
-          View Full History
+          {actionLabel}
           <Icon name="arrow_forward" size={16} />
-        </button>
+        </Link>
       </div>
     </div>
   )

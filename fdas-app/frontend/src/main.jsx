@@ -6,6 +6,9 @@ import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { AttendanceSessionProvider } from './context/AttendanceSessionContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { applyStoredPreferences } from './utils/preferences.js'
+
+applyStoredPreferences()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

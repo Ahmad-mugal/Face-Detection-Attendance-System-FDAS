@@ -131,7 +131,8 @@ export default function StudentTable({
                       onClick={() => onDelete?.(student)}
                       className="p-1.5 rounded-lg transition-colors hover:bg-red-50"
                       style={{ color: '#ba1a1a' }}
-                      title="Archive student"
+                      title={student.status === 'Disabled' ? 'Activate student' : 'Deactivate student'}
+                      aria-label={`${student.status === 'Disabled' ? 'Activate' : 'Deactivate'} ${student.name}`}
                     >
                       <Icon name="archive" size={18} />
                     </button>

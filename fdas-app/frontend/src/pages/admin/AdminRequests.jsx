@@ -3,6 +3,8 @@ import StatsCard from '../../components/StatsCard'
 import { adminUsersApi } from '../../api/adminUsersApi'
 import { departmentsApi } from '../../api/departmentsApi'
 import { getApiError } from '../../api/client'
+import { ConfirmDialog, FormDialog } from '../../components/ui/Modal'
+import Toast from '../../components/ui/Toast'
 
 export default function AdminRequests() {
   const [requests, setRequests] = useState([])
@@ -43,7 +45,8 @@ export default function AdminRequests() {
     setModal({ type: 'approve', request })
   }
 
-  const submitModal = async () => {
+  const submitModal = async event => {
+    event?.preventDefault()
     setSaving(true)
     setError('')
     try {
@@ -73,7 +76,7 @@ export default function AdminRequests() {
         <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Pending User Requests</h1>
       </div>
 
-      {message && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#d1fae5', borderColor: '#86efac', color: '#065f46' }}>{message}</div>}
+      <Toast message={message} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -122,12 +125,7 @@ export default function AdminRequests() {
         )}
       </div>
 
-      {modal && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-md rounded-xl p-5 fdas-card">
-            <h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>{modal.type === 'approve' ? 'Approve User Request' : 'Reject User Request'}</h2>
-            <p className="text-sm mt-1" style={{ color: '#55433b' }}>{modal.request.fullName} - {modal.request.email}</p>
-            {modal.type === 'approve' ? (
+      <FormDialog open={modal?.type === 'approve'} onClose={() => setModal(null)} onSubmit={submitModal} title="Approve User Request" description={modal?.request ? `${modal.request.fullName} — ${modal.request.email}` : ''} submitLabel="Approve User" busy={saving}>
               <div className="grid gap-4 mt-5">
                 <label>
                   <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Access Scope</span>
@@ -145,18 +143,11 @@ export default function AdminRequests() {
                   </label>
                 )}
               </div>
-            ) : (
-              <p className="mt-5 rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>This will reject the request in the backend.</p>
-            )}
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setModal(null)} className="px-4 py-2 rounded-lg border font-bold" style={{ borderColor: '#dbc1b7', color: '#55433b' }}>Cancel</button>
-              <button disabled={saving} onClick={submitModal} className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60" style={{ backgroundColor: modal.type === 'approve' ? '#D4A017' : '#C4533A' }}>
-                {saving ? 'Saving...' : 'Confirm'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </FormDialog>
+
+      <ConfirmDialog open={modal?.type === 'reject'} onClose={() => setModal(null)} onConfirm={submitModal} title="Reject User Request?" description={modal?.request ? `${modal.request.fullName} — ${modal.request.email}` : ''} confirmLabel="Reject Request" destructive busy={saving}>
+        <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>The pending request will be rejected and the user will not receive application access.</p>
+      </ConfirmDialog>
     </section>
   )
 }

@@ -3,6 +3,8 @@ import { attendanceTimeWindowsApi } from '../../api/attendanceTimeWindowsApi'
 import { departmentsApi } from '../../api/departmentsApi'
 import { getApiError } from '../../api/client'
 import Icon from '../../components/Icon'
+import { ConfirmDialog, FormDialog } from '../../components/ui/Modal'
+import Toast from '../../components/ui/Toast'
 
 const emptyForm = { departmentId: '', startTime: '08:00', endTime: '09:00', graceMinutes: 10, status: 'Active' }
 
@@ -10,6 +12,7 @@ export default function AdminTiming() {
   const [timings, setTimings] = useState([])
   const [departments, setDepartments] = useState([])
   const [modal, setModal] = useState(null)
+  const [statusDialog, setStatusDialog] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -53,7 +56,8 @@ export default function AdminTiming() {
     setModal({ mode: 'edit', timing })
   }
 
-  const submitTiming = async () => {
+  const submitTiming = async event => {
+    event.preventDefault()
     setSaving(true)
     setError('')
     try {
@@ -81,6 +85,7 @@ export default function AdminTiming() {
   }
 
   const toggleTiming = async timing => {
+    setSaving(true)
     setError('')
     try {
       if (timing.status === 'Active') {
@@ -93,6 +98,9 @@ export default function AdminTiming() {
       await loadData()
     } catch (err) {
       setError(getApiError(err, 'Unable to update time window.'))
+    } finally {
+      setSaving(false)
+      setStatusDialog(null)
     }
   }
 
@@ -109,7 +117,7 @@ export default function AdminTiming() {
         </button>
       </div>
 
-      {message && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#d1fae5', borderColor: '#86efac', color: '#065f46' }}>{message}</div>}
+      <Toast message={message} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
       {loading ? (
@@ -138,17 +146,14 @@ export default function AdminTiming() {
               </div>
               <div className="flex gap-2 mt-5">
                 <button onClick={() => openEdit(timing)} className="flex-1 px-3 py-2 rounded-lg text-sm font-bold border" style={{ borderColor: '#D4A017', color: '#715300' }}>Edit</button>
-                <button onClick={() => toggleTiming(timing)} className="flex-1 px-3 py-2 rounded-lg text-sm font-bold border" style={{ borderColor: '#C4533A', color: '#C4533A' }}>{timing.status === 'Active' ? 'Deactivate' : 'Activate'}</button>
+                <button onClick={() => setStatusDialog(timing)} className="flex-1 px-3 py-2 rounded-lg text-sm font-bold border" style={{ borderColor: '#C4533A', color: '#C4533A' }}>{timing.status === 'Active' ? 'Deactivate' : 'Activate'}</button>
               </div>
             </article>
           ))}
         </div>
       )}
 
-      {modal && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-lg rounded-xl p-5 fdas-card">
-            <h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>{modal.mode === 'add' ? 'Add Time Window' : 'Edit Time Window'}</h2>
+      <FormDialog open={Boolean(modal)} onClose={() => setModal(null)} onSubmit={submitTiming} title={modal?.mode === 'add' ? 'Add Time Window' : 'Edit Time Window'} submitLabel={modal?.mode === 'add' ? 'Create Window' : 'Save Changes'} busy={saving} size="lg">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
               <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Department</span><select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })}>{departments.map(item => <option key={item.departmentId} value={item.departmentId}>{item.departmentName}</option>)}</select></label>
               <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Grace Minutes</span><input type="number" min="0" className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.graceMinutes} onChange={e => setForm({ ...form, graceMinutes: e.target.value })} /></label>
@@ -156,13 +161,11 @@ export default function AdminTiming() {
               <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>End Time</span><input type="time" className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} /></label>
               <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Status</span><select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Inactive</option></select></label>
             </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setModal(null)} className="px-4 py-2 rounded-lg border font-bold" style={{ borderColor: '#dbc1b7', color: '#55433b' }}>Cancel</button>
-              <button disabled={saving} onClick={submitTiming} className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60" style={{ backgroundColor: '#C4533A' }}>{saving ? 'Saving...' : 'Save Window'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      </FormDialog>
+
+      <ConfirmDialog open={Boolean(statusDialog)} onClose={() => setStatusDialog(null)} onConfirm={() => toggleTiming(statusDialog)} title={statusDialog?.status === 'Active' ? 'Deactivate Time Window?' : 'Activate Time Window?'} description={statusDialog?.departmentName} confirmLabel={statusDialog?.status === 'Active' ? 'Deactivate' : 'Activate'} destructive={statusDialog?.status === 'Active'} busy={saving}>
+        <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>{statusDialog?.status === 'Active' ? 'Attendance will no longer open under this schedule until the window is activated again.' : 'This schedule will become available for attendance sessions.'}</p>
+      </ConfirmDialog>
     </section>
   )
 }

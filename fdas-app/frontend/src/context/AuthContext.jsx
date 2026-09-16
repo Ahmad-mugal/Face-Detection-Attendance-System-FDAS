@@ -36,6 +36,10 @@ export function AuthProvider({ children }) {
     }
   }, [logout])
 
+  const updateCurrentUser = useCallback(user => {
+    setCurrentUser(user)
+  }, [])
+
   const login = useCallback(async (email, password) => {
     try {
       const result = await authApi.login({ email, password })
@@ -62,10 +66,11 @@ export function AuthProvider({ children }) {
     login,
     logout,
     loadCurrentUser,
+    updateCurrentUser,
     isAdmin: () => currentUser?.role === 'Admin',
     isOperator: () => currentUser?.role === 'User',
     hasAllDepartmentsAccess: () => currentUser?.accessScope === 'AllDepartments',
-  }), [accessToken, currentUser, initializing, loadCurrentUser, login, logout])
+  }), [accessToken, currentUser, initializing, loadCurrentUser, login, logout, updateCurrentUser])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

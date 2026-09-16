@@ -46,11 +46,14 @@ export default function AdminLayout() {
   }
 
   const guardedNavigate = to => {
-    if (!confirmNavigation(to, location.pathname)) return
-    if (to === '/login') logout()
-    closeDropdowns()
-    setMobileMenuOpen(false)
-    navigate(to)
+    const completeNavigation = () => {
+      if (to === '/login') logout()
+      closeDropdowns()
+      setMobileMenuOpen(false)
+      navigate(to)
+    }
+    if (!confirmNavigation(to, location.pathname, completeNavigation)) return
+    completeNavigation()
   }
 
   useEffect(() => {
@@ -177,14 +180,11 @@ export default function AdminLayout() {
                 aria-label="Open notifications"
               >
                 <Icon name="notifications" size={20} />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#D4A017]" />
               </button>
               {notificationsOpen && (
                 <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border p-3 z-50" style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', boxShadow: '0 8px 24px rgba(232,146,74,0.2)' }}>
                   <p className="text-xs font-black uppercase tracking-wide mb-2" style={{ color: '#C4533A' }}>Notifications</p>
-                  {['3 pending user requests', 'Computer Science session is active', 'CSV export is ready for demo'].map(item => (
-                    <div key={item} className="rounded-lg px-3 py-2 text-sm mb-2 last:mb-0" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>{item}</div>
-                  ))}
+                  <div className="rounded-lg px-3 py-3 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>No new notifications.</div>
                 </div>
               )}
             </div>
@@ -199,24 +199,26 @@ export default function AdminLayout() {
                 onPointerDown={event => event.stopPropagation()}
                 className="flex items-center gap-2 rounded-full"
                 aria-label="Open profile menu"
+                aria-haspopup="menu"
+                aria-expanded={profileOpen}
               >
                 <div className="w-9 h-9 rounded-full border-2 flex items-center justify-center font-bold text-white text-sm" style={{ backgroundColor: '#C4533A', borderColor: '#D4A017' }}>
                   {(currentUser?.fullName || 'Admin').charAt(0)}
                 </div>
-                <div className="hidden lg:block text-left">
-                  <div className="text-xs font-bold" style={{ color: '#4A2B0F' }}>{currentUser?.fullName || 'Admin'}</div>
+                <div className="hidden lg:block text-left min-w-0 max-w-48 xl:max-w-64">
+                  <div className="text-xs font-bold truncate" style={{ color: '#4A2B0F' }}>{currentUser?.fullName || 'Admin'}</div>
                   <div className="text-[10px]" style={{ color: '#887369' }}>{currentUser?.role || 'Administrator'}</div>
                 </div>
               </button>
               {profileOpen && (
-                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-50" style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', boxShadow: '0 8px 24px rgba(232,146,74,0.2)' }}>
+                <div role="menu" className="absolute right-0 top-full mt-2 w-56 max-w-[calc(100vw-1rem)] rounded-xl border p-2 z-50" style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', boxShadow: '0 8px 24px rgba(232,146,74,0.2)' }}>
                   <div className="px-3 py-2 border-b mb-1" style={{ borderColor: '#f0dfd8' }}>
                     <p className="text-sm font-bold" style={{ color: '#4A2B0F' }}>{currentUser?.fullName || 'Admin User'}</p>
                     <p className="text-xs" style={{ color: '#887369' }}>{currentUser?.email || 'admin@fdas.local'}</p>
                   </div>
-                  <button className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>View Profile</button>
-                  <button className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>Account Preferences</button>
-                  <button onClick={() => guardedNavigate('/login')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-red-50" style={{ color: '#ba1a1a' }}>Logout</button>
+                  <button role="menuitem" onClick={() => guardedNavigate('/account/profile')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>View Profile</button>
+                  <button role="menuitem" onClick={() => guardedNavigate('/account/preferences')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>Account Preferences</button>
+                  <button role="menuitem" onClick={() => guardedNavigate('/login')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-red-50" style={{ color: '#ba1a1a' }}>Logout</button>
                 </div>
               )}
             </div>

@@ -43,7 +43,7 @@ export default function UserDashboard() {
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5 min-w-0">
         <AttendanceChart data={summary?.weeklyChart || []} type="line" title="Department Attendance" />
-        <AttendanceLogSidebar records={(summary?.recentRecords || []).slice(0, 5)} title="Recent Marks" />
+        <AttendanceLogSidebar records={(summary?.recentRecords || []).slice(0, 5)} title="Recent Marks" actionPath="/user/reports" actionLabel="View Reports" />
       </div>
     </section>
   )

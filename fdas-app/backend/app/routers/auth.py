@@ -9,8 +9,10 @@ from app.models.department import Department
 from app.models.role import Role
 from app.models.user import User
 from app.schemas.auth import (
+    ChangePasswordRequest,
     LoginRequest,
     LoginResponse,
+    ProfileUpdateRequest,
     RegisterRequest,
     RegisterRequestResponse,
     RegistrationDepartmentOption,
@@ -33,6 +35,8 @@ def build_user_profile(user: User) -> UserProfile:
         accessScope=user.accessScope,
         assignedDepartmentId=user.assignedDepartmentId,
         assignedDepartmentName=user.assignedDepartment.departmentName if user.assignedDepartment else None,
+        createdAt=user.createdAt,
+        updatedAt=user.updatedAt,
     )
 
 
@@ -64,6 +68,39 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserProfile)
 def me(current_user: User = Depends(require_approved_user)):
     return build_user_profile(current_user)
+
+
+@router.patch("/me", response_model=UserProfile)
+def update_profile(
+    payload: ProfileUpdateRequest,
+    current_user: User = Depends(require_approved_user),
+    db: Session = Depends(get_db),
+):
+    current_user.fullName = payload.fullName
+    db.commit()
+    db.refresh(current_user)
+    return build_user_profile(current_user)
+
+
+@router.post("/change-password")
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user: User = Depends(require_approved_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(payload.currentPassword, current_user.passwordHash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect.",
+        )
+    if verify_password(payload.newPassword, current_user.passwordHash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password.",
+        )
+    current_user.passwordHash = hash_password(payload.newPassword)
+    db.commit()
+    return {"message": "Password changed successfully."}
 
 
 @router.get("/registration-departments", response_model=list[RegistrationDepartmentOption])
