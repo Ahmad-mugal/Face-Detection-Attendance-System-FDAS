@@ -271,7 +271,7 @@ await check('admin classes page opens', async () => {
 
 await check('admin students page opens', async () => {
   await page.goto(`${baseUrl}/admin/students`, { waitUntil: 'domcontentloaded' })
-  await page.getByRole('heading', { name: /all students/i }).waitFor()
+  await page.getByRole('heading', { name: /active students/i, level: 1 }).waitFor()
 })
 
 await check('student edit dialog is accessible and fully dismissible', async () => {
@@ -284,7 +284,6 @@ await check('student edit dialog is accessible and fully dismissible', async () 
   await dialog.getByRole('button', { name: /cancel/i }).click()
   await dialog.waitFor({ state: 'detached' })
   if (await page.evaluate(() => document.body.style.overflow) === 'hidden') throw new Error('Body scroll remained locked after Cancel.')
-  await page.getByRole('button', { name: /^search$/i }).click()
   await editButton.click()
   await page.keyboard.press('Escape')
   await dialog.waitFor({ state: 'detached' })
@@ -292,8 +291,8 @@ await check('student edit dialog is accessible and fully dismissible', async () 
 })
 
 await check('student destructive action uses custom dialog', async () => {
-  await page.getByRole('button', { name: /deactivate|activate/i }).first().click()
-  const dialog = page.getByRole('dialog', { name: /deactivate student|activate student/i })
+  await page.getByRole('button', { name: /deactivate|reactivate/i }).first().click()
+  const dialog = page.getByRole('dialog', { name: /deactivate student|reactivate student/i })
   await dialog.waitFor()
   await page.screenshot({ path: path.join(outputDir, 'phase10_11-student-status-dialog.png') })
   await dialog.getByRole('button', { name: /cancel/i }).click()
@@ -315,7 +314,7 @@ await check('dialog and profile remain responsive at mobile width', async () => 
   await page.screenshot({ path: path.join(outputDir, 'phase10_11-mobile-profile.png'), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto(`${baseUrl}/admin/students`, { waitUntil: 'domcontentloaded' })
-  await page.getByRole('heading', { name: /all students/i }).waitFor()
+  await page.getByRole('heading', { name: /active students/i, level: 1 }).waitFor()
 })
 
 await check('deep enrollment recovery is available for existing students', async () => {

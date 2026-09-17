@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAttendanceSession } from '../context/useAttendanceSession'
 import { useAuth } from '../context/useAuth'
 import Icon from '../components/Icon'
+import { useSmartHeader } from '../hooks/useSmartHeader'
 
 const sideNavLinks = [
   { to: '/user/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -14,6 +15,7 @@ const sideNavLinks = [
 
 export default function UserLayout() {
   const headerRef = useRef(null)
+  const contentRef = useRef(null)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -24,6 +26,11 @@ export default function UserLayout() {
   const operatorName = currentUser?.fullName || 'Operator'
   const operatorDepartment = currentUser?.assignedDepartmentName || (currentUser?.accessScope === 'AllDepartments' ? 'All Departments' : 'Assigned Department')
   const operatorInitials = operatorName.split(' ').map(part => part.charAt(0)).join('').slice(0, 2).toUpperCase() || 'OP'
+  const headerVisible = useSmartHeader({
+    scrollContainerRef: contentRef,
+    routeKey: location.pathname,
+    locked: notificationsOpen || profileOpen || mobileOpen,
+  })
 
   const closeDropdowns = () => {
     setNotificationsOpen(false)
@@ -172,7 +179,9 @@ export default function UserLayout() {
         {/* Top bar */}
         <header
           ref={headerRef}
-          className="sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-16 border-b min-w-0"
+          className={`fdas-smart-header sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-16 border-b min-w-0 ${headerVisible ? '' : 'fdas-smart-header-hidden'}`}
+          data-smart-header
+          data-visible={headerVisible}
           style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', boxShadow: '0 2px 8px rgba(232,146,74,0.1)' }}
         >
           <div className="flex items-center gap-3">
@@ -240,7 +249,7 @@ export default function UserLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        <main ref={contentRef} className="flex-1 overflow-y-auto">
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 w-full min-w-0">
             <Outlet />
           </div>

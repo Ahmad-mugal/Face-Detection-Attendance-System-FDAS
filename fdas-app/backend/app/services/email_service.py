@@ -7,7 +7,6 @@ import smtplib
 import ssl
 from dataclasses import dataclass
 from email.message import EmailMessage
-from pathlib import Path
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +23,6 @@ SMTP_ENVIRONMENT_KEYS = {
 DEFAULT_SMTP_PORT = 587
 DEFAULT_SMTP_TIMEOUT_SECONDS = 10
 APPROVAL_EMAIL_SUBJECT = "FDAS Account Approved"
-BACKEND_DIRECTORY = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
@@ -52,31 +50,6 @@ class ApprovalEmailContent:
     html_body: str
 
 
-def _read_local_environment_file() -> dict[str, str]:
-    """Read only the optional SMTP keys from the ignored backend/.env file."""
-    environment_path = BACKEND_DIRECTORY / ".env"
-    if not environment_path.is_file():
-        return {}
-
-    values: dict[str, str] = {}
-    try:
-        for raw_line in environment_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            if key not in SMTP_ENVIRONMENT_KEYS:
-                continue
-            value = value.strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-                value = value[1:-1]
-            values[key] = value
-    except OSError:
-        logger.warning("Optional SMTP configuration file could not be read.")
-    return values
-
-
 def _parse_boolean(value: str, default: bool) -> bool:
     normalized = value.strip().lower()
     if not normalized:
@@ -85,10 +58,8 @@ def _parse_boolean(value: str, default: bool) -> bool:
 
 
 def load_smtp_settings() -> SmtpSettings:
-    file_values = _read_local_environment_file()
-
     def setting(name: str, default: str = "") -> str:
-        return os.getenv(name, file_values.get(name, default)).strip()
+        return os.getenv(name, default).strip()
 
     host = setting("FDAS_SMTP_HOST")
     from_email = setting("FDAS_SMTP_FROM_EMAIL")
@@ -111,6 +82,20 @@ def load_smtp_settings() -> SmtpSettings:
         use_tls=_parse_boolean(setting("FDAS_SMTP_USE_TLS", "true"), True),
         configured=configured,
     )
+
+
+def get_email_capability() -> dict[str, bool | str]:
+    """Return the public-safe SMTP capability without configuration values."""
+    configured = load_smtp_settings().configured
+    return {
+        "configured": configured,
+        "deliveryOptional": True,
+        "message": (
+            "Approval email delivery is configured."
+            if configured
+            else "Approval email unavailable because SMTP is not configured."
+        ),
+    }
 
 
 def build_approval_email(

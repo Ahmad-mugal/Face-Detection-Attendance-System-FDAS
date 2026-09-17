@@ -26,26 +26,38 @@ export function Modal({
   const descriptionId = useId()
   const panelRef = useRef(null)
   const returnFocusRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  const busyRef = useRef(busy)
+
+  onCloseRef.current = onClose
+  busyRef.current = busy
 
   useEffect(() => {
     if (!open) return undefined
     returnFocusRef.current = document.activeElement
     const previousOverflow = document.body.style.overflow
+    const appRoot = document.getElementById('root')
+    const rootWasInert = appRoot?.inert || false
     document.body.style.overflow = 'hidden'
+    if (appRoot) appRoot.inert = true
+    window.dispatchEvent(new CustomEvent('fdas:modal-visibility', { detail: { open: true } }))
 
     const focusable = () => Array.from(panelRef.current?.querySelectorAll(
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ) || [])
 
     const focusTimer = window.setTimeout(() => {
-      const elements = focusable()
-      ;(elements[0] || panelRef.current)?.focus()
+      if (panelRef.current?.contains(document.activeElement) && document.activeElement !== panelRef.current) return
+      const editable = panelRef.current?.querySelector(
+        '[data-modal-initial-focus], input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]):not([readonly])',
+      )
+      ;(editable || focusable()[0] || panelRef.current)?.focus()
     }, 0)
 
     const handleKeyDown = event => {
-      if (event.key === 'Escape' && !busy) {
+      if (event.key === 'Escape' && !busyRef.current) {
         event.preventDefault()
-        onClose?.()
+        onCloseRef.current?.()
         return
       }
       if (event.key !== 'Tab') return
@@ -71,9 +83,11 @@ export function Modal({
       window.clearTimeout(focusTimer)
       document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = previousOverflow
+      if (appRoot) appRoot.inert = rootWasInert
+      window.dispatchEvent(new CustomEvent('fdas:modal-visibility', { detail: { open: false } }))
       window.setTimeout(() => returnFocusRef.current?.focus?.(), 0)
     }
-  }, [busy, onClose, open])
+  }, [open])
 
   if (!open) return null
 

@@ -71,7 +71,7 @@ body,
   min-height: 100%;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -81,7 +81,7 @@ body {
   color: var(--color-on-surface);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 button,
@@ -235,6 +235,16 @@ svg {
   box-shadow: 0 14px 35px rgba(74, 43, 15, 0.18);
 }
 
+.fdas-smart-header {
+  transform: translateY(0);
+  transition: transform 220ms ease;
+  will-change: transform;
+}
+
+.fdas-smart-header-hidden {
+  transform: translateY(-100%);
+}
+
 html[data-table-density='compact'] .fdas-table th,
 html[data-table-density='compact'] .fdas-table td { padding-top: 0.55rem !important; padding-bottom: 0.55rem !important; }
 
@@ -245,6 +255,10 @@ html[data-reduced-motion='true'] *::after {
   animation-iteration-count: 1 !important;
   scroll-behavior: auto !important;
   transition-duration: 0.001ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fdas-smart-header { transition: none; }
 }
 
 @media (max-width: 480px) {

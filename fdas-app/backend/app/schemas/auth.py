@@ -145,3 +145,9 @@ class ApprovalNotificationResponse(BaseModel):
     user: AdminUserListItem
     emailNotificationSent: bool
     emailNotificationMessage: str
+
+
+class EmailCapabilityResponse(BaseModel):
+    configured: bool
+    deliveryOptional: bool
+    message: str

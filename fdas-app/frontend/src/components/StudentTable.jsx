@@ -7,6 +7,7 @@ import Icon from './Icon'
  *   students      - Array of student objects
  *   actionsEnabled - Show edit/archive action buttons
  *   onEdit        - Callback (student) => void
+ *   onView        - Callback (student) => void
  *   onDelete      - Callback (student) => void
  *   onRecover     - Callback (student) => void
  *   onDiagnose    - Callback (student) => void
@@ -16,10 +17,12 @@ export default function StudentTable({
   students = [],
   actionsEnabled = false,
   onEdit,
+  onView,
   onDelete,
   onRecover,
   onDiagnose,
   showEnrollment = true,
+  showStatus = true,
 }) {
   if (students.length === 0) {
     return (
@@ -44,6 +47,7 @@ export default function StudentTable({
             <th className="py-3 px-4 whitespace-nowrap">Class</th>
             <th className="py-3 px-4 whitespace-nowrap">Department</th>
             {showEnrollment && <th className="py-3 px-4 whitespace-nowrap">Face Enrolled</th>}
+            {showStatus && <th className="py-3 px-4 whitespace-nowrap">Status</th>}
             {actionsEnabled && <th className="py-3 px-4 whitespace-nowrap text-right">Actions</th>}
           </tr>
         </thead>
@@ -94,9 +98,32 @@ export default function StudentTable({
                   )}
                 </td>
               )}
+              {showStatus && (
+                <td className="py-3 px-4">
+                  <span
+                    className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold"
+                    style={student.status === 'Active'
+                      ? { backgroundColor: '#d1fae5', color: '#065f46' }
+                      : { backgroundColor: '#f0dfd8', color: '#6f3b20' }}
+                  >
+                    {student.status === 'Active' ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+              )}
               {actionsEnabled && (
                 <td className="py-3 px-4 text-right">
                   <div className="flex items-center gap-1 justify-end">
+                    {onView && (
+                      <button
+                        onClick={() => onView(student)}
+                        className="p-1.5 rounded-lg transition-colors hover:bg-orange-100"
+                        style={{ color: '#795900' }}
+                        title="View student"
+                        aria-label={`View ${student.name}`}
+                      >
+                        <Icon name="visibility" size={18} />
+                      </button>
+                    )}
                     {onDiagnose && student.status === 'Active' && (
                       <button
                         onClick={() => onDiagnose(student)}
@@ -119,22 +146,25 @@ export default function StudentTable({
                         <Icon name="face_retouching_natural" size={18} />
                       </button>
                     )}
-                    <button
-                      onClick={() => onEdit?.(student)}
-                      className="p-1.5 rounded-lg transition-colors hover:bg-orange-100"
-                      style={{ color: '#C4533A' }}
-                      title="Edit student"
-                    >
-                      <Icon name="edit" size={18} />
-                    </button>
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(student)}
+                        className="p-1.5 rounded-lg transition-colors hover:bg-orange-100"
+                        style={{ color: '#C4533A' }}
+                        title="Edit student"
+                        aria-label={`Edit ${student.name}`}
+                      >
+                        <Icon name="edit" size={18} />
+                      </button>
+                    )}
                     <button
                       onClick={() => onDelete?.(student)}
-                      className="p-1.5 rounded-lg transition-colors hover:bg-red-50"
-                      style={{ color: '#ba1a1a' }}
-                      title={student.status === 'Disabled' ? 'Activate student' : 'Deactivate student'}
-                      aria-label={`${student.status === 'Disabled' ? 'Activate' : 'Deactivate'} ${student.name}`}
+                      className={`p-1.5 rounded-lg transition-colors ${student.status === 'Active' ? 'hover:bg-red-50' : 'hover:bg-emerald-50'}`}
+                      style={{ color: student.status === 'Active' ? '#ba1a1a' : '#065f46' }}
+                      title={student.status === 'Active' ? 'Deactivate student' : 'Reactivate student'}
+                      aria-label={`${student.status === 'Active' ? 'Deactivate' : 'Reactivate'} ${student.name}`}
                     >
-                      <Icon name="archive" size={18} />
+                      <Icon name={student.status === 'Active' ? 'archive' : 'restore'} size={18} />
                     </button>
                   </div>
                 </td>

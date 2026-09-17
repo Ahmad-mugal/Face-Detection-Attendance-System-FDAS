@@ -293,7 +293,6 @@ def main() -> None:
         with TestingSession() as db, ExitStack() as stack:
             admin = db.get(User, admin_id)
             stack.enter_context(patch.dict(os.environ, blank_smtp_environment, clear=False))
-            stack.enter_context(patch("app.services.email_service._read_local_environment_file", return_value={}))
             stack.enter_context(
                 patch("app.routers.admin_users.send_approval_email", email_service.send_approval_email)
             )
@@ -317,7 +316,6 @@ def main() -> None:
         FakeSmtp.instances.clear()
         with ExitStack() as stack:
             stack.enter_context(patch.dict(os.environ, smtp_environment(), clear=False))
-            stack.enter_context(patch("app.services.email_service._read_local_environment_file", return_value={}))
             stack.enter_context(patch("app.services.email_service.smtplib.SMTP", FakeSmtp))
             transport_result = email_service.send_approval_email(
                 operator_name="Phase <Operator>",
@@ -355,7 +353,6 @@ def main() -> None:
 
         with ExitStack() as stack:
             stack.enter_context(patch.dict(os.environ, smtp_environment(), clear=False))
-            stack.enter_context(patch("app.services.email_service._read_local_environment_file", return_value={}))
             stack.enter_context(patch("app.services.email_service.smtplib.SMTP", FailingSmtp))
             failed_transport_result = email_service.send_approval_email(
                 operator_name="Failure Operator",

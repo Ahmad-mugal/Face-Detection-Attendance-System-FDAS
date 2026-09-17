@@ -58,7 +58,13 @@ def list_students(
     if classId is not None:
         query = query.filter(Student.classId == classId)
     if status is not None:
-        query = query.filter(Student.status == status)
+        normalized_status = status.strip().lower()
+        if normalized_status == "active":
+            query = query.filter(Student.status == "Active")
+        elif normalized_status == "inactive":
+            query = query.filter(Student.status.in_(("Inactive", "Disabled")))
+        else:
+            query = query.filter(Student.status == status)
     if search:
         pattern = f"%{search}%"
         query = query.filter(or_(Student.rollNo.ilike(pattern), Student.fullName.ilike(pattern), Student.email.ilike(pattern)))

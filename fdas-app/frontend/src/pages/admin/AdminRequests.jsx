@@ -9,6 +9,7 @@ import Toast from '../../components/ui/Toast'
 export default function AdminRequests() {
   const [requests, setRequests] = useState([])
   const [departments, setDepartments] = useState([])
+  const [emailCapability, setEmailCapability] = useState(null)
   const [modal, setModal] = useState(null)
   const [accessForm, setAccessForm] = useState({ accessScope: 'Department', assignedDepartmentId: '' })
   const [loading, setLoading] = useState(true)
@@ -21,12 +22,14 @@ export default function AdminRequests() {
     setLoading(true)
     setError('')
     try {
-      const [requestData, departmentData] = await Promise.all([
+      const [requestData, departmentData, emailStatus] = await Promise.all([
         adminUsersApi.listRequests(),
         departmentsApi.list(),
+        adminUsersApi.emailStatus(),
       ])
       setRequests(requestData)
       setDepartments(departmentData)
+      setEmailCapability(emailStatus)
     } catch (err) {
       setError(getApiError(err, 'Unable to load pending requests.'))
     } finally {
@@ -93,8 +96,14 @@ export default function AdminRequests() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatsCard title="Pending" value={requests.length} icon="pending_actions" />
         <StatsCard title="Departments" value={departments.length} icon="domain" iconColor="#D4A017" />
-        <StatsCard title="Backend Source" value="Live" icon="cloud_done" iconColor="#065f46" />
+        <StatsCard title="Approval Email" value={emailCapability?.configured ? 'Ready' : 'Setup Needed'} icon={emailCapability?.configured ? 'mark_email_read' : 'mail_lock'} iconColor={emailCapability?.configured ? '#065f46' : '#934619'} />
       </div>
+
+      {emailCapability && (
+        <div className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: '#dbc1b7', backgroundColor: '#fff8f6', color: '#55433b' }}>
+          <span className="font-bold">SMTP status:</span> {emailCapability.message}
+        </div>
+      )}
 
       <div className="rounded-xl fdas-card overflow-hidden">
         {loading ? (

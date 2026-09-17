@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAttendanceSession } from '../context/useAttendanceSession'
 import { useAuth } from '../context/useAuth'
 import Icon from '../components/Icon'
+import { useSmartHeader } from '../hooks/useSmartHeader'
 
 const navLinks = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -28,6 +29,10 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const { confirmNavigation } = useAttendanceSession()
   const { currentUser, logout } = useAuth()
+  const headerVisible = useSmartHeader({
+    routeKey: location.pathname,
+    locked: settingsOpen || notificationsOpen || profileOpen || mobileMenuOpen,
+  })
 
   const isSettingsActive = settingsLinks.some(l => location.pathname.startsWith(l.to))
   const closeDropdowns = () => {
@@ -81,11 +86,13 @@ export default function AdminLayout() {
   }, [])
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: '#FAF4EC' }}>
+    <div className="min-h-screen" style={{ backgroundColor: '#FAF4EC' }}>
       {/* Top Navigation Bar */}
       <nav
         ref={navRef}
-        className="sticky top-0 z-50 w-full border-b-2"
+        className={`fdas-smart-header sticky top-0 z-50 w-full border-b-2 ${headerVisible ? '' : 'fdas-smart-header-hidden'}`}
+        data-smart-header
+        data-visible={headerVisible}
         style={{
           backgroundColor: '#fff8f6',
           borderColor: '#C4533A',

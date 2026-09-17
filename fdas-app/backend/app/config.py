@@ -1,8 +1,19 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_FILE = BASE_DIR / ".env"
+
+
+def load_local_environment(environment_file: Path = ENV_FILE) -> bool:
+    """Load optional local configuration without overriding host variables."""
+    return load_dotenv(dotenv_path=environment_file, override=False)
+
+
+load_local_environment()
 DATABASE_FILE = BASE_DIR / "fdas_local.db"
 DATABASE_URL = f"sqlite:///{DATABASE_FILE.as_posix()}"
 CORS_ALLOWED_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"]
@@ -13,8 +24,8 @@ CORS_ALLOWED_ORIGINS.extend(
 )
 
 APP_NAME = "FDAS Backend"
-APP_VERSION = "1.0.2"
-APP_PHASE = "Phase 10.12A - Automatic Operator Approval Email Notification"
+APP_VERSION = "1.0.3"
+APP_PHASE = "Phase 10.12B - SMTP, Modal, Students, and Smart Header"
 FACE_MATCH_THRESHOLD = 0.75
 FACE_MATCH_AGGREGATION = "maximum"
 MIN_IDENTITY_MARGIN = 0.05

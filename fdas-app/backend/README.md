@@ -172,6 +172,7 @@ Admin user management:
 
 - `GET /api/admin/users`
 - `GET /api/admin/user-requests`
+- `GET /api/admin/email-status`
 - `PATCH /api/admin/users/{userId}/approve`
 - `POST /api/admin/users/{userId}/resend-approval-email`
 - `PATCH /api/admin/users/{userId}/reject`
@@ -179,7 +180,7 @@ Admin user management:
 - `PATCH /api/admin/users/{userId}/enable`
 - `PATCH /api/admin/users/{userId}/access`
 
-The JWT secret reads `FDAS_SECRET_KEY` from the process environment. If it is unset, the local FYP demo uses a clearly marked development-only fallback from `app/config.py`; `.env` files are ignored and `backend/.env.example` contains a non-secret example. The project does not add a dotenv dependency or automatically load `.env` files.
+At configuration initialization, `python-dotenv` loads the optional ignored `backend/.env` with `override=False`; explicitly supplied operating-system variables therefore retain precedence. The JWT secret reads `FDAS_SECRET_KEY` from that resolved environment. If it is unset, the local FYP demo uses the clearly marked development-only fallback from `app/config.py`. `backend/.env.example` contains placeholders only.
 
 ## Phase 4 Academic Management Endpoints
 
@@ -678,7 +679,7 @@ Automated verification uses synthetic/control images. Real-human face recognitio
 
 Core FDAS operation remains local/offline. Operator registration, administrator approval, authentication, attendance, and reports continue to work when email is not configured. Approval-email delivery is optional and requires temporary internet access to the configured SMTP provider.
 
-The backend reads these variables from the process environment first, then from the ignored `backend/.env` file:
+At ordinary Uvicorn startup, `app/config.py` loads the ignored `backend/.env` once with `python-dotenv`. Existing process environment variables are not overwritten. The email service then reads the resolved environment:
 
 ```text
 FDAS_SMTP_HOST=smtp.gmail.com
@@ -686,11 +687,11 @@ FDAS_SMTP_PORT=587
 FDAS_SMTP_USERNAME=
 FDAS_SMTP_PASSWORD=
 FDAS_SMTP_FROM_EMAIL=
-FDAS_SMTP_FROM_NAME=FDAS
+FDAS_SMTP_FROM_NAME=FDAS Administration
 FDAS_SMTP_USE_TLS=true
 ```
 
-`backend/.env.example` contains the same non-secret placeholders. The real `.env` file is ignored by Git and must never be committed. If required SMTP values are absent or invalid, the backend still starts normally and account approval still commits; the approval response reports `emailNotificationSent=false` with a safe explanation.
+`backend/.env.example` contains the same non-secret placeholders. The real `.env` file is ignored by Git and must never be committed. If required SMTP values are absent or invalid, the backend still starts normally and account approval still commits; the approval response reports `emailNotificationSent=false` with a safe explanation. Admins can inspect only the safe `configured` capability through `GET /api/admin/email-status`; credentials are never included.
 
 After a pending Operator account is committed as Approved, FDAS sends a multipart email with both plain-text and HTML versions. It uses the account's registered email as the recipient/login ID and includes the assigned department when available. It never retrieves or sends the registration password or password hash. If delivery fails, approval is not rolled back. Admins can retry from Manage Users with the explicit `Resend Approval Email` action, which does not change account state.
 
@@ -698,13 +699,13 @@ After a pending Operator account is committed as Approved, FDAS sends a multipar
 
 1. Copy `backend/.env.example` to `backend/.env` locally.
 2. Fill the SMTP values only in that ignored local file. Do not paste credentials into chat, source files, screenshots, or commits.
-3. For Gmail, enable two-step verification and create an App Password if Google requires one. Use the App Password as `FDAS_SMTP_PASSWORD`, not the normal account password.
+3. For Gmail, enable 2-Step Verification and create a Gmail App Password. Use the App Password as `FDAS_SMTP_PASSWORD`; a normal Gmail account password must not be used.
 4. For Gmail STARTTLS, keep host `smtp.gmail.com`, port `587`, and `FDAS_SMTP_USE_TLS=true`. Set the username and from-email to the sending Gmail address.
-5. Restart Uvicorn so the next delivery reads the local settings.
-6. Register a disposable Operator address, approve it from Admin Pending Requests, and confirm the success toast and received message. Alternatively, use `Resend Approval Email` on an already-approved Operator.
+5. Restart ordinary Uvicorn. Admin Pending Requests should report the safe SMTP status as ready.
+6. Register a disposable Operator address, approve it from Admin Pending Requests, and confirm `Approval email sent successfully.` plus actual receipt. Alternatively, use `Resend Approval Email` on an already-approved disposable Operator.
 7. Remove the test credentials from `backend/.env` when they are no longer needed.
 
-Automated verification never contacts an internet SMTP provider. `app.verify_phase10_12a` uses fake transports and disposable database/storage, while browser smoke intercepts approval-email requests.
+Automated verification never contacts an internet SMTP provider. `app.verify_phase10_12a` and `app.verify_phase10_12b` use fake transports and disposable database/storage, while browser smoke intercepts approval-email requests.
 
 ## Current Limitations
 

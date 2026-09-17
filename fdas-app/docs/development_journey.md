@@ -4854,3 +4854,105 @@ Core FDAS remains a local/offline laptop application. Only optional approval-ema
 ### Final Status
 
 **PASS — Phase 10.12A adds commit-after-approval SMTP notification, safe failure reporting, Admin-only explicit resend, multipart secure content, UI feedback, documentation, and complete isolated verification without changing attendance behavior or production data. Documentation freeze Phase 10.12 has not started.**
+
+## Phase 10.12B — SMTP Activation, Modal Keyboard Reliability, Inactive Students Management & Smart Header
+
+### Goal
+
+Make optional local SMTP configuration reliable in ordinary startup, repair the shared modal keyboard/focus lifecycle, separate active and inactive student management, and add a reusable scroll-direction header without changing the final Phase 10.10 attendance pipeline. Phase 10.12 Final Documentation Synchronization & Implementation Freeze remains explicitly on hold.
+
+### SMTP Runtime Configuration Audit
+
+`app/config.py` previously used `os.getenv()` without loading `backend/.env`. Phase 10.12A's email service compensated with a private SMTP-only file parser, so a correctly populated file could be discovered during an email operation, but configuration initialization itself did not load `.env` and other settings could not use it. The observed unconfigured runtime was ultimately truthful: no usable local SMTP values were present. The split loading design was still unnecessarily fragile and was consolidated.
+
+The existing project `.venv` already contained `python-dotenv 1.2.2` through the installed Uvicorn stack. It is now declared directly in `requirements.txt` because application code imports it; no package reinstall was required.
+
+### Reliable Local SMTP Loading
+
+`app/config.py` now calls `load_dotenv(backend/.env, override=False)` during configuration initialization. This supports ordinary `python -m uvicorn app.main:app` startup while preserving explicit operating-system environment precedence. The email service reads only the resolved environment and no longer maintains a separate hand-written parser. Missing or incomplete SMTP values remain non-fatal.
+
+An Admin-only `GET /api/admin/email-status` endpoint returns only `configured`, `deliveryOptional`, and a safe message. Admin Pending Requests shows `Ready` or `Setup Needed`; host, username, password, and raw credentials never enter the response or frontend. `.env` remains ignored, `.env.example` contains placeholders only, and the optional provider setup is documented in `backend/README.md`.
+
+The ordinary port-8000 backend was restarted with the existing project `.venv` after implementation. `/health` returned `status=ok` and `database=connected`, `/api/info` reported version `1.0.3`, and the Admin-only capability returned only `configured, deliveryOptional, message`. Its current `configured=false` result is expected because no real credentials were added during automated work.
+
+### SMTP Security
+
+Automated checks used fake SMTP transports only. They verified STARTTLS/login behavior, configured and unconfigured capability states, failure handling, commit-before-send, explicit resend, Admin authorization, absence of the SMTP secret from API output/logs/email, and absence of account passwords/hashes from email. Approval remains committed when delivery fails.
+
+For an optional real Gmail test, the administrator must locally create `backend/.env`, use `smtp.gmail.com`, port `587`, TLS, the sender Gmail address for username/from-email, and a Gmail App Password created after enabling 2-Step Verification. A normal Gmail password must not be used. Credentials must remain only in ignored local configuration and must never be pasted into chat or committed. After ordinary Uvicorn restart, SMTP status should show Ready; an approved disposable Operator can then use Resend Approval Email or a disposable pending request can be approved. No real SMTP message was sent during this phase.
+
+### Modal Keyboard Bug Root Cause
+
+The shared `Modal` focus effect depended on `onClose`. Pages commonly passed inline callbacks such as `() => setModal(null)`. Every controlled-input state update created a new callback identity, causing the effect cleanup and initialization to run again. Cleanup attempted focus restoration and initialization focused the first generic focusable element, which was the header X button before the form fields. That exact lifecycle caused focus to leave an input after the first typed character.
+
+### Shared Modal Fix
+
+The open/close focus lifecycle now depends only on `open`; current `onClose` and `busy` values are held in refs for keyboard handling. Initial focus prefers `data-modal-initial-focus` or the first editable input/select/textarea and does not override focus already established inside the dialog. Only Tab/Shift+Tab invoke the focus trap; Escape closes only when dismissal is allowed. Alphabetic keys, numbers, spaces, symbols, Backspace, Delete, arrows, and Enter are not treated as global modal shortcuts.
+
+While a modal is open, the application root is inert and body scrolling is locked. Cleanup occurs only on actual close/unmount, restores the prior body/inert state, removes listeners/backdrop, and returns focus to the opener. Modal visibility also signals the smart-header hook so navigation remains visible behind the higher `z-index: 100` dialog layer.
+
+### Admin Dialog Verification
+
+The focused browser suite typed `BSCS Semester 6` character-by-character in Add New Class, including a numeric character, space, and Backspace, and proved the full value and input focus were retained. It also verified Admin Add Student typing and Admin Edit Student modal typing. Boundary Tab and Shift+Tab wrapped within the dialog, Escape removed the backdrop, restored body scrolling/page clickability, and returned focus to Add New Class. The expanded legacy smoke retained passing Students, Classes, Timing, Users, Requests, approval, resend-email, profile, preferences, recovery, and status-dialog coverage with no native dialogs.
+
+### Operator Dialog Verification
+
+The Operator Students module now uses the same view/edit/recovery/status components. Browser verification typed letters, a number, a space, and Backspace in Operator Edit Student without focus movement, then dismissed by Escape. Existing attendance/session navigation protection and management routes remained functional in the legacy smoke.
+
+### Active Students View
+
+`/admin/students` and `/user/students` default to an `Active Students` tab. The pages request `status=active`, show a truthful scoped count, and exclude all inactive/disabled records from the default table. Existing view, edit, enrollment recovery, diagnostic where authorized, deactivation, and Admin CSV behavior remain available. Search state is stored independently per tab and does not reset the selected view.
+
+### Inactive Students View
+
+The same Students module contains an `Inactive Students` tab. Backend `status=inactive` intentionally groups the historical `Inactive` and `Disabled` states while preserving exact `Active` attendance eligibility. Rows show name/email, roll number, class, department, face enrollment, and a clear Inactive badge. Production currently contains 18 active and 3 inactive/disabled students; these counts are separate from the 14 face-enrolled count.
+
+### Reactivation Workflow
+
+Inactive rows retain View, Edit, deep enrollment recovery, and Reactivate Student actions. No hard-delete action or endpoint existed, so none was invented. Reactivation uses the shared confirmation dialog and existing enable endpoint; a successful disposable test removed the row from Inactive, returned it to Active, and displayed `Student reactivated successfully.` Deactivation similarly moves the preserved record to Inactive without deleting attendance history, Haar templates, ArcFace embeddings, or storage.
+
+### Header Scroll-Direction Behavior
+
+`useSmartHeader` is shared by Admin and Operator/account layouts. It uses a requestAnimationFrame-throttled scroll listener, ignores deltas below 7 pixels, stays visible within 24 pixels of the top, hides only after downward scrolling beyond 72 pixels, and reveals on meaningful upward scrolling. Route changes, modal visibility, account/notification/settings menus, and mobile navigation lock or reset it to visible.
+
+The header animates only with `transform: translateY(...)` over 220 ms. Visual verification discovered that `overflow-x: hidden` on ancestors prevented Admin sticky positioning even though state changed correctly; those ancestors now use `overflow-x: clip`, which prevents page overflow without creating a conflicting scroll container. Geometry assertions prove the Admin header is off-screen after scroll-down and returns to y=0 after scroll-up.
+
+### Responsive Header
+
+Admin uses window scrolling; Operator/account uses the existing internal main-content scroll container. Both headers remain sticky, keep their menus within the viewport, stay below the modal layer, and remain visible while menus or mobile navigation are open. Reduced-motion settings and `prefers-reduced-motion` disable the transform transition. Browser coverage passed at 375, 480, 768, 1024, 1280, 1440, and 1920 pixels with no document-level horizontal overflow.
+
+### Browser Verification
+
+`npm run smoke:phase10.12b` passed all 11 focused groups against disposable ports 8012/5175. It covered Admin login; Add Class typing/focus trap/Escape/focus restoration; Add Student and Admin/Operator Edit Student typing; Active/Inactive tabs and independent searches; status badges and reactivation; safe SMTP status UI; Admin/Operator header direction and route reset; modal/header layer geometry; Admin 375px and Operator 480px layouts; console/page errors; and native-dialog absence.
+
+Eight requested screenshots were captured under `frontend/output/playwright/phase10_12b`: typed Add Class, Active Students, Inactive Students, Reactivate confirmation, header at top, header revealed after upward scrolling, Admin mobile Students, and Operator mobile Students. Visual review passed spacing, focus ring, alignment, badges, backdrop/layering, sticky-header position, table containment, and responsive layout. The initial mobile capture occurred before data settled and was recaptured after table readiness; the sticky-header ancestor issue was also corrected before the final passing capture.
+
+The required expanded `node scripts/phase5-smoke.mjs` passed every scenario with `page_errors=0` and `native_dialogs=0`. Its nine console entries are expected deliberate conflict, invalid-authentication, invalid-current-password, and simulated unavailable-backend cases.
+
+### Backend Regression
+
+- `app.verify_phase10_12a`: PASS, all 16 existing email checks.
+- `app.verify_phase10_12b`: PASS, all 13 environment/capability/email/security/student-scope/reactivation checks.
+- `app.verify_phase10_10`: PASS, including final ArcFace policy and attendance safety.
+- `app.run_final_verification`: PASS on isolated port 8013, all 25 suites including 10.12A and 10.12B.
+- Frontend `npm run lint`: PASS.
+- Frontend `npm run build`: PASS. The existing non-blocking large JavaScript chunk warning remains.
+- Existing non-blocking SQLAlchemy subquery-coercion and InsightFace/scikit-image deprecation warnings remain. The logged SMTP `OSError` is the deliberate mocked failure case.
+
+### Data Preservation
+
+Before and after Phase 10.12B, production contained 21 students, 18 active students, 3 inactive/disabled students, 4,708 face templates, 171 ArcFace embeddings, 23 attendance rows, and 15,549 storage files totaling 27,447,638 bytes. `fdas_local.db` remained 4,395,008 bytes. All mutation-capable backend and browser verification used disposable copies; the disposable runtime and copied data were removed afterward.
+
+No production reset/reseed, student/template/embedding/attendance deletion, or storage rewrite occurred. `FACE_MATCH_THRESHOLD` remains `0.75`. Production recognition remains InsightFace `buffalo_l` / `arcface_v1`, threshold `0.85`, margin `0.07`, three fresh queries, minimum 2-of-3 consensus, no legacy automatic fallback, exact-one-face Phase 10.6C safeguards, MOVE_CLOSER liveness, and area growth `0.12`.
+
+### Remaining Limitations
+
+- Real Gmail delivery was not executed because credentials correctly remain outside source control and chat; the system is ready for the documented optional local App Password test.
+- Student hard deletion remains unavailable because FDAS has no existing delete endpoint; deactivation/reactivation preserves history and biometric data.
+- Wide student tables intentionally use an internal horizontal-scroll region on narrow screens.
+- The production bundle retains the existing non-blocking large-chunk warning.
+- Existing SQLAlchemy and InsightFace/scikit-image warnings remain future maintenance items.
+
+### Final Status
+
+**PASS — Phase 10.12B completed reliable local `.env`/SMTP initialization, safe Admin email capability reporting, the shared modal focus repair, scoped Active/Inactive student management with reactivation, and genuine smart sticky headers with complete isolated regression and browser verification. Production data and the final Phase 10.10 attendance policy remain unchanged. Phase 10.12 Final Documentation Synchronization & Implementation Freeze has not started and remains ON HOLD.**

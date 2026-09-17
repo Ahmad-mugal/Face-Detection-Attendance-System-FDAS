@@ -5,8 +5,8 @@ from app.database import get_db
 from app.dependencies import require_admin
 from app.models.department import Department
 from app.models.user import User
-from app.schemas.auth import AccessUpdateRequest, AdminUserListItem, ApprovalNotificationResponse
-from app.services.email_service import send_approval_email
+from app.schemas.auth import AccessUpdateRequest, AdminUserListItem, ApprovalNotificationResponse, EmailCapabilityResponse
+from app.services.email_service import get_email_capability, send_approval_email
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
@@ -63,6 +63,11 @@ def list_users(_: User = Depends(require_admin), db: Session = Depends(get_db)):
 def list_user_requests(_: User = Depends(require_admin), db: Session = Depends(get_db)):
     users = db.query(User).filter(User.status == "Pending").order_by(User.createdAt.desc()).all()
     return [to_admin_user_item(user) for user in users]
+
+
+@router.get("/email-status", response_model=EmailCapabilityResponse)
+def email_status(_: User = Depends(require_admin)):
+    return get_email_capability()
 
 
 def send_user_approval_notification(user: User):
