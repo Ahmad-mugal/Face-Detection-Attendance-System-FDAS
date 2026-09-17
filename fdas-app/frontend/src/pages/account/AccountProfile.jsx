@@ -4,6 +4,8 @@ import { getApiError } from '../../api/client'
 import Icon from '../../components/Icon'
 import Toast from '../../components/ui/Toast'
 import { useAuth } from '../../context/useAuth'
+import Badge from '../../components/ui/Badge'
+import PageHeader from '../../components/ui/PageHeader'
 
 function formatAccountDate(value) {
   if (!value) return 'Not available'
@@ -83,23 +85,22 @@ export default function AccountProfile() {
   return (
     <section className="fdas-page space-y-6 animate-fade-in-up">
       <Toast message={toast} onDismiss={() => setToast('')} />
-      <header className="rounded-2xl p-5 sm:p-7 fdas-card border-t-4" style={{ borderColor: '#D4A017' }}>
+      <PageHeader eyebrow="Your Account" title="Account Profile" description="Review your access details, update your display name, and maintain account security." />
+      <div className="p-5 sm:p-6 fdas-card border-t-4" style={{ borderTopColor: '#D4A017' }}>
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-          <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-md" style={{ backgroundColor: '#C4533A' }}>{initials}</div>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-sm" style={{ backgroundColor: '#C4533A' }}>{initials}</div>
           <div className="min-w-0">
-            <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Your Account</p>
-            <h1 className="text-2xl sm:text-3xl font-black" style={{ color: '#4A2B0F' }}>Account Profile</h1>
-            <p className="mt-1 text-lg font-bold break-words" style={{ color: '#4A2B0F' }}>{currentUser?.fullName}</p>
+            <p className="text-lg font-bold break-words" style={{ color: '#4A2B0F' }}>{currentUser?.fullName}</p>
             <p className="mt-1 break-all" style={{ color: '#6f5b52' }}>{currentUser?.email}</p>
-            <span className="mt-3 inline-flex rounded-full px-3 py-1 text-xs font-black" style={{ backgroundColor: '#fff0c2', color: '#715300' }}>{roleLabel}</span>
+            <Badge tone="warning" className="mt-3">{roleLabel}</Badge>
           </div>
         </div>
-      </header>
+      </div>
 
       {error && <div role="alert" className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-        <article className="rounded-2xl p-5 sm:p-6 fdas-card">
+        <article className="p-5 sm:p-6 fdas-card">
           <h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>Account Information</h2>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
             <Detail label="Name" value={currentUser?.fullName} />
@@ -119,7 +120,7 @@ export default function AccountProfile() {
         </article>
 
         <div className="space-y-6">
-          <article className="rounded-2xl p-5 sm:p-6 fdas-card">
+          <article className="p-5 sm:p-6 fdas-card">
             <div className="flex items-center gap-3"><Icon name="edit" size={21} style={{ color: '#C4533A' }} /><h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>Edit Profile</h2></div>
             <p className="mt-2 text-sm" style={{ color: '#6f5b52' }}>You can update your display name. Role, email, department, and access scope remain administrator-controlled.</p>
             <form onSubmit={saveProfile} className="mt-5 space-y-4">
@@ -129,7 +130,7 @@ export default function AccountProfile() {
             </form>
           </article>
 
-          <article className="rounded-2xl p-5 sm:p-6 fdas-card">
+          <article className="p-5 sm:p-6 fdas-card">
             <div className="flex items-center gap-3"><Icon name="lock" size={21} style={{ color: '#C4533A' }} /><h2 className="text-xl font-black" style={{ color: '#4A2B0F' }}>Change Password</h2></div>
             <p className="mt-2 text-sm" style={{ color: '#6f5b52' }}>Your current password is required. FDAS keeps the existing PBKDF2 password policy.</p>
             <form onSubmit={changePassword} className="mt-5 grid gap-4">

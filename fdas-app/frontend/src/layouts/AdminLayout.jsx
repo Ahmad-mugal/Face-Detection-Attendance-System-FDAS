@@ -99,7 +99,7 @@ export default function AdminLayout() {
           boxShadow: '0 4px 12px rgba(232,146,74,0.15)',
         }}
       >
-        <div className="max-w-[1280px] mx-auto px-3 sm:px-4 flex items-center justify-between h-16 min-w-0 gap-2">
+        <div className="fdas-shell flex items-center justify-between h-16 min-w-0 gap-2">
           {/* Logo */}
           <NavLink to="/admin/dashboard" onClick={event => handleGuardedNavClick('/admin/dashboard', event)} className="flex items-center gap-1.5 select-none shrink-0">
             <Icon name="school" size={22} style={{ color: '#D4A017' }} />
@@ -182,9 +182,10 @@ export default function AdminLayout() {
                   setProfileOpen(false)
                 }}
                 onPointerDown={event => event.stopPropagation()}
-                className="p-2 rounded-full hover:bg-orange-50 transition-colors relative"
+                className="fdas-icon-button relative"
                 style={{ color: '#C4533A' }}
                 aria-label="Open notifications"
+                title="Notifications"
               >
                 <Icon name="notifications" size={20} />
               </button>
@@ -204,7 +205,7 @@ export default function AdminLayout() {
                   setNotificationsOpen(false)
                 }}
                 onPointerDown={event => event.stopPropagation()}
-                className="flex items-center gap-2 rounded-full"
+                className="flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-orange-50"
                 aria-label="Open profile menu"
                 aria-haspopup="menu"
                 aria-expanded={profileOpen}
@@ -223,15 +224,15 @@ export default function AdminLayout() {
                     <p className="text-sm font-bold" style={{ color: '#4A2B0F' }}>{currentUser?.fullName || 'Admin User'}</p>
                     <p className="text-xs" style={{ color: '#887369' }}>{currentUser?.email || 'admin@fdas.local'}</p>
                   </div>
-                  <button role="menuitem" onClick={() => guardedNavigate('/account/profile')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>View Profile</button>
-                  <button role="menuitem" onClick={() => guardedNavigate('/account/preferences')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>Account Preferences</button>
-                  <button role="menuitem" onClick={() => guardedNavigate('/login')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-red-50" style={{ color: '#ba1a1a' }}>Logout</button>
+                  <button role="menuitem" onClick={() => guardedNavigate('/account/profile')} className="fdas-menu-item">View Profile</button>
+                  <button role="menuitem" onClick={() => guardedNavigate('/account/preferences')} className="fdas-menu-item">Account Preferences</button>
+                  <button role="menuitem" onClick={() => guardedNavigate('/login')} className="fdas-menu-item fdas-menu-item-danger">Logout</button>
                 </div>
               )}
             </div>
 
             {/* Mobile Menu */}
-            <button className="md:hidden p-2" style={{ color: '#C4533A' }} onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <button className="fdas-icon-button fdas-mobile-nav-button" style={{ color: '#C4533A' }} onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? 'Close navigation' : 'Open navigation'} title={mobileMenuOpen ? 'Close navigation' : 'Open navigation'}>
               <Icon name={mobileMenuOpen ? 'close' : 'menu'} size={20} />
             </button>
           </div>
@@ -268,7 +269,7 @@ export default function AdminLayout() {
       </nav>
 
       {/* Page Content */}
-      <main className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 w-full min-w-0">
+      <main className="fdas-shell fdas-shell-content min-w-0">
         <Outlet />
       </main>
     </div>

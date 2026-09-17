@@ -5,6 +5,9 @@ import { departmentsApi } from '../../api/departmentsApi'
 import { getApiError } from '../../api/client'
 import { ConfirmDialog, FormDialog } from '../../components/ui/Modal'
 import Toast from '../../components/ui/Toast'
+import Badge from '../../components/ui/Badge'
+import PageHeader from '../../components/ui/PageHeader'
+import { EmptyState, LoadingState } from '../../components/ui/AsyncState'
 
 export default function AdminRequests() {
   const [requests, setRequests] = useState([])
@@ -85,10 +88,7 @@ export default function AdminRequests() {
 
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
-      <div>
-        <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Access Control</p>
-        <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Pending User Requests</h1>
-      </div>
+      <PageHeader eyebrow="Access Control" title="Pending User Requests" description="Review operator registrations and assign the correct department access before approval." />
 
       <Toast message={message} tone={messageTone} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
@@ -105,15 +105,15 @@ export default function AdminRequests() {
         </div>
       )}
 
-      <div className="rounded-xl fdas-card overflow-hidden">
+      <div className="fdas-card overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center" style={{ color: '#887369' }}>Loading pending requests...</div>
+          <LoadingState label="Loading pending requests…" />
         ) : requests.length === 0 ? (
-          <div className="p-8 text-center" style={{ color: '#887369' }}>No pending user requests.</div>
+          <EmptyState title="No pending user requests" description="New operator registrations will appear here for review." icon="pending_actions" />
         ) : (
           <div className="fdas-table-wrap">
             <table className="fdas-table">
-              <thead className="text-xs uppercase" style={{ color: '#C4533A', backgroundColor: '#fff1eb' }}>
+              <thead>
                 <tr>
                   <th className="p-4">Name</th>
                   <th className="p-4">Email</th>
@@ -129,12 +129,12 @@ export default function AdminRequests() {
                     <td className="p-4 text-sm" style={{ color: '#55433b' }}>{request.email}</td>
                     <td className="p-4">{request.assignedDepartment || 'Not assigned'}</td>
                     <td className="p-4">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: '#FFF0E6', color: '#934619' }}>{request.status}</span>
+                      <Badge>{request.status}</Badge>
                     </td>
                     <td className="p-4">
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => openApprove(request)} className="px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: '#D4A017' }}>Approve</button>
-                        <button onClick={() => setModal({ type: 'reject', request })} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: '#C4533A', color: '#C4533A' }}>Reject</button>
+                        <button onClick={() => openApprove(request)} className="fdas-button fdas-button-warning fdas-button-sm">Approve</button>
+                        <button onClick={() => setModal({ type: 'reject', request })} className="fdas-button fdas-button-outline fdas-button-sm">Reject</button>
                       </div>
                     </td>
                   </tr>
@@ -146,18 +146,18 @@ export default function AdminRequests() {
       </div>
 
       <FormDialog open={modal?.type === 'approve'} onClose={() => setModal(null)} onSubmit={submitModal} title="Approve User Request" description={modal?.request ? `${modal.request.fullName} — ${modal.request.email}` : ''} submitLabel="Approve User" busy={saving}>
-              <div className="grid gap-4 mt-5">
+              <div className="grid gap-4">
                 <label>
-                  <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Access Scope</span>
-                  <select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={accessForm.accessScope} onChange={e => setAccessForm({ ...accessForm, accessScope: e.target.value })}>
+                  <span className="fdas-label">Access Scope</span>
+                  <select className="fdas-input mt-1" value={accessForm.accessScope} onChange={e => setAccessForm({ ...accessForm, accessScope: e.target.value })}>
                     <option value="Department">Department Access</option>
                     <option value="AllDepartments">All Departments</option>
                   </select>
                 </label>
                 {accessForm.accessScope === 'Department' && (
                   <label>
-                    <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Department</span>
-                    <select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={accessForm.assignedDepartmentId} onChange={e => setAccessForm({ ...accessForm, assignedDepartmentId: e.target.value })}>
+                    <span className="fdas-label">Department</span>
+                    <select className="fdas-input mt-1" value={accessForm.assignedDepartmentId} onChange={e => setAccessForm({ ...accessForm, assignedDepartmentId: e.target.value })}>
                       {departments.map(item => <option key={item.departmentId} value={item.departmentId}>{item.departmentName}</option>)}
                     </select>
                   </label>

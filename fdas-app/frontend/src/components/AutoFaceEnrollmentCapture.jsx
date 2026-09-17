@@ -333,8 +333,7 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
           type="button"
           onClick={startRegistration}
           disabled={!studentId || active || (recoveryMode && (!readiness || readiness.additionalNeeded === 0))}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ backgroundColor: '#C4533A', color: '#fff' }}
+          className="fdas-button fdas-button-primary flex-1"
         >
           <Icon name="videocam" size={18} />
           {recoveryMode ? 'Start Deep Recovery' : 'Start Face Registration'}
@@ -343,8 +342,7 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
           <button
             type="button"
             onClick={retryUpload}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95"
-            style={{ backgroundColor: '#D4A017', color: '#fff' }}
+            className="fdas-button fdas-button-warning flex-1"
           >
             <Icon name="upload" size={18} />
             Retry Upload
@@ -354,8 +352,7 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
           type="button"
           onClick={cancelRegistration}
           disabled={!active && capturedSamples.length === 0}
-          className="flex-1 py-2.5 rounded-lg font-semibold text-sm border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ borderColor: '#C4533A', color: '#C4533A' }}
+          className="fdas-button fdas-button-outline flex-1"
         >
           Cancel
         </button>

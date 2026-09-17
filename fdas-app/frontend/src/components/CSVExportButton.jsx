@@ -39,8 +39,7 @@ export default function CSVExportButton({ data = [], filename = 'fdas_report.csv
     <button
       onClick={handleExport}
       disabled={!data.length}
-      className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-      style={{ backgroundColor: '#D4A017', color: '#fff' }}
+      className="fdas-button fdas-button-warning"
       title={!data.length ? 'No data to export' : `Export ${data.length} records`}
     >
       <Icon name="download" size={18} />

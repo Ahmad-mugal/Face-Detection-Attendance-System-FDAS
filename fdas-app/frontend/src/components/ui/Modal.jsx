@@ -113,7 +113,7 @@ export function Modal({
             {description && <p id={descriptionId} className="mt-1 text-sm" style={{ color: '#6f5b52' }}>{description}</p>}
           </div>
           {showClose && (
-            <button type="button" onClick={onClose} disabled={busy} className="fdas-icon-button" aria-label={`Close ${title}`}>
+            <button type="button" onClick={onClose} disabled={busy} className="fdas-icon-button" aria-label={`Close ${title}`} title="Close dialog">
               <Icon name="close" size={20} />
             </button>
           )}

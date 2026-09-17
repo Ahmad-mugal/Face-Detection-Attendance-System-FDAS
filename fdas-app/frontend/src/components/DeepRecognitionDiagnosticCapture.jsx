@@ -174,9 +174,9 @@ export default function DeepRecognitionDiagnosticCapture({ student, onCompleted 
             <p className="mt-1 font-bold" style={{ color: '#4A2B0F' }}>{nextPrompt || 'Capture set complete.'}</p>
           </div>
           <div className="flex gap-2">
-            {!cameraActive && results.length < 10 && <button onClick={startCamera} className="rounded-lg px-4 py-2 font-bold text-white" style={{ backgroundColor: '#C4533A' }}>Start Camera</button>}
-            {cameraActive && <button onClick={stopCamera} disabled={busy} className="rounded-lg border px-4 py-2 font-bold disabled:opacity-60" style={{ borderColor: '#C4533A', color: '#C4533A' }}>Stop Camera</button>}
-            <button onClick={captureQuery} disabled={!cameraActive || busy || results.length >= 10} className="rounded-lg px-4 py-2 font-bold text-white disabled:opacity-50" style={{ backgroundColor: '#0f766e' }}>{busy ? 'Checking…' : `Capture Query ${results.length + 1}`}</button>
+            {!cameraActive && results.length < 10 && <button onClick={startCamera} className="fdas-button fdas-button-primary fdas-button-sm">Start Camera</button>}
+            {cameraActive && <button onClick={stopCamera} disabled={busy} className="fdas-button fdas-button-outline fdas-button-sm">Stop Camera</button>}
+            <button onClick={captureQuery} disabled={!cameraActive || busy || results.length >= 10} className="fdas-button fdas-button-success fdas-button-sm">{busy ? 'Checking…' : `Capture Query ${results.length + 1}`}</button>
           </div>
         </div>
         <p className="mt-3 text-sm" style={{ color: '#55433b' }}>{message}</p>
@@ -187,7 +187,7 @@ export default function DeepRecognitionDiagnosticCapture({ student, onCompleted 
         <div className="rounded-xl border overflow-x-auto" style={{ borderColor: '#f0dfd8' }}>
           <div className="flex items-center justify-between gap-3 p-3" style={{ backgroundColor: '#fff1eb' }}>
             <strong style={{ color: '#4A2B0F' }}>Transient result metadata</strong>
-            <button onClick={copyReport} className="rounded-lg border px-3 py-1.5 text-sm font-bold" style={{ borderColor: '#934619', color: '#934619' }}>{copied ? 'Copied' : 'Copy JSON report'}</button>
+            <button onClick={copyReport} className="fdas-button fdas-button-secondary fdas-button-sm">{copied ? 'Copied' : 'Copy JSON report'}</button>
           </div>
           <table className="min-w-full text-xs">
             <thead><tr style={{ color: '#934619' }}><th className="p-2 text-left">#</th><th className="p-2 text-left">Variation</th><th className="p-2 text-left">#22 score</th><th className="p-2 text-left">Top</th><th className="p-2 text-left">Second distinct</th><th className="p-2 text-left">Margin</th><th className="p-2 text-left">Classification</th></tr></thead>

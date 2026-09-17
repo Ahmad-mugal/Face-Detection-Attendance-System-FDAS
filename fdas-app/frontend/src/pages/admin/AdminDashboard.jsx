@@ -5,6 +5,7 @@ import StatsCard from '../../components/StatsCard'
 import Icon from '../../components/Icon'
 import { dashboardApi } from '../../api/dashboardApi'
 import { getApiError } from '../../api/client'
+import PageHeader from '../../components/ui/PageHeader'
 
 export default function AdminDashboard() {
   const [summary, setSummary] = useState(null)
@@ -29,17 +30,15 @@ export default function AdminDashboard() {
   return (
     <section className="fdas-page space-y-6 animate-fade-in-up">
       {error && <div role="alert" className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Admin Overview</p>
-          <h1 className="text-4xl font-black mt-1" style={{ color: '#4A2B0F' }}>FDAS Dashboard</h1>
-          <p className="text-sm mt-2" style={{ color: '#55433b' }}>Real-time overview of enrolled students, registered users, active classes, and attendance analytics.</p>
-        </div>
-        <div className="rounded-xl px-4 py-3 border" style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', color: '#55433b' }}>
+      <PageHeader
+        eyebrow="Admin Overview"
+        title="FDAS Dashboard"
+        description="Real-time overview of enrolled students, registered users, active classes, and attendance analytics."
+        actions={<div className="fdas-card px-4 py-2.5 text-sm" style={{ color: '#55433b' }}>
           <Icon name="bolt" size={18} className="mr-1" style={{ color: '#D4A017' }} />
           Active session: <strong style={{ color: '#934619' }}>{summary?.activeSessionName || 'None'}</strong>
-        </div>
-      </div>
+        </div>}
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatsCard
@@ -76,8 +75,8 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5 min-w-0">
-        <AttendanceChart data={summary?.weeklyChart || []} title="Weekly Attendance Trend" />
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5 min-w-0 items-start">
+        <AttendanceChart data={summary?.weeklyChart || []} title="Weekly Attendance Trend" height={360} />
         <AttendanceLogSidebar records={summary?.recentRecords || []} title="Live Attendance Log" actionPath="/admin/analytics" actionLabel="Open Analytics" />
       </div>
     </section>

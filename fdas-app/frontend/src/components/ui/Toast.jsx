@@ -20,7 +20,7 @@ export default function Toast({ message, tone = 'success', onDismiss, duration =
     <div className="fdas-toast" role={tone === 'error' ? 'alert' : 'status'} style={{ backgroundColor: style.background, borderColor: style.border, color: style.color }}>
       <Icon name={style.icon} size={20} />
       <span className="min-w-0 flex-1 text-sm font-bold">{message}</span>
-      {onDismiss && <button type="button" onClick={onDismiss} className="fdas-icon-button" aria-label="Dismiss notification"><Icon name="close" size={17} /></button>}
+      {onDismiss && <button type="button" onClick={onDismiss} className="fdas-icon-button" aria-label="Dismiss notification" title="Dismiss notification"><Icon name="close" size={17} /></button>}
     </div>
   )
 }

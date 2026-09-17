@@ -11,13 +11,12 @@ import { Link } from 'react-router-dom'
 export default function AttendanceLogSidebar({ records = [], title = "Today's Log", actionPath, actionLabel = 'Open Analytics' }) {
   return (
     <div
-      className="rounded-xl border-t-[3px] flex flex-col overflow-hidden"
+      className="fdas-card border-t-[3px] flex flex-col overflow-hidden"
       style={{
         backgroundColor: '#FFF0E6',
         borderColor: '#D4A017',
-        boxShadow: '0 4px 20px rgba(232,146,74,0.15)',
-        minHeight: 400,
-        maxHeight: 600,
+        minHeight: 360,
+        maxHeight: 480,
       }}
     >
       {/* Header */}
@@ -25,7 +24,7 @@ export default function AttendanceLogSidebar({ records = [], title = "Today's Lo
         className="px-5 py-4 flex items-center justify-between border-b"
         style={{ borderColor: 'rgba(232,146,74,0.2)', backgroundColor: 'rgba(255,255,255,0.5)' }}
       >
-        <h3 className="font-bold text-base" style={{ color: '#C4533A' }}>{title}</h3>
+        <h3 className="fdas-section-title" style={{ color: '#934619' }}>{title}</h3>
         <span
           className="text-xs font-bold px-3 py-1 rounded-full"
           style={{ backgroundColor: 'rgba(212,160,23,0.15)', color: '#795900' }}

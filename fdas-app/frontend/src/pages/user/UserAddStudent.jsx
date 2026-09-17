@@ -5,8 +5,10 @@ import { departmentsApi } from '../../api/departmentsApi'
 import { studentsApi } from '../../api/studentsApi'
 import { getApiError } from '../../api/client'
 import { useAuth } from '../../context/useAuth'
+import PageHeader from '../../components/ui/PageHeader'
+import { LoadingState } from '../../components/ui/AsyncState'
 
-const fieldClass = 'mt-1 w-full rounded-xl border px-4 py-3 outline-none text-sm'
+const fieldClass = 'fdas-input mt-1'
 const fieldStyle = { borderColor: '#dbc1b7', backgroundColor: '#ffffff', color: '#4A2B0F' }
 const emptyForm = { fullName: '', rollNo: '', email: '', phone: '', departmentId: '', classId: '', yearSemester: '', section: '', status: 'Active' }
 
@@ -87,20 +89,16 @@ export default function UserAddStudent() {
 
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
-      <div>
-        <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Operator Enrollment</p>
-        <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Add Department Student</h1>
-        <p className="text-sm mt-1" style={{ color: '#55433b' }}>Department access is enforced by the backend for the logged-in operator.</p>
-      </div>
+      <PageHeader eyebrow="Operator Enrollment" title="Add Department Student" description="Department access is enforced by the backend for the logged-in operator." />
 
       {message && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#d1fae5', borderColor: '#86efac', color: '#065f46' }}>{message}</div>}
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
       {loading ? (
-        <div className="fdas-card rounded-xl p-8 text-center" style={{ color: '#887369' }}>Loading department classes...</div>
+        <div className="fdas-card"><LoadingState label="Loading department classes…" /></div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] gap-5 min-w-0">
-          <form onSubmit={submitStudent} className="rounded-xl p-5 sm:p-6 space-y-4 fdas-card min-w-0">
+          <form onSubmit={submitStudent} className="p-5 sm:p-6 space-y-4 fdas-card min-w-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <label className="block"><span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#55433b' }}>Full Name</span><input required className={fieldClass} style={fieldStyle} value={form.fullName} onChange={e => setForm({ ...form, fullName: e.target.value })} /></label>
               <label className="block"><span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#55433b' }}>Roll Number</span><input required className={fieldClass} style={fieldStyle} value={form.rollNo} onChange={e => setForm({ ...form, rollNo: e.target.value })} placeholder="CS-2026-001" /></label>
@@ -112,7 +110,7 @@ export default function UserAddStudent() {
               <label className="block"><span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#55433b' }}>Section</span><input className={fieldClass} style={fieldStyle} value={form.section} onChange={e => setForm({ ...form, section: e.target.value })} /></label>
             </div>
 
-            <button type="submit" disabled={saving || !form.classId} className="w-full sm:w-auto px-5 py-3 rounded-xl font-bold text-white disabled:opacity-60" style={{ backgroundColor: '#C4533A' }}>
+            <button type="submit" disabled={saving || !form.classId} className="fdas-button fdas-button-primary w-full sm:w-auto">
               {saving ? 'Saving...' : 'Save Student Profile'}
             </button>
           </form>

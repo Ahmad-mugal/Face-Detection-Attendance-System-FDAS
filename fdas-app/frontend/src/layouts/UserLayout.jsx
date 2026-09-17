@@ -185,7 +185,7 @@ export default function UserLayout() {
           style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', boxShadow: '0 2px 8px rgba(232,146,74,0.1)' }}
         >
           <div className="flex items-center gap-3">
-            <button className="md:hidden p-1.5 rounded-lg" style={{ color: '#C4533A' }} onClick={() => setMobileOpen(true)}>
+            <button className="fdas-icon-button fdas-mobile-nav-button" style={{ color: '#C4533A' }} onClick={() => setMobileOpen(true)} aria-label="Open navigation" title="Open navigation">
               <Icon name="menu" size={20} />
             </button>
             <span className="font-bold text-lg truncate" style={{ color: '#C4533A' }}>FDAS Portal</span>
@@ -197,9 +197,10 @@ export default function UserLayout() {
                   setNotificationsOpen(current => !current)
                   setProfileOpen(false)
                 }}
-                className="p-2 rounded-full hover:bg-orange-50 transition-colors relative"
+                className="fdas-icon-button relative"
                 style={{ color: '#887369' }}
                 aria-label="Open notifications"
+                title="Notifications"
               >
                 <Icon name="notifications" size={20} />
               </button>
@@ -212,9 +213,10 @@ export default function UserLayout() {
             </div>
             <button
               onClick={() => guardedNavigate('/account/preferences')}
-              className="p-2 rounded-full hover:bg-orange-50 transition-colors"
+              className="fdas-icon-button"
               style={{ color: '#887369' }}
               aria-label="Settings"
+              title="Account preferences"
             >
               <Icon name="settings" size={20} />
             </button>
@@ -239,9 +241,9 @@ export default function UserLayout() {
                     <p className="text-sm font-bold" style={{ color: '#4A2B0F' }}>{operatorName}</p>
                     <p className="text-xs" style={{ color: '#887369' }}>{operatorDepartment}</p>
                   </div>
-                  <button role="menuitem" onClick={() => guardedNavigate('/account/profile')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>View Profile</button>
-                  <button role="menuitem" onClick={() => guardedNavigate('/account/preferences')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-orange-50" style={{ color: '#55433b' }}>Account Preferences</button>
-                  <button role="menuitem" onClick={() => guardedNavigate('/login')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-red-50" style={{ color: '#ba1a1a' }}>Logout</button>
+                  <button role="menuitem" onClick={() => guardedNavigate('/account/profile')} className="fdas-menu-item">View Profile</button>
+                  <button role="menuitem" onClick={() => guardedNavigate('/account/preferences')} className="fdas-menu-item">Account Preferences</button>
+                  <button role="menuitem" onClick={() => guardedNavigate('/login')} className="fdas-menu-item fdas-menu-item-danger">Logout</button>
                 </div>
               )}
             </div>
@@ -250,7 +252,7 @@ export default function UserLayout() {
 
         {/* Page content */}
         <main ref={contentRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 w-full min-w-0">
+          <div className="fdas-shell fdas-shell-content min-w-0">
             <Outlet />
           </div>
         </main>

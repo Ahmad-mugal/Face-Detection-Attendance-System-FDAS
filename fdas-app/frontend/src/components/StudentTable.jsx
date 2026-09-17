@@ -1,4 +1,6 @@
 import Icon from './Icon'
+import Badge from './ui/Badge'
+import { EmptyState } from './ui/AsyncState'
 
 /**
  * StudentTable — Reusable student list table
@@ -26,11 +28,7 @@ export default function StudentTable({
 }) {
   if (students.length === 0) {
     return (
-      <div className="text-center py-16" style={{ color: '#887369' }}>
-        <Icon name="group_off" size={48} className="block mx-auto mb-3" style={{ color: '#dbc1b7' }} />
-        <p className="font-semibold">No students found</p>
-        <p className="text-sm mt-1">Try adjusting your filters</p>
-      </div>
+      <EmptyState title="No students found" description="Try adjusting your search or status view." icon="group_off" />
     )
   }
 
@@ -42,7 +40,7 @@ export default function StudentTable({
             className="text-xs font-bold uppercase tracking-wider border-b-2"
             style={{ borderColor: '#C4533A', color: '#C4533A', backgroundColor: '#fff1eb' }}
           >
-            <th className="py-3 px-4 whitespace-nowrap">Name</th>
+            <th className="whitespace-nowrap">Name</th>
             <th className="py-3 px-4 whitespace-nowrap">Roll No.</th>
             <th className="py-3 px-4 whitespace-nowrap">Class</th>
             <th className="py-3 px-4 whitespace-nowrap">Department</th>
@@ -80,43 +78,24 @@ export default function StudentTable({
               {showEnrollment && (
                 <td className="py-3 px-4">
                   {student.enrolled ? (
-                    <span
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
-                      style={{ backgroundColor: '#d1fae5', color: '#065f46' }}
-                    >
-                      <Icon name="check_circle" size={12} />
-                      Enrolled
-                    </span>
+                    <Badge icon="check_circle">Enrolled</Badge>
                   ) : (
-                    <span
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold"
-                      style={{ backgroundColor: '#ffdad6', color: '#93000a' }}
-                    >
-                      <Icon name="radio_button_unchecked" size={12} />
-                      Not Enrolled
-                    </span>
+                    <Badge icon="radio_button_unchecked">Not Enrolled</Badge>
                   )}
                 </td>
               )}
               {showStatus && (
                 <td className="py-3 px-4">
-                  <span
-                    className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold"
-                    style={student.status === 'Active'
-                      ? { backgroundColor: '#d1fae5', color: '#065f46' }
-                      : { backgroundColor: '#f0dfd8', color: '#6f3b20' }}
-                  >
-                    {student.status === 'Active' ? 'Active' : 'Inactive'}
-                  </span>
+                  <Badge>{student.status === 'Active' ? 'Active' : 'Inactive'}</Badge>
                 </td>
               )}
               {actionsEnabled && (
                 <td className="py-3 px-4 text-right">
-                  <div className="flex items-center gap-1 justify-end">
+                  <div className="fdas-table-actions">
                     {onView && (
                       <button
                         onClick={() => onView(student)}
-                        className="p-1.5 rounded-lg transition-colors hover:bg-orange-100"
+                        className="fdas-icon-button fdas-icon-button-sm"
                         style={{ color: '#795900' }}
                         title="View student"
                         aria-label={`View ${student.name}`}
@@ -127,7 +106,7 @@ export default function StudentTable({
                     {onDiagnose && student.status === 'Active' && (
                       <button
                         onClick={() => onDiagnose(student)}
-                        className="p-1.5 rounded-lg transition-colors hover:bg-teal-50"
+                        className="fdas-icon-button fdas-icon-button-sm hover:bg-teal-50"
                         style={{ color: '#0f766e' }}
                         title="Independent deep recognition diagnostic"
                         aria-label={`Independent deep recognition diagnostic for ${student.name}`}
@@ -138,7 +117,7 @@ export default function StudentTable({
                     {onRecover && (
                       <button
                         onClick={() => onRecover(student)}
-                        className="p-1.5 rounded-lg transition-colors hover:bg-amber-50"
+                        className="fdas-icon-button fdas-icon-button-sm hover:bg-amber-50"
                         style={{ color: '#934619' }}
                         title="Deep enrollment recovery"
                         aria-label={`Deep enrollment recovery for ${student.name}`}
@@ -149,7 +128,7 @@ export default function StudentTable({
                     {onEdit && (
                       <button
                         onClick={() => onEdit(student)}
-                        className="p-1.5 rounded-lg transition-colors hover:bg-orange-100"
+                        className="fdas-icon-button fdas-icon-button-sm"
                         style={{ color: '#C4533A' }}
                         title="Edit student"
                         aria-label={`Edit ${student.name}`}
@@ -159,7 +138,7 @@ export default function StudentTable({
                     )}
                     <button
                       onClick={() => onDelete?.(student)}
-                      className={`p-1.5 rounded-lg transition-colors ${student.status === 'Active' ? 'hover:bg-red-50' : 'hover:bg-emerald-50'}`}
+                      className={`fdas-icon-button fdas-icon-button-sm ${student.status === 'Active' ? 'hover:bg-red-50' : 'hover:bg-emerald-50'}`}
                       style={{ color: student.status === 'Active' ? '#ba1a1a' : '#065f46' }}
                       title={student.status === 'Active' ? 'Deactivate student' : 'Reactivate student'}
                       aria-label={`${student.status === 'Active' ? 'Deactivate' : 'Reactivate'} ${student.name}`}

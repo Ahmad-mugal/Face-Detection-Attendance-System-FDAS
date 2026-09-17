@@ -4956,3 +4956,170 @@ No production reset/reseed, student/template/embedding/attendance deletion, or s
 ### Final Status
 
 **PASS — Phase 10.12B completed reliable local `.env`/SMTP initialization, safe Admin email capability reporting, the shared modal focus repair, scoped Active/Inactive student management with reactivation, and genuine smart sticky headers with complete isolated regression and browser verification. Production data and the final Phase 10.10 attendance policy remain unchanged. Phase 10.12 Final Documentation Synchronization & Implementation Freeze has not started and remains ON HOLD.**
+
+## Phase 10.12C — System-Wide Professional UI/UX Refinement
+
+### Goal
+
+Perform a complete visual and responsive refinement of the active Admin and Operator frontend without changing business logic. The work keeps the warm FDAS identity while making authenticated screens share one intentional content grid, typography hierarchy, control system, density, and responsive behavior. Phase 10.12 Final Documentation Synchronization & Implementation Freeze remains ON HOLD.
+
+### Visual Audit Findings
+
+- Authenticated screens did not consistently share the same top offset, maximum width, or horizontal gutters, which made page headings and actions feel disconnected from the sticky header.
+- Page titles, descriptions, section titles, buttons, cards, forms, badges, tables, loading states, and empty states used similar but not identical local patterns.
+- Manage Users exposed the clearest table problem: uneven column distribution, oversized rows, four competing actions, wrapped button labels, and weak separation between primary, destructive, and utility actions.
+- Student, user, class, timing, request, attendance, and report surfaces needed a common density and action-alignment strategy.
+- Dashboard chart and activity-log cards did not always balance vertically; some empty states created unnecessarily large blank areas.
+- Narrow layouts correctly needed internal table scrolling, but global document overflow, header spacing, primary-control visibility, modal containment, and mobile navigation needed systematic verification.
+
+### Design Tokens
+
+The shared CSS now defines a `92rem` (1,472px) content maximum, a responsive `clamp(1rem, 2.15vw, 2.5rem)` gutter, a responsive 24–32px authenticated page-top offset, a 4/8/12/16/20/24/32/40px spacing scale, a shared 14px card radius, and subtle standard/raised warm-brown shadows. Existing FDAS terracotta, marigold, ivory, linen, brown, success, warning, and error colors were retained.
+
+Shared building blocks added in this phase are `PageHeader`, `Badge`, and `AsyncState`. Existing components now use common `fdas-shell`, `fdas-card`, `fdas-toolbar`, `fdas-table`, `fdas-button-*`, `fdas-icon-button`, `fdas-badge-*`, form-control, menu, and modal styles instead of introducing a new framework.
+
+### Page Container & Margins
+
+Admin and Operator headers and page bodies now align to the same centered 1,472px shell. The gutter is 16px on mobile and scales through tablet/desktop to 40px at large widths. Authenticated content receives a consistent offset below the sticky header and a consistent bottom allowance. Dashboard, Students, Users, Classes, Attendance, Analytics, Timing, Requests, Profile, Preferences, and Add Student now share the same visual left and right edges.
+
+### Typography
+
+Page eyebrow, title, description, section title, table heading, body, helper, metadata, and badge text now have explicit shared roles. Eyebrows use compact uppercase accent text; page titles use a responsive 28–36px strong heading; descriptions use readable muted 14.8px copy with a 1.6 line height; section headings and table labels are compact without excessive bold text.
+
+### Button System
+
+Shared Primary, Secondary, Outline, Danger, Ghost, Warning, Success, Icon, Small, Normal, and Large treatments now standardize height, padding, radius, weight, icon gap, hover, focus-visible, disabled, and loading behavior. Normal controls use a 42px minimum height, compact controls approximately 34px, and large controls 44px. Row actions no longer all compete at primary emphasis.
+
+### Table System
+
+Tables now share compact headings, predictable horizontal and vertical padding, subtle borders/row hover, vertically centered cells, aligned action groups, and consistent loading/search-empty/data-empty states. Wide tables remain inside their own touch-friendly horizontal-scroll region rather than expanding the document. Manage Users uses a fixed desktop column plan and a predictable action width; Students uses compact rows and a consistent icon-action pattern.
+
+### Card System
+
+Metric, report, class, settings, profile, session, and content cards use the same border, radius, light elevation, and responsive section padding. Heavy shadows and oversized interior gaps were reduced. Metric-card content and icons now align consistently, while charts and activity panels have coordinated heights.
+
+### Form Refinement
+
+Login, registration, Add Student, Edit Student, class forms, timing, profile, password, preferences, enrollment, and diagnostic controls now share control heights, labels, focus rings, placeholder/muted text, borders, error treatment, helper copy, select styling, and disabled behavior. Page and modal forms use the same visual language.
+
+### Modal Visual Refinement
+
+The shared modal retains the Phase 10.12B focus trap, Escape handling, focus restoration, body-scroll locking, and backdrop behavior. This phase only refined panel radius/elevation, header and close-button alignment, content spacing, footer divider/alignment, responsive button layout, mobile bottom placement, and viewport-bounded vertical overflow.
+
+### Badge System
+
+Approved, Pending, Disabled, Active, Inactive, Face Ready, Incomplete, Enrolled, Not Enrolled, Present, Passed, and Failed states now map to compact shared success, warning, danger, neutral, or warm-info badges. Badge height, padding, font size, icon sizing, border, and pill radius are consistent.
+
+### Dashboard Refinement
+
+Admin and Operator metric cards now share equal-height alignment and calmer spacing. The attendance chart uses a stable 360px presentation area, improved inner margins, and balanced labeling. Live Attendance Log is a compact activity feed with a bounded 480px region and professional loading/empty/error treatment; chart and log cards align from the top without artificial blank card height.
+
+### Students Refinement
+
+Active and Inactive views now form one module with a shared page header, metric cards, segmented status tabs with counts, search toolbar, export/Add Student hierarchy, compact status/face badges, and consistently aligned icon actions. Admin and Operator versions preserve their existing scope and action permissions. Narrow screens keep tables within local scrolling containers.
+
+### Users Refinement
+
+Manage Users now has a clear page header with Export CSV, balanced fixed desktop columns, compact row height, safe text handling, aligned role/department/scope/status content, and consistent Approved/Disabled badges. Change Access remains the explicit primary row action; Disable/Enable remains clearly destructive or restorative; Grant All and Resend Approval Email are compact icon utilities with accessible labels and tooltips. Actions do not wrap chaotically at 1,440px or 1,920px.
+
+### Classes Refinement
+
+Summary cards, search/status filters, class cards, metadata, Active/Inactive/Archived badges, and class actions now share the system spacing and hierarchy. Cards remain compact and responsive, and the Add/Edit Class modal uses the refined form and modal systems.
+
+### Attendance Refinement
+
+Session summary, controls, operational guidance, camera area, live status, and session-record panel were visually regrouped while preserving all recognition and attendance behavior. The camera remains the dominant surface. Session records keep a usable internal minimum width on small screens, while the surrounding page stacks cleanly.
+
+### Analytics Refinement
+
+Report filters, date/select controls, KPI cards, chart containers, attendance table, export control, and asynchronous states now follow the shared system. Chart heights and margins are stable, and empty/error/loading states no longer leave an unexplained blank surface.
+
+### Account Pages Refinement
+
+Profile, password, and Preferences use aligned cards, controlled content widths, consistent labels/read-only fields, account metadata, role badges, and Save action placement. Login and registration received the same control/padding refinements without changing validation or authentication.
+
+### Navigation / Header Refinement
+
+The Phase 10.12B smart hide/reveal algorithm remains intact. Logo, navigation spacing, active indicator, notification/account controls, dropdown, mobile menu control, and vertical alignment were polished. A cascade issue that could reveal the mobile navigation control at desktop width was corrected; the control is explicitly hidden from 768px upward. Header and body use the same shell, and every page title clears the sticky header.
+
+### Responsive Audit
+
+The Phase 10.12C suite exercised 375, 480, 768, 1,024, 1,280, 1,440, and 1,920px. At every width it checked document and main-content overflow, title/header separation, and primary controls. No document-level horizontal overflow, clipped title, overlapping sticky header, cropped primary action, broken modal, or hidden primary CTA remained.
+
+- 375px: Admin Dashboard, Students, Attendance, and a live dialog stack correctly; mobile navigation is present, cards/actions wrap, the modal remains within the viewport, and only intentional table-region scrolling remains.
+- 480px: compact mobile/table behavior remains contained with readable controls and no document overflow.
+- 768px: tablet shell/gutters, desktop-header transition, action wrapping, and table containment pass.
+- 1,024px: compact desktop navigation, cards, toolbars, and wide-table containment pass.
+- 1,280px: the shared shell and page hierarchy remain balanced without edge crowding.
+- 1,440px: all requested desktop screens are composed cleanly; Manage Users columns and actions remain aligned.
+- 1,920px: content remains centered at 1,472px instead of stretching excessively; margins and card/table proportions stay intentional.
+
+### Accessibility / Contrast
+
+Body, metadata, labels, borders, controls, and semantic badge colors were strengthened within the existing warm palette. All icon-only actions introduced or retained in the refined tables have an `aria-label` and native tooltip/title. Buttons and form fields have visible keyboard focus, disabled states remain distinguishable, modal keyboard behavior still passes, and reduced-motion preferences continue to suppress the smart-header transition.
+
+### Screenshot Review
+
+The required final screenshots are stored in `frontend/output/playwright/phase10_12c`.
+
+- Desktop at 1,440 and 1,920px: Admin Dashboard, Active Students, Inactive Students, Users, Classes, Attendance, Analytics, Account Profile, Account Preferences, Operator Dashboard, Operator Students, and Operator Attendance.
+- Mobile at 375px: Dashboard, Students, Attendance, and modal/dialog.
+- The preserved baseline is `00-manage-users-before-1440.png`.
+
+Actual image review confirmed consistent shell edges, clear title/header separation, compact readable rows, card balance, chart/log alignment, responsive camera emphasis, mobile containment, and accessible action placement. The Manage Users comparison specifically confirms the title no longer crowds the header, margins are consistent, columns are balanced, badges align, action hierarchy is clear, row buttons no longer wrap, Export CSV belongs to the page header, and both 1,440px and 1,920px layouts look intentionally composed.
+
+### Verification
+
+- `npm.cmd run smoke:phase10.12c`: PASS, 43 browser visual/responsive checks and 0 failures.
+- Phase 10.12C screenshot set: PASS, 24 desktop captures plus 4 mobile captures and one preserved Manage Users baseline.
+- Focused Phase 10.12B isolated browser suite: PASS, 11/11 groups.
+- Expanded `node scripts/phase5-smoke.mjs` against a disposable backend/database/storage copy: PASS, 35/35 scenarios; `page_errors=0`, `native_dialogs=0`.
+- The nine Phase 5 console messages are expected deliberate unavailable-backend, invalid/conflict, and mocked failure paths; they did not fail the suite.
+- `app.verify_phase10_12b`: PASS, all 13 checks.
+- `app.verify_phase10_12a`: PASS, all 16 checks.
+- `app.verify_phase10_10`: PASS, including exact-one-face, MOVE_CLOSER, 0.12 growth, 0.85/0.07 deep policy, 2-of-3 consensus, eligibility, persistence, and duplicate prevention.
+- `app.run_final_verification` on isolated port 8032: PASS, all 25 listed phase suites; `FINAL RESULT: PASS`.
+- `npm.cmd run lint`: PASS.
+- `npm.cmd run build`: PASS.
+
+Mutation-capable browser checks ran only against a copied database and storage tree on disposable ports 8031/5183. That runtime and its temporary workspace were removed after the suites.
+
+Files created:
+
+- `frontend/src/components/ui/PageHeader.jsx`
+- `frontend/src/components/ui/Badge.jsx`
+- `frontend/src/components/ui/AsyncState.jsx`
+- `frontend/scripts/phase10_12c-visual.mjs`
+
+Files modified include `frontend/package.json`, `frontend/src/index.css`, both authenticated layouts, shared chart/log/report/student/enrollment/attendance/icon/modal/toast components, authentication/account pages, and the active Admin/Operator dashboard, student, class, request, timing, user, Add Student, attendance, and analytics surfaces. No backend application file, database schema, or recognition module was modified.
+
+### Data Preservation
+
+The production inventory at the Phase 10.12C baseline and final audit is identical:
+
+| Inventory | Before | After |
+| --- | ---: | ---: |
+| Students | 21 | 21 |
+| Active students | 10 | 10 |
+| Inactive/Disabled students | 11 | 11 |
+| Face templates | 4,708 | 4,708 |
+| ArcFace embeddings | 171 | 171 |
+| Attendance records | 23 | 23 |
+| Storage files | 15,549 | 15,549 |
+| Storage bytes | 27,447,638 | 27,447,638 |
+| Database bytes | 4,395,008 | 4,395,008 |
+
+The raw student status split is 10 Active, 1 Inactive, and 10 Disabled; the UI correctly groups Inactive and Disabled together. Production database, enrollment images, templates, embeddings, and attendance history were not reset, reseeded, deleted, or rewritten by this phase.
+
+`FACE_MATCH_THRESHOLD` remains `0.75`. Production recognition remains InsightFace `buffalo_l` / `arcface_v1`, deep threshold `0.85`, identity margin `0.07`, three-query burst, minimum 2-of-3 consensus, and no legacy automatic fallback. Exact-one-face continuity safeguards, MOVE_CLOSER-only liveness, area growth `0.12`, attendance/session/department rules, SMTP behavior, PBKDF2/password handling, HS256 JWT configuration, and account approval behavior remain unchanged.
+
+### Remaining UI Limitations
+
+- Wide data tables intentionally use an internal horizontal-scroll region on narrow screens; they were not converted to stacked cards because preserving scanability and the current interaction model was preferable.
+- The production JavaScript bundle remains approximately 873KB minified (251KB gzip), so Vite reports the existing non-blocking chunk-size warning. Route-level code splitting remains a future performance improvement.
+- Browser screenshots validate layout with the available local seed data and automated camera-safe state; they do not replace a physical-device visual review across every browser/OS font renderer.
+- Existing non-blocking SQLAlchemy and InsightFace/scikit-image maintenance warnings are outside this UI-only phase. The SMTP `OSError` seen during verification is the deliberate mocked failure-path assertion.
+
+### Final Status
+
+**PASS — Phase 10.12C completed the system-wide professional UI/UX refinement, responsive audit, Manage Users before/after correction, screenshot review, focused browser regression, full frontend smoke, targeted backend regressions, and all 25 unified verification suites. Production data and all recognition, liveness, authorization, SMTP, security, and attendance rules remain preserved. Phase 10.12 Final Documentation Synchronization & Implementation Freeze was not started and remains ON HOLD.**

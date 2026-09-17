@@ -30,10 +30,9 @@ export default function StatsCard({
 
   return (
     <div
-      className="rounded-xl p-5 flex flex-col justify-between min-h-[120px]"
+      className="fdas-card p-4 sm:p-5 flex flex-col justify-between min-h-[112px]"
       style={{
         backgroundColor: '#FFF0E6',
-        boxShadow: '0 4px 15px rgba(232,146,74,0.15)',
         ...borderStyle,
       }}
     >
@@ -44,7 +43,7 @@ export default function StatsCard({
         <Icon name={icon} size={22} style={{ color: iconColor }} />
       </div>
       <div className="flex items-baseline gap-2 mt-auto">
-        <span className="text-3xl font-bold leading-tight" style={{ color: '#4A2B0F' }}>
+        <span className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight" style={{ color: '#4A2B0F' }}>
           {value}
         </span>
         {subtitle && (

@@ -36,7 +36,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-6"
+      className="min-h-screen flex items-center justify-center p-4 sm:p-6"
       style={{ backgroundColor: '#FAF4EC' }}
     >
       <main
@@ -45,7 +45,7 @@ export default function LoginPage() {
       >
         {/* === Left Panel: Branding === */}
         <section
-          className="lg:w-1/2 relative flex flex-col items-center justify-center p-16 overflow-hidden min-h-[300px]"
+          className="lg:w-1/2 relative flex flex-col items-center justify-center p-8 sm:p-12 lg:p-16 overflow-hidden min-h-[260px]"
           style={{ background: 'linear-gradient(135deg, #FFF0E6 0%, #F5C49A 100%)' }}
         >
           {/* Decorative rings */}
@@ -75,11 +75,11 @@ export default function LoginPage() {
 
         {/* === Right Panel: Login Form === */}
         <section
-          className="lg:w-1/2 flex items-center justify-center p-8"
+          className="lg:w-1/2 flex items-center justify-center p-4 sm:p-8"
           style={{ backgroundColor: '#fff8f6' }}
         >
           <div
-            className="w-full max-w-sm rounded-2xl p-8 flex flex-col gap-6 border-t-4"
+            className="w-full max-w-sm rounded-2xl p-6 sm:p-8 flex flex-col gap-6 border-t-4"
             style={{
               backgroundColor: '#ffffff',
               borderColor: '#D4A017',
@@ -106,7 +106,7 @@ export default function LoginPage() {
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     placeholder="admin@fdas.local"
                     autoComplete="username"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border text-sm outline-none transition-all"
+                    className="fdas-input pl-10 pr-4"
                     style={{ borderColor: '#dbc1b7', color: '#4A2B0F', backgroundColor: '#ffffff' }}
                     onFocus={e => { e.target.style.borderColor = '#E8924A'; e.target.style.boxShadow = '0 0 0 3px rgba(232,146,74,0.15)' }}
                     onBlur={e => { e.target.style.borderColor = '#dbc1b7'; e.target.style.boxShadow = 'none' }}
@@ -128,7 +128,7 @@ export default function LoginPage() {
                     onChange={e => setForm({ ...form, password: e.target.value })}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    className="w-full pl-10 pr-12 py-3 rounded-xl border text-sm outline-none transition-all"
+                    className="fdas-input pl-10 pr-12"
                     style={{ borderColor: '#dbc1b7', color: '#4A2B0F', backgroundColor: '#ffffff' }}
                     onFocus={e => { e.target.style.borderColor = '#E8924A'; e.target.style.boxShadow = '0 0 0 3px rgba(232,146,74,0.15)' }}
                     onBlur={e => { e.target.style.borderColor = '#dbc1b7'; e.target.style.boxShadow = 'none' }}
@@ -139,6 +139,7 @@ export default function LoginPage() {
                     className="absolute right-3 transition-colors"
                     style={{ color: '#934619' }}
                     aria-label="Toggle password visibility"
+                    title={showPassword ? 'Hide password' : 'Show password'}
                   >
                     <Icon name={showPassword ? 'visibility' : 'visibility_off'} size={20} />
                   </button>
@@ -177,7 +178,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
+                className="fdas-button fdas-button-primary fdas-button-lg w-full"
                 style={{
                   background: loading
                     ? '#887369'

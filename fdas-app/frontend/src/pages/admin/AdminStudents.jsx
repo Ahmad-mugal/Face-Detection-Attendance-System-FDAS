@@ -12,6 +12,8 @@ import CameraEnrollment from '../../components/CameraEnrollment'
 import DeepRecognitionDiagnosticCapture from '../../components/DeepRecognitionDiagnosticCapture'
 import { ConfirmDialog, FormDialog, Modal } from '../../components/ui/Modal'
 import Toast from '../../components/ui/Toast'
+import PageHeader from '../../components/ui/PageHeader'
+import { LoadingState } from '../../components/ui/AsyncState'
 
 function mapStudent(student) {
   return {
@@ -113,13 +115,12 @@ export default function AdminStudents() {
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
       <Toast message={message} onDismiss={() => setMessage('')} />
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Student Management</p>
-          <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>{activeView === 'active' ? 'Active Students' : 'Inactive Students'}</h1>
-        </div>
-        <CSVExportButton data={visibleStudents} filename={`fdas_${activeView}_students.csv`} label={`Export ${activeView === 'active' ? 'Active' : 'Inactive'} CSV`} />
-      </div>
+      <PageHeader
+        eyebrow="Student Management"
+        title={activeView === 'active' ? 'Active Students' : 'Inactive Students'}
+        description="Search, review, and manage enrolled student records while preserving attendance and face data."
+        actions={<CSVExportButton data={visibleStudents} filename={`fdas_${activeView}_students.csv`} label={`Export ${activeView === 'active' ? 'Active' : 'Inactive'} CSV`} />}
+      />
 
       {error && <div role="alert" className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
@@ -131,7 +132,7 @@ export default function AdminStudents() {
 
       <StudentStatusTabs activeView={activeView} activeCount={activeStudents.length} inactiveCount={inactiveStudents.length} onChange={setActiveView} />
 
-      <div className="fdas-card rounded-xl p-4 flex flex-col md:flex-row gap-3">
+      <div className="fdas-card fdas-toolbar flex-col md:flex-row">
         <input
           value={searches[activeView]}
           onChange={event => setSearches(current => ({ ...current, [activeView]: event.target.value }))}
@@ -143,8 +144,8 @@ export default function AdminStudents() {
         <Link to="/admin/students/add" className="fdas-button fdas-button-primary"><Icon name="person_add" size={18} />Add Student</Link>
       </div>
 
-      <div className="rounded-xl overflow-hidden fdas-card">
-        {loading ? <div className="p-8 text-center" style={{ color: '#887369' }}>Loading students…</div> : <StudentTable students={mappedStudents} actionsEnabled onView={student => setModal({ type: 'view', student })} onDiagnose={student => setModal({ type: 'diagnostic', student })} onRecover={student => setModal({ type: 'recovery', student })} onEdit={student => setModal({ type: 'edit', student })} onDelete={student => setModal({ type: 'status', student })} />}
+      <div className="overflow-hidden fdas-card">
+        {loading ? <LoadingState label="Loading students…" /> : <StudentTable students={mappedStudents} actionsEnabled onView={student => setModal({ type: 'view', student })} onDiagnose={student => setModal({ type: 'diagnostic', student })} onRecover={student => setModal({ type: 'recovery', student })} onEdit={student => setModal({ type: 'edit', student })} onDelete={student => setModal({ type: 'status', student })} />}
       </div>
 
       <Modal open={modal?.type === 'view'} onClose={() => setModal(null)} title="Student Details" description={modal?.student?.rollNumber} size="lg">

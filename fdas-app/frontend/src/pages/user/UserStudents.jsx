@@ -9,6 +9,8 @@ import Icon from '../../components/Icon'
 import CameraEnrollment from '../../components/CameraEnrollment'
 import { ConfirmDialog, FormDialog, Modal } from '../../components/ui/Modal'
 import Toast from '../../components/ui/Toast'
+import PageHeader from '../../components/ui/PageHeader'
+import { LoadingState } from '../../components/ui/AsyncState'
 
 function mapStudent(student) {
   return { id: student.studentId, studentId: student.studentId, name: student.fullName, rollNumber: student.rollNo, className: student.className, department: student.departmentName, departmentId: student.departmentId, email: student.email || '', enrolled: student.faceRegistered, status: student.status }
@@ -97,21 +99,18 @@ export default function UserStudents() {
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
       <Toast message={message} onDismiss={() => setMessage('')} />
-      <div>
-        <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Department Students</p>
-        <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>{activeView === 'active' ? 'Active Students' : 'Inactive Students'}</h1>
-      </div>
+      <PageHeader eyebrow="Department Students" title={activeView === 'active' ? 'Active Students' : 'Inactive Students'} description="Manage the student records available within your authorized department scope." />
       {error && <div role="alert" className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
       <StudentStatusTabs activeView={activeView} activeCount={activeStudents.length} inactiveCount={inactiveStudents.length} onChange={setActiveView} />
 
-      <div className="fdas-card rounded-xl p-4 flex flex-col sm:flex-row gap-3">
+      <div className="fdas-card fdas-toolbar flex-col sm:flex-row">
         <input value={searches[activeView]} onChange={event => setSearches(current => ({ ...current, [activeView]: event.target.value }))} placeholder={`Search ${activeView} students`} className="fdas-input flex-1" aria-label={`Search ${activeView} students`} />
         {searches[activeView] && <button type="button" onClick={() => setSearches(current => ({ ...current, [activeView]: '' }))} className="fdas-button fdas-button-secondary">Clear</button>}
         <Link to="/user/students/add" className="fdas-button fdas-button-primary"><Icon name="person_add" size={18} />Add Student</Link>
       </div>
 
-      <div className="rounded-xl overflow-hidden fdas-card">{loading ? <div className="p-8 text-center" style={{ color: '#887369' }}>Loading students…</div> : <StudentTable students={visibleStudents} actionsEnabled onView={student => setModal({ type: 'view', student })} onEdit={student => setModal({ type: 'edit', student })} onRecover={student => setModal({ type: 'recovery', student })} onDelete={student => setModal({ type: 'status', student })} />}</div>
+      <div className="overflow-hidden fdas-card">{loading ? <LoadingState label="Loading students…" /> : <StudentTable students={visibleStudents} actionsEnabled onView={student => setModal({ type: 'view', student })} onEdit={student => setModal({ type: 'edit', student })} onRecover={student => setModal({ type: 'recovery', student })} onDelete={student => setModal({ type: 'status', student })} />}</div>
 
       <Modal open={modal?.type === 'view'} onClose={() => setModal(null)} title="Student Details" description={modal?.student?.rollNumber} size="lg">
         <StudentDetails student={modal?.student} />

@@ -86,11 +86,11 @@ export default function AttendanceChart({ type = 'bar', data = [], title, height
 
   return (
     <div
-      className="rounded-xl p-5"
-      style={{ backgroundColor: '#FFF0E6', boxShadow: '0 4px 15px rgba(232,146,74,0.12)' }}
+      className="fdas-card p-4 sm:p-5 min-w-0"
+      style={{ backgroundColor: '#FFF0E6' }}
     >
       {title && (
-        <h3 className="font-bold text-base mb-4" style={{ color: '#4A2B0F' }}>{title}</h3>
+        <h3 className="fdas-section-title mb-4">{title}</h3>
       )}
       <div style={{ width: '100%', minHeight: height }}>
         {renderChart()}

@@ -10,6 +10,7 @@ import { useAuth } from '../context/useAuth'
 import Icon from './Icon'
 import { loadPreferences } from '../utils/preferences'
 import StatsCard from './StatsCard'
+import PageHeader from './ui/PageHeader'
 
 const SCAN_INTERVAL_MS = 1800
 const LIVENESS_BASELINE_FRAME_COUNT = 2
@@ -838,26 +839,22 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
 
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Live Attendance</p>
-          <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Attendance Marking</h1>
-        </div>
+      <PageHeader eyebrow="Live Attendance" title="Attendance Marking" description="Start a session, verify one-person liveness, and record eligible attendance securely." actions={
         <div className="flex flex-wrap gap-2">
-          <button onClick={startBackendSession} disabled={loading || !departmentId || Boolean(activeSession)} className="px-4 py-2 rounded-lg font-bold text-sm text-white disabled:opacity-60" style={{ backgroundColor: '#D4A017' }}>
+          <button onClick={startBackendSession} disabled={loading || !departmentId || Boolean(activeSession)} className="fdas-button fdas-button-warning">
             Start Session
           </button>
-          <button onClick={stopBackendSession} disabled={loading || !activeSession} className="px-4 py-2 rounded-lg font-bold text-sm text-white disabled:opacity-60" style={{ backgroundColor: '#C4533A' }}>
+          <button onClick={stopBackendSession} disabled={loading || !activeSession} className="fdas-button fdas-button-outline">
             Stop Session
           </button>
         </div>
-      </div>
+      } />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="rounded-xl p-5 fdas-card">
+        <div className="p-4 sm:p-5 fdas-card">
           <p className="text-xs font-bold uppercase" style={{ color: '#887369' }}>{canChooseDepartment ? 'Department' : 'Assigned Department'}</p>
           {canChooseDepartment ? (
-            <select value={departmentId} onChange={handleDepartmentChange} className="mt-2 w-full rounded-lg border px-3 py-2 text-sm font-bold" style={{ borderColor: '#f0dfd8', color: '#4A2B0F', backgroundColor: '#fff' }}>
+            <select value={departmentId} onChange={handleDepartmentChange} className="fdas-input mt-2 font-bold">
               {departments.map(department => (
                 <option key={department.departmentId} value={department.departmentId}>{department.departmentName}</option>
               ))}
@@ -888,7 +885,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
               <p className="font-black text-sm" style={{ color: '#4A2B0F' }}>Phase 10.9B Controlled Policy Evidence</p>
               <p>Runs 10 cycles with at most 2 fresh retries per cycle. Images and raw embeddings are never stored.</p>
             </div>
-            <button type="button" onClick={copyControlledTestReport} className="rounded-lg px-3 py-2 font-bold text-white" style={{ backgroundColor: '#065f46' }}>
+            <button type="button" onClick={copyControlledTestReport} className="fdas-button fdas-button-success fdas-button-sm">
               Copy Controlled Test Report
             </button>
           </div>
@@ -981,8 +978,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
             <select
               value={expectedStudentId}
               onChange={event => setExpectedStudentId(event.target.value)}
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm font-bold"
-              style={{ borderColor: '#dbc1b7', color: '#4A2B0F', backgroundColor: '#fff' }}
+              className="fdas-input mt-1 font-bold"
             >
               <option value="">Select student</option>
               <option value="unknown">Unknown / not enrolled</option>
@@ -996,8 +992,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
           <button
             onClick={runIdentityDiagnostic}
             disabled={!cameraOn || !expectedStudentId || diagnosticLoading}
-            className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-60"
-            style={{ backgroundColor: '#93000a' }}
+            className="fdas-button fdas-button-danger"
           >
             {diagnosticLoading ? 'Checking…' : 'Capture Diagnostic — No Attendance'}
           </button>
@@ -1076,24 +1071,24 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
       </div>}
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_420px] gap-5 min-w-0">
-        <div className="rounded-xl overflow-hidden border-2 fdas-card" style={{ borderColor: '#FFF0E6' }}>
+        <div className="overflow-hidden fdas-card" style={{ borderColor: '#e8cec4' }}>
           <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b" style={{ borderColor: '#f0dfd8' }}>
             <div>
               <h2 className="font-black" style={{ color: '#4A2B0F' }}>Live Camera</h2>
               <p className="text-xs" style={{ color: '#887369' }}>Follow the on-screen instruction, then return to the center and hold still.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={cameraOn ? () => { stopCamera(); setMessage({ tone: 'info', text: 'Camera stopped.' }) } : startCamera} disabled={!activeSession} className="px-3 py-2 rounded-lg text-xs font-bold border disabled:opacity-60" style={{ borderColor: '#C4533A', color: '#C4533A' }}>
+              <button onClick={cameraOn ? () => { stopCamera(); setMessage({ tone: 'info', text: 'Camera stopped.' }) } : startCamera} disabled={!activeSession} className="fdas-button fdas-button-outline fdas-button-sm">
                 {cameraOn ? 'Stop Camera' : 'Start Camera'}
               </button>
-              <button onClick={scanning ? stopScanning : startScanning} disabled={!attendanceScanningEnabled || !activeSession || !cameraOn} className="px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-60" style={{ backgroundColor: scanning ? '#C4533A' : '#D4A017' }}>
+              <button onClick={scanning ? stopScanning : startScanning} disabled={!attendanceScanningEnabled || !activeSession || !cameraOn} className={`fdas-button fdas-button-sm ${scanning ? 'fdas-button-primary' : 'fdas-button-warning'}`}>
                 {scanning
                   ? 'Stop Scanning'
                   : (attendanceScanningEnabled ? 'Start Scanning' : 'Attendance Paused')}
               </button>
             </div>
           </div>
-          <div className="relative min-h-[380px] flex items-center justify-center" style={{ backgroundColor: '#221a16' }}>
+          <div className="relative min-h-[340px] sm:min-h-[400px] flex items-center justify-center" style={{ backgroundColor: '#221a16' }}>
             <video
               ref={videoRef}
               autoPlay
@@ -1126,15 +1121,15 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
           </div>
         </div>
 
-        <div className="rounded-xl border-t-[3px] flex flex-col overflow-hidden" style={{ backgroundColor: '#FFF0E6', borderColor: '#D4A017', boxShadow: '0 4px 20px rgba(232,146,74,0.15)', minHeight: 400, maxHeight: 640 }}>
+        <div className="fdas-card border-t-[3px] flex flex-col overflow-hidden" style={{ backgroundColor: '#FFF0E6', borderTopColor: '#D4A017', minHeight: 380, maxHeight: 640 }}>
           <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: 'rgba(232,146,74,0.2)', backgroundColor: 'rgba(255,255,255,0.5)' }}>
             <h3 className="font-bold text-base" style={{ color: '#C4533A' }}>Session Records</h3>
-            <button onClick={() => loadRecords(activeSession?.sessionId)} disabled={!activeSession || recordsLoading} className="text-xs font-bold px-3 py-1 rounded-full disabled:opacity-60" style={{ backgroundColor: 'rgba(212,160,23,0.15)', color: '#795900' }}>
+            <button onClick={() => loadRecords(activeSession?.sessionId)} disabled={!activeSession || recordsLoading} className="fdas-button fdas-button-ghost fdas-button-sm">
               Refresh
             </button>
           </div>
           <div className="overflow-auto">
-            <table className="w-full text-sm">
+            <table className="fdas-table fdas-session-table">
               <thead style={{ color: '#887369' }}>
                 <tr className="text-left">
                   <th className="px-4 py-3">Student</th>

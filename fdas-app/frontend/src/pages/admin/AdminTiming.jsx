@@ -5,6 +5,9 @@ import { getApiError } from '../../api/client'
 import Icon from '../../components/Icon'
 import { ConfirmDialog, FormDialog } from '../../components/ui/Modal'
 import Toast from '../../components/ui/Toast'
+import Badge from '../../components/ui/Badge'
+import PageHeader from '../../components/ui/PageHeader'
+import { EmptyState, LoadingState } from '../../components/ui/AsyncState'
 
 const emptyForm = { departmentId: '', startTime: '08:00', endTime: '09:00', graceMinutes: 10, status: 'Active' }
 
@@ -106,34 +109,30 @@ export default function AdminTiming() {
 
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Scheduling</p>
-          <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Attendance Timing</h1>
-        </div>
-        <button onClick={openAdd} className="px-4 py-2.5 rounded-lg font-bold text-white flex items-center gap-2" style={{ backgroundColor: '#C4533A' }}>
+      <PageHeader eyebrow="Scheduling" title="Attendance Timing" description="Configure department attendance windows and grace periods." actions={
+        <button onClick={openAdd} className="fdas-button fdas-button-primary">
           <Icon name="add" size={18} />
           Add Time Window
         </button>
-      </div>
+      } />
 
       <Toast message={message} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
       {loading ? (
-        <div className="fdas-card rounded-xl p-8 text-center" style={{ color: '#887369' }}>Loading attendance time windows...</div>
+        <div className="fdas-card"><LoadingState label="Loading attendance time windows…" /></div>
       ) : timings.length === 0 ? (
-        <div className="fdas-card rounded-xl p-8 text-center" style={{ color: '#887369' }}>No time windows found.</div>
+        <div className="fdas-card"><EmptyState title="No time windows found" description="Add a time window to make attendance available for a department." icon="schedule" /></div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {timings.map(timing => (
-            <article key={timing.windowId} className="rounded-xl p-5 fdas-card min-w-0">
+            <article key={timing.windowId} className="p-4 fdas-card min-w-0">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-black" style={{ color: '#4A2B0F' }}>Window #{timing.windowId}</h2>
                   <p className="text-sm" style={{ color: '#55433b' }}>{timing.departmentName}</p>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: timing.status === 'Active' ? '#d1fae5' : '#ffdad6', color: timing.status === 'Active' ? '#065f46' : '#93000a' }}>{timing.status}</span>
+                <Badge>{timing.status}</Badge>
               </div>
               <div className="mt-5 rounded-xl p-4 text-center" style={{ backgroundColor: '#FFF0E6' }}>
                 <span className="text-2xl font-black" style={{ color: '#C4533A' }}>{timing.startTime.slice(0, 5)}</span>
@@ -145,8 +144,8 @@ export default function AdminTiming() {
                 <div><span style={{ color: '#887369' }}>Scope</span><p className="font-bold" style={{ color: '#4A2B0F' }}>Department</p></div>
               </div>
               <div className="flex gap-2 mt-5">
-                <button onClick={() => openEdit(timing)} className="flex-1 px-3 py-2 rounded-lg text-sm font-bold border" style={{ borderColor: '#D4A017', color: '#715300' }}>Edit</button>
-                <button onClick={() => setStatusDialog(timing)} className="flex-1 px-3 py-2 rounded-lg text-sm font-bold border" style={{ borderColor: '#C4533A', color: '#C4533A' }}>{timing.status === 'Active' ? 'Deactivate' : 'Activate'}</button>
+                <button onClick={() => openEdit(timing)} className="fdas-button fdas-button-secondary fdas-button-sm flex-1">Edit</button>
+                <button onClick={() => setStatusDialog(timing)} className="fdas-button fdas-button-outline fdas-button-sm flex-1">{timing.status === 'Active' ? 'Deactivate' : 'Activate'}</button>
               </div>
             </article>
           ))}
@@ -154,12 +153,12 @@ export default function AdminTiming() {
       )}
 
       <FormDialog open={Boolean(modal)} onClose={() => setModal(null)} onSubmit={submitTiming} title={modal?.mode === 'add' ? 'Add Time Window' : 'Edit Time Window'} submitLabel={modal?.mode === 'add' ? 'Create Window' : 'Save Changes'} busy={saving} size="lg">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Department</span><select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })}>{departments.map(item => <option key={item.departmentId} value={item.departmentId}>{item.departmentName}</option>)}</select></label>
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Grace Minutes</span><input type="number" min="0" className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.graceMinutes} onChange={e => setForm({ ...form, graceMinutes: e.target.value })} /></label>
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Start Time</span><input type="time" className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} /></label>
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>End Time</span><input type="time" className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} /></label>
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Status</span><select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Inactive</option></select></label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label><span className="fdas-label">Department</span><select className="fdas-input mt-1" value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })}>{departments.map(item => <option key={item.departmentId} value={item.departmentId}>{item.departmentName}</option>)}</select></label>
+              <label><span className="fdas-label">Grace Minutes</span><input type="number" min="0" className="fdas-input mt-1" value={form.graceMinutes} onChange={e => setForm({ ...form, graceMinutes: e.target.value })} /></label>
+              <label><span className="fdas-label">Start Time</span><input type="time" className="fdas-input mt-1" value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} /></label>
+              <label><span className="fdas-label">End Time</span><input type="time" className="fdas-input mt-1" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} /></label>
+              <label><span className="fdas-label">Status</span><select className="fdas-input mt-1" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Inactive</option></select></label>
             </div>
       </FormDialog>
 

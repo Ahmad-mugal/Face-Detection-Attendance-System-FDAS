@@ -6,6 +6,9 @@ import { getApiError } from '../../api/client'
 import Icon from '../../components/Icon'
 import { ConfirmDialog, FormDialog } from '../../components/ui/Modal'
 import Toast from '../../components/ui/Toast'
+import Badge from '../../components/ui/Badge'
+import PageHeader from '../../components/ui/PageHeader'
+import { EmptyState, LoadingState } from '../../components/ui/AsyncState'
 
 const emptyForm = { className: '', departmentId: '', yearSemester: '', section: 'A', status: 'Active' }
 
@@ -109,16 +112,12 @@ export default function AdminClasses() {
 
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Academic Setup</p>
-          <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Manage Classes</h1>
-        </div>
-        <button onClick={openAdd} className="px-4 py-2.5 rounded-lg font-bold text-white flex items-center gap-2" style={{ backgroundColor: '#C4533A' }}>
+      <PageHeader eyebrow="Academic Setup" title="Manage Classes" description="Create, organize, and maintain the class structure used across enrollment and attendance." actions={
+        <button onClick={openAdd} className="fdas-button fdas-button-primary">
           <Icon name="add" size={18} />
           Add New Class
         </button>
-      </div>
+      } />
 
       <Toast message={message} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
@@ -129,28 +128,28 @@ export default function AdminClasses() {
         <StatsCard title="Departments" value={departments.length} icon="domain" iconColor="#D4A017" />
       </div>
 
-      <div className="fdas-card rounded-xl p-4 flex flex-col md:flex-row gap-3">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search classes" className="rounded-xl border px-4 py-3 flex-1" style={{ borderColor: '#dbc1b7' }} />
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }}>
+      <div className="fdas-card fdas-toolbar flex-col md:flex-row">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search classes" aria-label="Search classes" className="fdas-input flex-1" />
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} aria-label="Filter classes by status" className="fdas-input md:max-w-52">
           <option value="">All statuses</option>
           <option value="Active">Active</option>
           <option value="Inactive">Inactive</option>
           <option value="Archived">Archived</option>
         </select>
-        <button onClick={loadData} className="px-4 py-3 rounded-xl font-bold text-white" style={{ backgroundColor: '#934619' }}>Apply</button>
+        <button onClick={loadData} className="fdas-button fdas-button-secondary">Refresh</button>
       </div>
 
       {loading ? (
-        <div className="fdas-card rounded-xl p-8 text-center" style={{ color: '#887369' }}>Loading classes...</div>
+        <div className="fdas-card"><LoadingState label="Loading classes…" /></div>
       ) : classes.length === 0 ? (
-        <div className="fdas-card rounded-xl p-8 text-center" style={{ color: '#887369' }}>No classes found.</div>
+        <div className="fdas-card"><EmptyState title="No classes found" description="Adjust the search or status filter, or create a new class." icon="school" /></div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {classes.map(item => (
-            <article key={item.classId} className="rounded-xl p-5 border-t-[3px] fdas-card min-w-0" style={{ borderColor: item.status === 'Archived' ? '#887369' : '#D4A017' }}>
+            <article key={item.classId} className="p-4 border-t-[3px] fdas-card min-w-0" style={{ borderTopColor: item.status === 'Archived' ? '#887369' : '#D4A017' }}>
               <div className="flex justify-between gap-3">
                 <h2 className="font-black text-lg truncate" style={{ color: '#4A2B0F' }}>{item.className}</h2>
-                <span className="text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap" style={{ backgroundColor: item.status === 'Archived' ? '#f0dfd8' : '#ffc641', color: '#715300' }}>{item.status}</span>
+                <Badge>{item.status}</Badge>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-4 text-sm">
                 <div><span style={{ color: '#887369' }}>Department</span><p className="font-bold" style={{ color: '#4A2B0F' }}>{item.departmentName}</p></div>
@@ -159,8 +158,8 @@ export default function AdminClasses() {
                 <div><span style={{ color: '#887369' }}>Class ID</span><p className="font-bold" style={{ color: '#C4533A' }}>{item.classId}</p></div>
               </div>
               <div className="flex gap-2 mt-5">
-                <button onClick={() => openEdit(item)} className="flex-1 px-3 py-2 rounded-lg text-sm font-bold border" style={{ borderColor: '#D4A017', color: '#715300' }}>Edit</button>
-                <button onClick={() => setStatusDialog(item)} className="flex-1 px-3 py-2 rounded-lg text-sm font-bold border" style={{ borderColor: '#C4533A', color: '#C4533A' }}>{item.status === 'Archived' ? 'Activate' : 'Archive'}</button>
+                <button onClick={() => openEdit(item)} className="fdas-button fdas-button-secondary fdas-button-sm flex-1">Edit</button>
+                <button onClick={() => setStatusDialog(item)} className="fdas-button fdas-button-outline fdas-button-sm flex-1">{item.status === 'Archived' ? 'Activate' : 'Archive'}</button>
               </div>
             </article>
           ))}
@@ -168,12 +167,12 @@ export default function AdminClasses() {
       )}
 
       <FormDialog open={Boolean(modal)} onClose={() => setModal(null)} onSubmit={submitClass} title={modal?.mode === 'add' ? 'Add New Class' : 'Edit Class'} submitLabel={modal?.mode === 'add' ? 'Create Class' : 'Save Changes'} busy={saving} size="lg">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-5">
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Class Name</span><input className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.className} onChange={e => setForm({ ...form, className: e.target.value })} /></label>
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Department</span><select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })}>{departments.map(item => <option key={item.departmentId} value={item.departmentId}>{item.departmentName}</option>)}</select></label>
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Year/Semester</span><input className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.yearSemester} onChange={e => setForm({ ...form, yearSemester: e.target.value })} /></label>
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Section</span><input className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.section} onChange={e => setForm({ ...form, section: e.target.value })} /></label>
-              <label><span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Status</span><select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Inactive</option><option>Archived</option></select></label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label><span className="fdas-label">Class Name</span><input className="fdas-input mt-1" value={form.className} onChange={e => setForm({ ...form, className: e.target.value })} /></label>
+              <label><span className="fdas-label">Department</span><select className="fdas-input mt-1" value={form.departmentId} onChange={e => setForm({ ...form, departmentId: e.target.value })}>{departments.map(item => <option key={item.departmentId} value={item.departmentId}>{item.departmentName}</option>)}</select></label>
+              <label><span className="fdas-label">Year/Semester</span><input className="fdas-input mt-1" value={form.yearSemester} onChange={e => setForm({ ...form, yearSemester: e.target.value })} /></label>
+              <label><span className="fdas-label">Section</span><input className="fdas-input mt-1" value={form.section} onChange={e => setForm({ ...form, section: e.target.value })} /></label>
+              <label><span className="fdas-label">Status</span><select className="fdas-input mt-1" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Inactive</option><option>Archived</option></select></label>
             </div>
       </FormDialog>
 

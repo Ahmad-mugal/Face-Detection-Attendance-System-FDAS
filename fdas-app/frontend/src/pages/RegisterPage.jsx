@@ -64,13 +64,13 @@ export default function RegisterPage() {
     }
   }
 
-  const fieldClass = 'w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all'
+  const fieldClass = 'fdas-input'
   const fieldStyle = { borderColor: '#dbc1b7', color: '#4A2B0F', backgroundColor: '#ffffff' }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: '#FAF4EC' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: '#FAF4EC' }}>
       <main className="w-full max-w-2xl rounded-2xl overflow-hidden border-t-4" style={{ backgroundColor: '#fff8f6', borderColor: '#D4A017', boxShadow: '0 8px 40px rgba(232,146,74,0.2)' }}>
-        <section className="p-8 md:p-10">
+        <section className="p-6 sm:p-8 md:p-10">
           <header className="text-center mb-7">
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: '#FFF0E6', color: '#C4533A' }}>
               <Icon name="person" size={30} />
@@ -85,7 +85,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} noValidate className="grid gap-5">
             <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#55433b' }}>Full Name</span>
+              <span className="fdas-label">Full Name</span>
               <input
                 type="text"
                 autoComplete="name"
@@ -100,7 +100,7 @@ export default function RegisterPage() {
             </label>
 
             <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#55433b' }}>Email</span>
+              <span className="fdas-label">Email</span>
               <input
                 type="email"
                 autoComplete="email"
@@ -116,7 +116,7 @@ export default function RegisterPage() {
             </label>
 
             <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#55433b' }}>Password</span>
+              <span className="fdas-label">Password</span>
               <input
                 type="password"
                 autoComplete="new-password"
@@ -132,7 +132,7 @@ export default function RegisterPage() {
             </label>
 
             <label className="grid gap-1">
-              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: '#55433b' }}>Requested Department</span>
+              <span className="fdas-label">Requested Department</span>
               <select
                 value={form.requestedDepartmentId}
                 onChange={event => updateField('requestedDepartmentId', event.target.value)}
@@ -152,7 +152,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={submitting || loadingDepartments}
-              className="w-full rounded-xl py-3 text-sm font-bold text-white transition-all active:scale-[0.98] disabled:opacity-60"
+              className="fdas-button fdas-button-primary fdas-button-lg w-full"
               style={{ background: submitting ? '#887369' : 'linear-gradient(135deg, #C4533A 0%, #934619 100%)' }}
             >
               {submitting ? 'Submitting request...' : 'Submit Registration Request'}

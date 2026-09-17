@@ -5,6 +5,10 @@ import { departmentsApi } from '../../api/departmentsApi'
 import { getApiError } from '../../api/client'
 import { ConfirmDialog, FormDialog } from '../../components/ui/Modal'
 import Toast from '../../components/ui/Toast'
+import Icon from '../../components/Icon'
+import Badge from '../../components/ui/Badge'
+import PageHeader from '../../components/ui/PageHeader'
+import { EmptyState, LoadingState } from '../../components/ui/AsyncState'
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([])
@@ -129,26 +133,34 @@ export default function AdminUsers() {
 
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>Administration</p>
-          <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Manage Users</h1>
-        </div>
-        <CSVExportButton data={users} filename="fdas_users.csv" />
-      </div>
+      <PageHeader
+        eyebrow="User Management"
+        title="Manage Users"
+        description="Review account status, department assignment, and access scope for FDAS administrators and operators."
+        actions={<CSVExportButton data={users} filename="fdas_users.csv" />}
+      />
 
       <Toast message={message} tone={messageTone} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
-      <div className="rounded-xl fdas-card overflow-hidden">
+      <div className="fdas-card overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center" style={{ color: '#887369' }}>Loading users...</div>
+          <LoadingState label="Loading users…" />
         ) : users.length === 0 ? (
-          <div className="p-8 text-center" style={{ color: '#887369' }}>No users found.</div>
+          <EmptyState title="No users found" description="Approved accounts will appear here once they are available." icon="manage_accounts" />
         ) : (
           <div className="fdas-table-wrap">
-            <table className="fdas-table">
-              <thead className="text-xs uppercase" style={{ color: '#C4533A', backgroundColor: '#fff1eb' }}>
+            <table className="fdas-table min-w-[1160px] table-fixed">
+              <colgroup>
+                <col className="w-[16%]" />
+                <col className="w-[20%]" />
+                <col className="w-[7%]" />
+                <col className="w-[14%]" />
+                <col className="w-[13%]" />
+                <col className="w-[9%]" />
+                <col className="w-[21%]" />
+              </colgroup>
+              <thead>
                 <tr>
                   <th className="p-4">Name</th>
                   <th className="p-4">Email</th>
@@ -161,25 +173,39 @@ export default function AdminUsers() {
               </thead>
               <tbody>
                 {users.map(user => (
-                  <tr key={user.userId} className="border-t" style={{ borderColor: '#f0dfd8' }}>
-                    <td className="p-4 font-bold" style={{ color: '#4A2B0F' }}>{user.fullName}</td>
-                    <td className="p-4 text-sm" style={{ color: '#55433b' }}>{user.email}</td>
-                    <td className="p-4">{user.role}</td>
-                    <td className="p-4">{user.assignedDepartment || 'All Departments'}</td>
-                    <td className="p-4">{user.accessScope === 'AllDepartments' ? 'All Departments' : 'Department Only'}</td>
-                    <td className="p-4">
-                      <span className="px-2 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: user.status === 'Approved' ? '#d1fae5' : '#ffdad6', color: user.status === 'Approved' ? '#065f46' : '#93000a' }}>{user.status}</span>
+                  <tr key={user.userId}>
+                    <td className="font-bold" style={{ color: '#4A2B0F' }}><span className="line-clamp-2">{user.fullName}</span></td>
+                    <td className="text-sm" style={{ color: '#55433b' }}><span className="block truncate" title={user.email}>{user.email}</span></td>
+                    <td>{user.role}</td>
+                    <td><span className="line-clamp-2">{user.assignedDepartment || 'All Departments'}</span></td>
+                    <td><span className="line-clamp-2">{user.accessScope === 'AllDepartments' ? 'All Departments' : 'Department Only'}</span></td>
+                    <td>
+                      <Badge>{user.status}</Badge>
                     </td>
-                    <td className="p-4">
-                      <div className="flex justify-end gap-2 flex-wrap">
-                        <button onClick={() => openAccessModal(user)} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: '#D4A017', color: '#715300' }}>Change Access</button>
-                        <button onClick={() => setActionDialog({ type: 'grant', user })} className="px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: '#D4A017' }}>Grant All</button>
-                        {user.role === 'User' && user.status === 'Approved' && (
-                          <button onClick={() => setActionDialog({ type: 'resend', user })} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: '#C4533A', color: '#C4533A' }}>Resend Approval Email</button>
-                        )}
-                        <button onClick={() => setActionDialog({ type: 'status', user })} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: user.status === 'Disabled' ? '#065f46' : '#C4533A', color: user.status === 'Disabled' ? '#065f46' : '#C4533A' }}>
+                    <td>
+                      <div className="fdas-table-actions">
+                        <button onClick={() => openAccessModal(user)} className="fdas-button fdas-button-primary fdas-button-sm">Change Access</button>
+                        <button onClick={() => setActionDialog({ type: 'status', user })} className={`fdas-button fdas-button-sm ${user.status === 'Disabled' ? 'fdas-button-secondary' : 'fdas-button-outline'}`}>
                           {user.status === 'Disabled' ? 'Enable' : 'Disable'}
                         </button>
+                        <button
+                          onClick={() => setActionDialog({ type: 'grant', user })}
+                          className="fdas-icon-button fdas-icon-button-sm"
+                          title="Grant all-department access"
+                          aria-label={`Grant all-department access for ${user.fullName}`}
+                        >
+                          <Icon name="public" size={17} />
+                        </button>
+                        {user.role === 'User' && user.status === 'Approved' && (
+                          <button
+                            onClick={() => setActionDialog({ type: 'resend', user })}
+                            className="fdas-icon-button fdas-icon-button-sm"
+                            title="Resend approval email"
+                            aria-label={`Resend approval email to ${user.fullName}`}
+                          >
+                            <Icon name="forward_to_inbox" size={17} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -191,18 +217,18 @@ export default function AdminUsers() {
       </div>
 
       <FormDialog open={Boolean(modalUser)} onClose={() => setModalUser(null)} onSubmit={saveAccess} title="Change User Access" description={modalUser?.fullName} submitLabel="Save Access" busy={saving}>
-            <div className="grid gap-4 mt-5">
+            <div className="grid gap-4">
               <label>
-                <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Access Scope</span>
-                <select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={accessForm.accessScope} onChange={e => setAccessForm({ ...accessForm, accessScope: e.target.value })}>
+                <span className="fdas-label">Access Scope</span>
+                <select className="fdas-input mt-1" value={accessForm.accessScope} onChange={e => setAccessForm({ ...accessForm, accessScope: e.target.value })}>
                   <option value="Department">Department Only</option>
                   <option value="AllDepartments">All Departments</option>
                 </select>
               </label>
               {accessForm.accessScope === 'Department' && (
                 <label>
-                  <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Assigned Department</span>
-                  <select className="mt-1 w-full rounded-xl border px-4 py-3" style={{ borderColor: '#dbc1b7' }} value={accessForm.assignedDepartmentId} onChange={e => setAccessForm({ ...accessForm, assignedDepartmentId: e.target.value })}>
+                  <span className="fdas-label">Assigned Department</span>
+                  <select className="fdas-input mt-1" value={accessForm.assignedDepartmentId} onChange={e => setAccessForm({ ...accessForm, assignedDepartmentId: e.target.value })}>
                     {departments.map(item => <option key={item.departmentId} value={item.departmentId}>{item.departmentName}</option>)}
                   </select>
                 </label>

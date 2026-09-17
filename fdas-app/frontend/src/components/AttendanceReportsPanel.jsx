@@ -5,6 +5,9 @@ import { getApiError } from '../api/client'
 import { departmentsApi } from '../api/departmentsApi'
 import { useAuth } from '../context/useAuth'
 import StatsCard from './StatsCard'
+import Badge from './ui/Badge'
+import PageHeader from './ui/PageHeader'
+import { EmptyState, LoadingState } from './ui/AsyncState'
 
 function formatDateTime(value) {
   if (!value) return '-'
@@ -132,22 +135,18 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
 
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-widest" style={{ color: '#C4533A' }}>{eyebrow}</p>
-          <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>{title}</h1>
-        </div>
-        <button onClick={exportCsv} disabled={records.length === 0} className="px-4 py-2.5 rounded-lg font-bold text-sm text-white disabled:opacity-50" style={{ backgroundColor: '#D4A017' }}>
+      <PageHeader eyebrow={eyebrow} title={title} description="Filter attendance activity, review recognition results, and export the current report view." actions={
+        <button onClick={exportCsv} disabled={records.length === 0} className="fdas-button fdas-button-warning">
           Export CSV
         </button>
-      </div>
+      } />
 
-      <div className="rounded-xl p-4 fdas-card">
+      <div className="fdas-card fdas-card-section">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
           <label>
             <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>{departmentLabel}</span>
             {canChooseDepartment ? (
-              <select value={filters.departmentId} onChange={event => updateFilter('departmentId', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }}>
+              <select value={filters.departmentId} onChange={event => updateFilter('departmentId', event.target.value)} className="fdas-input mt-1">
                 <option value="">All Departments</option>
                 {departments.map(department => (
                   <option key={department.departmentId} value={department.departmentId}>{department.departmentName}</option>
@@ -161,7 +160,7 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
           </label>
           <label>
             <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Class</span>
-            <select value={filters.classId} onChange={event => updateFilter('classId', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }}>
+            <select value={filters.classId} onChange={event => updateFilter('classId', event.target.value)} className="fdas-input mt-1">
               <option value="">All Classes</option>
               {classes.map(item => (
                 <option key={item.classId} value={item.classId}>{item.className}</option>
@@ -170,19 +169,19 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
           </label>
           <label>
             <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Date From</span>
-            <input type="date" value={filters.dateFrom} onChange={event => updateFilter('dateFrom', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }} />
+            <input type="date" value={filters.dateFrom} onChange={event => updateFilter('dateFrom', event.target.value)} className="fdas-input mt-1" />
           </label>
           <label>
             <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Date To</span>
-            <input type="date" value={filters.dateTo} onChange={event => updateFilter('dateTo', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }} />
+            <input type="date" value={filters.dateTo} onChange={event => updateFilter('dateTo', event.target.value)} className="fdas-input mt-1" />
           </label>
           <label>
             <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Student</span>
-            <input value={filters.studentSearch} onChange={event => updateFilter('studentSearch', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }} placeholder="Name, roll no, or ID" />
+            <input value={filters.studentSearch} onChange={event => updateFilter('studentSearch', event.target.value)} className="fdas-input mt-1" placeholder="Name, roll no, or ID" />
           </label>
           <label>
             <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>Status</span>
-            <select value={filters.status} onChange={event => updateFilter('status', event.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2.5" style={{ borderColor: '#dbc1b7' }}>
+            <select value={filters.status} onChange={event => updateFilter('status', event.target.value)} className="fdas-input mt-1">
               <option value="">All Status</option>
               <option value="Present">Present</option>
             </select>
@@ -209,16 +208,16 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
         <StatsCard title="Avg Confidence" value={summary.averageRecognitionConfidence === null ? '-' : summary.averageRecognitionConfidence.toFixed(3)} icon="verified" iconColor="#C4533A" />
       </div>
 
-      <div className="rounded-xl fdas-card overflow-hidden">
+      <div className="fdas-card overflow-hidden">
         <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: '#f0dfd8' }}>
-          <h2 className="font-black" style={{ color: '#4A2B0F' }}>Attendance Records</h2>
-          <button onClick={loadReports} disabled={loading} className="px-3 py-2 rounded-lg text-xs font-bold border disabled:opacity-60" style={{ borderColor: '#C4533A', color: '#C4533A' }}>
+          <h2 className="fdas-section-title">Attendance Records</h2>
+          <button onClick={loadReports} disabled={loading} className="fdas-button fdas-button-secondary fdas-button-sm">
             {loading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
         <div className="fdas-table-wrap">
           <table className="fdas-table">
-            <thead className="text-xs uppercase" style={{ color: '#C4533A', backgroundColor: '#fff1eb' }}>
+            <thead>
               <tr>
                 <th className="p-4">Student</th>
                 <th className="p-4">Department</th>
@@ -231,9 +230,9 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7" className="p-8 text-center" style={{ color: '#887369' }}>Loading attendance records...</td></tr>
+                <tr><td colSpan="7"><LoadingState label="Loading attendance records…" compact /></td></tr>
               ) : displayedRecords.length === 0 ? (
-                <tr><td colSpan="7" className="p-8 text-center" style={{ color: '#887369' }}>No attendance records found.</td></tr>
+                <tr><td colSpan="7"><EmptyState title="No attendance records found" description="Adjust the filters and refresh the report." icon="fact_check" /></td></tr>
               ) : displayedRecords.map(record => (
                 <tr key={record.attendanceRecordId} className="border-t" style={{ borderColor: '#f0dfd8' }}>
                   <td className="p-4">
@@ -243,9 +242,9 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
                   <td className="p-4">{record.departmentName}</td>
                   <td className="p-4">{record.className}</td>
                   <td className="p-4">{formatDateTime(record.markedAt)}</td>
-                  <td className="p-4 font-bold" style={{ color: record.status === 'Present' ? '#065f46' : '#92400e' }}>{record.status}</td>
+                  <td><Badge>{record.status}</Badge></td>
                   <td className="p-4 font-mono">{formatConfidence(record.recognitionConfidence)}</td>
-                  <td className="p-4">{record.livenessStatus || 'NotChecked'}</td>
+                  <td><Badge tone={record.livenessStatus === 'Passed' ? 'success' : record.livenessStatus === 'Failed' ? 'danger' : 'neutral'}>{record.livenessStatus || 'NotChecked'}</Badge></td>
                 </tr>
               ))}
             </tbody>
