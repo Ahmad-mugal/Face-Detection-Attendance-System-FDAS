@@ -145,7 +145,61 @@ await check('admin dashboard opens', async () => {
   await page.screenshot({ path: path.join(outputDir, '03-admin-dashboard.png'), fullPage: true })
 })
 
+await check('approval UI distinguishes email delivery success and failure', async () => {
+  await page.goto(`${baseUrl}/admin/requests`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('heading', { name: /pending user requests/i }).waitFor()
+  const requestRow = page.getByRole('row').filter({ hasText: browserRegistrationEmail })
+  await requestRow.waitFor()
+  let emailSent = false
+  await page.route('**/api/admin/users/*/approve', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      user: {},
+      emailNotificationSent: emailSent,
+      emailNotificationMessage: emailSent
+        ? 'Approval email sent successfully.'
+        : 'Approval email could not be sent.',
+    }),
+  }))
+
+  await requestRow.getByRole('button', { name: /^approve$/i }).click()
+  await page.getByRole('dialog', { name: /approve user request/i }).getByRole('button', { name: 'Approve User', exact: true }).click()
+  await page.getByText('Operator approved, but the notification email could not be sent.').waitFor()
+  await page.getByRole('button', { name: /dismiss notification/i }).click()
+
+  emailSent = true
+  await requestRow.getByRole('button', { name: /^approve$/i }).click()
+  await page.getByRole('dialog', { name: /approve user request/i }).getByRole('button', { name: 'Approve User', exact: true }).click()
+  await page.getByText('Operator approved. Approval email sent successfully.').waitFor()
+  await page.unroute('**/api/admin/users/*/approve')
+})
+
+await check('approved operator resend uses custom dialog and safe feedback', async () => {
+  await page.goto(`${baseUrl}/admin/users`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('heading', { name: /manage users/i }).waitFor()
+  const operatorRow = page.getByRole('row').filter({ hasText: 'operator.cs@fdas.local' })
+  await operatorRow.waitFor()
+  await page.route('**/api/admin/users/*/resend-approval-email', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      user: {},
+      emailNotificationSent: false,
+      emailNotificationMessage: 'Approval email unavailable because SMTP is not configured.',
+    }),
+  }))
+  await operatorRow.getByRole('button', { name: /resend approval email/i }).click()
+  const resendDialog = page.getByRole('dialog', { name: /resend approval email/i })
+  await resendDialog.waitFor()
+  await resendDialog.getByRole('button', { name: /send email/i }).click()
+  await page.getByText('Approval email unavailable because SMTP is not configured.').waitFor()
+  await page.unroute('**/api/admin/users/*/resend-approval-email')
+})
+
 await check('live attendance log opens analytics', async () => {
+  await page.goto(`${baseUrl}/admin/dashboard`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('heading', { name: /fdas dashboard/i }).waitFor()
   await page.getByRole('link', { name: /open analytics/i }).click()
   await page.waitForURL('**/admin/analytics', { timeout: 10000 })
   await page.getByRole('heading', { name: /attendance analytics/i }).waitFor()

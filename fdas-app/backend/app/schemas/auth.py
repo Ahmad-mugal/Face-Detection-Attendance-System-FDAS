@@ -139,3 +139,9 @@ class AdminUserListItem(BaseModel):
     accessScope: str
     createdAt: datetime
     updatedAt: datetime
+
+
+class ApprovalNotificationResponse(BaseModel):
+    user: AdminUserListItem
+    emailNotificationSent: bool
+    emailNotificationMessage: str

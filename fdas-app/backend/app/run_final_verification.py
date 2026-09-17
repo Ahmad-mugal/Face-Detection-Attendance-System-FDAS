@@ -65,6 +65,7 @@ VERIFIERS: tuple[VerifierSpec, ...] = (
     VerifierSpec("Phase 10.9 Genuine-User Reliability", "app.verify_phase10_9"),
     VerifierSpec("Phase 10.9B Controlled Policy Validation", "app.verify_phase10_9b"),
     VerifierSpec("Phase 10.10 Final Deep Attendance", "app.verify_phase10_10"),
+    VerifierSpec("Phase 10.12A Approval Email", "app.verify_phase10_12a"),
 )
 
 

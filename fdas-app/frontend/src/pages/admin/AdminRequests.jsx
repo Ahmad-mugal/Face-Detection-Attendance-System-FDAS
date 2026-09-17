@@ -15,6 +15,7 @@ export default function AdminRequests() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [messageTone, setMessageTone] = useState('success')
 
   const loadData = async () => {
     setLoading(true)
@@ -51,14 +52,24 @@ export default function AdminRequests() {
     setError('')
     try {
       if (modal.type === 'approve') {
-        await adminUsersApi.approve(modal.request.userId, {
+        const result = await adminUsersApi.approve(modal.request.userId, {
           accessScope: accessForm.accessScope,
           assignedDepartmentId: accessForm.accessScope === 'Department' ? Number(accessForm.assignedDepartmentId) : null,
         })
-        setMessage('User approved successfully.')
+        if (result.emailNotificationSent) {
+          setMessage('Operator approved. Approval email sent successfully.')
+          setMessageTone('success')
+        } else if (result.emailNotificationMessage?.includes('not configured')) {
+          setMessage('Operator approved. Notification email unavailable because SMTP is not configured.')
+          setMessageTone('info')
+        } else {
+          setMessage('Operator approved, but the notification email could not be sent.')
+          setMessageTone('info')
+        }
       } else {
         await adminUsersApi.reject(modal.request.userId)
         setMessage('User request rejected.')
+        setMessageTone('success')
       }
       setModal(null)
       await loadData()
@@ -76,7 +87,7 @@ export default function AdminRequests() {
         <h1 className="text-3xl font-black" style={{ color: '#4A2B0F' }}>Pending User Requests</h1>
       </div>
 
-      <Toast message={message} onDismiss={() => setMessage('')} />
+      <Toast message={message} tone={messageTone} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

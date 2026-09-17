@@ -173,6 +173,7 @@ Admin user management:
 - `GET /api/admin/users`
 - `GET /api/admin/user-requests`
 - `PATCH /api/admin/users/{userId}/approve`
+- `POST /api/admin/users/{userId}/resend-approval-email`
 - `PATCH /api/admin/users/{userId}/reject`
 - `PATCH /api/admin/users/{userId}/disable`
 - `PATCH /api/admin/users/{userId}/enable`
@@ -672,6 +673,38 @@ node .\scripts\phase5-smoke.mjs
 The smoke script submits a test registration request, so start the backend against a disposable copy of `fdas_local.db` with an empty disposable `storage/` directory. Use the existing local `.venv`; do not point this mutation-capable browser check at the active demo database. Remove the disposable copy after the smoke completes.
 
 Automated verification uses synthetic/control images. Real-human face recognition across realistic conditions and real-webcam liveness reliability remain separate manual acceptance tests; the automated runner does not claim production-grade spoof resistance.
+
+## Optional Approval Email Configuration
+
+Core FDAS operation remains local/offline. Operator registration, administrator approval, authentication, attendance, and reports continue to work when email is not configured. Approval-email delivery is optional and requires temporary internet access to the configured SMTP provider.
+
+The backend reads these variables from the process environment first, then from the ignored `backend/.env` file:
+
+```text
+FDAS_SMTP_HOST=smtp.gmail.com
+FDAS_SMTP_PORT=587
+FDAS_SMTP_USERNAME=
+FDAS_SMTP_PASSWORD=
+FDAS_SMTP_FROM_EMAIL=
+FDAS_SMTP_FROM_NAME=FDAS
+FDAS_SMTP_USE_TLS=true
+```
+
+`backend/.env.example` contains the same non-secret placeholders. The real `.env` file is ignored by Git and must never be committed. If required SMTP values are absent or invalid, the backend still starts normally and account approval still commits; the approval response reports `emailNotificationSent=false` with a safe explanation.
+
+After a pending Operator account is committed as Approved, FDAS sends a multipart email with both plain-text and HTML versions. It uses the account's registered email as the recipient/login ID and includes the assigned department when available. It never retrieves or sends the registration password or password hash. If delivery fails, approval is not rolled back. Admins can retry from Manage Users with the explicit `Resend Approval Email` action, which does not change account state.
+
+### Local SMTP test
+
+1. Copy `backend/.env.example` to `backend/.env` locally.
+2. Fill the SMTP values only in that ignored local file. Do not paste credentials into chat, source files, screenshots, or commits.
+3. For Gmail, enable two-step verification and create an App Password if Google requires one. Use the App Password as `FDAS_SMTP_PASSWORD`, not the normal account password.
+4. For Gmail STARTTLS, keep host `smtp.gmail.com`, port `587`, and `FDAS_SMTP_USE_TLS=true`. Set the username and from-email to the sending Gmail address.
+5. Restart Uvicorn so the next delivery reads the local settings.
+6. Register a disposable Operator address, approve it from Admin Pending Requests, and confirm the success toast and received message. Alternatively, use `Resend Approval Email` on an already-approved Operator.
+7. Remove the test credentials from `backend/.env` when they are no longer needed.
+
+Automated verification never contacts an internet SMTP provider. `app.verify_phase10_12a` uses fake transports and disposable database/storage, while browser smoke intercepts approval-email requests.
 
 ## Current Limitations
 

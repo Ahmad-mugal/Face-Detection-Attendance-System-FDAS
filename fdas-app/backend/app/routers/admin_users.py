@@ -5,7 +5,8 @@ from app.database import get_db
 from app.dependencies import require_admin
 from app.models.department import Department
 from app.models.user import User
-from app.schemas.auth import AccessUpdateRequest, AdminUserListItem
+from app.schemas.auth import AccessUpdateRequest, AdminUserListItem, ApprovalNotificationResponse
+from app.services.email_service import send_approval_email
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
@@ -64,7 +65,16 @@ def list_user_requests(_: User = Depends(require_admin), db: Session = Depends(g
     return [to_admin_user_item(user) for user in users]
 
 
-@router.patch("/users/{userId}/approve", response_model=AdminUserListItem)
+def send_user_approval_notification(user: User):
+    department_name = user.assignedDepartment.departmentName if user.assignedDepartment else None
+    return send_approval_email(
+        operator_name=user.fullName,
+        recipient_email=user.email,
+        department_name=department_name,
+    )
+
+
+@router.patch("/users/{userId}/approve", response_model=ApprovalNotificationResponse)
 def approve_user(
     userId: int,
     payload: AccessUpdateRequest,
@@ -73,11 +83,52 @@ def approve_user(
 ):
     validate_access_update(payload, db)
     user = get_user_or_404(db, userId)
+    if user.status == "Approved":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User is already approved. Use Resend Approval Email if another notification is needed.",
+        )
+    if user.status != "Pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only pending user requests can be approved.",
+        )
     user.status = "Approved"
     apply_access_update(user, payload)
     db.commit()
     db.refresh(user)
-    return to_admin_user_item(user)
+    delivery = send_user_approval_notification(user)
+    return {
+        "user": to_admin_user_item(user),
+        "emailNotificationSent": delivery.sent,
+        "emailNotificationMessage": delivery.message,
+    }
+
+
+@router.post("/users/{userId}/resend-approval-email", response_model=ApprovalNotificationResponse)
+def resend_approval_email(
+    userId: int,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = get_user_or_404(db, userId)
+    if user.status != "Approved":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Approval email can only be sent to an approved account.",
+        )
+    if not user.role or user.role.roleName != "User":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Approval email is available only for approved operator accounts.",
+        )
+
+    delivery = send_user_approval_notification(user)
+    return {
+        "user": to_admin_user_item(user),
+        "emailNotificationSent": delivery.sent,
+        "emailNotificationMessage": delivery.message,
+    }
 
 
 @router.patch("/users/{userId}/reject", response_model=AdminUserListItem)

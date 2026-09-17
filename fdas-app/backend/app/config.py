@@ -13,8 +13,8 @@ CORS_ALLOWED_ORIGINS.extend(
 )
 
 APP_NAME = "FDAS Backend"
-APP_VERSION = "1.0.1"
-APP_PHASE = "Phase 10.11 - Production UI/UX Hardening & Account Experience"
+APP_VERSION = "1.0.2"
+APP_PHASE = "Phase 10.12A - Automatic Operator Approval Email Notification"
 FACE_MATCH_THRESHOLD = 0.75
 FACE_MATCH_AGGREGATION = "maximum"
 MIN_IDENTITY_MARGIN = 0.05

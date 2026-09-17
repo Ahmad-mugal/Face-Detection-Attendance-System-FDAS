@@ -4785,3 +4785,72 @@ All mutation-capable backend and browser verification used disposable database/s
 ### Final Status
 
 **PASS — Phase 10.11 completed the production UI/UX hardening, shared dialog/toast system, functional account profile/preferences experience, analytics navigation, responsive/accessibility audit, and full regression verification without changing attendance logic or production data. No later phase has started.**
+
+## Phase 10.12A — Automatic Operator Approval Email Notification
+
+### Goal
+
+Add an optional, secure SMTP notification after an administrator approves a pending Operator account. Approval must remain reliable when SMTP is absent or unavailable, no password or password hash may enter an email, and the local/offline FDAS workflow must remain usable without internet connectivity.
+
+### Existing Approval Flow Audit
+
+Self-registration creates one `User` row with role `User`, the submitted PBKDF2-SHA256 password hash, requested department, and status `Pending`. Login rejects non-Approved users. Admin Pending Requests calls `PATCH /api/admin/users/{userId}/approve`, which validates the assigned access scope, changes the existing row to `Approved`, applies department access, commits, refreshes, and returns the result. No separate account is created during approval. This existing commit point remains the single approval action and is now the notification trigger.
+
+### Email Service
+
+`app/services/email_service.py` provides reusable SMTP settings, multipart approval-content construction, and delivery. It uses Python's standard `smtplib` and `EmailMessage`, a 10-second connection timeout, optional STARTTLS, and optional SMTP authentication. The subject is `FDAS Account Approved`. Both plain-text and simple email-client-compatible HTML bodies include the real Operator name, registered email/login ID, actual assigned department when available, Approved status, and an explicit statement that passwords are never included. Dynamic HTML values are escaped.
+
+### SMTP Configuration
+
+The optional keys are `FDAS_SMTP_HOST`, `FDAS_SMTP_PORT`, `FDAS_SMTP_USERNAME`, `FDAS_SMTP_PASSWORD`, `FDAS_SMTP_FROM_EMAIL`, `FDAS_SMTP_FROM_NAME`, and `FDAS_SMTP_USE_TLS`. Process environment values take precedence; otherwise, only these SMTP keys are read from the ignored `backend/.env`. Non-secret placeholders were added to `.env.example`. Missing, invalid, or partially configured values disable email gracefully and never prevent application startup.
+
+### Approval Trigger
+
+The Admin approval route validates that the target is still Pending, commits status/access first, refreshes the account, and only then calls the email service with the account's actual name, registered email, and assigned department. Its response now contains the approved user plus `emailNotificationSent` and a safe `emailNotificationMessage`. Reapproving an already-Approved account returns `409` and does not send another message or create another account.
+
+### Email Content
+
+The branded HTML header identifies FDAS / Face Detection Attendance System. The body explains that the Operator can sign in with the registered email/login ID and the password created during registration. It includes the actual department only when one exists, states `Account Status: Approved`, and never includes plaintext credentials, password hashes, SMTP credentials, external scripts, or fabricated scope information. A matching plain-text fallback is always attached.
+
+### Failure Handling
+
+SMTP delivery is deliberately outside the approval transaction. Missing configuration returns `emailNotificationSent=false` with `Approval email unavailable because SMTP is not configured.` Network, authentication, message-construction, or provider failures are caught and return the safe message `Approval email could not be sent.` Only the exception type is logged; credentials and raw provider messages are not logged or returned. A delivery failure never rolls back the already-committed Approved status.
+
+### Admin UI Feedback
+
+Admin Pending Requests uses the Phase 10.11 Toast/FormDialog components. Successful delivery shows `Operator approved. Approval email sent successfully.` A configured delivery failure shows `Operator approved, but the notification email could not be sent.` Missing SMTP shows `Operator approved. Notification email unavailable because SMTP is not configured.` In all cases, the request list reloads and reflects the committed account state. No browser-native alert, confirm, or prompt was added.
+
+### Resend Capability
+
+An explicit Admin-only `POST /api/admin/users/{userId}/resend-approval-email` endpoint and `Resend Approval Email` Manage Users action were implemented for already-Approved Operator accounts. It always uses the current registered address, never changes account state, and returns the same safe delivery fields. Pending, Rejected, Disabled, or non-Operator targets are rejected. The UI uses the shared confirmation dialog and success/information toast, so automatic duplicate approval cannot spam email while an administrator can deliberately retry a failed delivery.
+
+### Security Controls
+
+Only the existing `require_admin` dependency can approve or resend. Recipient identity comes from the approved database row, not the request payload. Registration plaintext passwords remain transient request input and are never retrievable; only the existing PBKDF2-SHA256 hash remains stored. The email builder receives no password field. Neither password hashes nor SMTP secrets are exposed in response schemas, message bodies, or logs. JWT authorization, role separation, and all Phase 10.10 attendance controls remain unchanged.
+
+### Automated Verification
+
+- Backend compilation: PASS.
+- `app.verify_phase10_12a`: PASS, all 16 checks. It used a temporary SQLite database/storage directory and fake SMTP transports to prove commit-before-send, exact recipient/subject/name/login/department content, text plus HTML, safe HTML escaping, TLS/login behavior, password/hash/SMTP-secret absence, approval persistence after delivery failure, Admin-only approval/resend, duplicate-approval idempotency, explicit non-mutating resend, and graceful missing configuration. No internet email was sent.
+- The initial verifier implementation stopped safely because the environment lacks optional `httpx`; no dependency was installed and requirements were not changed. The verifier was rewritten to exercise the router/service transaction paths directly against disposable SQLAlchemy state, then passed.
+- `app.verify_phase10_10`: PASS, preserving final ArcFace `0.85/0.07`, 2-of-3 consensus, MOVE_CLOSER, Phase 10.6C guards, duplicate safety, and no legacy fallback.
+- Expanded isolated `app.run_final_verification`: PASS on port 8025, all 24 suites including Phase 10.12A.
+- Frontend `npm.cmd run lint`: PASS.
+- Frontend `npm.cmd run build`: PASS; the existing non-blocking JavaScript chunk-size warning remains.
+- Expanded isolated `node scripts/phase5-smoke.mjs`: PASS on ports 8026/5180. It intercepts email endpoints so no SMTP connection occurs, verifies successful/failed approval toasts and the custom resend dialog, and retains `page_errors=0` and `native_dialogs=0`. The first run exposed two smoke-script-only selector/navigation assumptions; both were corrected before the complete passing rerun. Nine console errors were expected from intentional negative/network-failure cases.
+- The disposable browser runtime, database, storage, and services were removed after verification.
+- Existing non-blocking SQLAlchemy subquery-coercion and InsightFace/scikit-image deprecation warnings remain. The SMTP `OSError` line in verification is the deliberately simulated failure case.
+
+### Data Preservation
+
+Before and after Phase 10.12A, production contained 21 students, 4,708 face templates, 171 ArcFace embeddings, 23 attendance records, and 15,549 storage files totaling 27,447,638 bytes. `fdas_local.db` remained 4,395,008 bytes with identical SHA-256 `4DA6B46FAB1FE8AFEB3F2E5DEAED711165DE0D5E95532D93927C65B3627A3322`.
+
+Production was never used by mutation-capable verification. No database reset/reseed, schema migration, dependency install, template/embedding/attendance deletion, or storage rewrite occurred. The normal backend was restarted with the existing `.venv`; `/health` reports OK/database connected, `/api/info` reports version `1.0.2`, and the non-secret runtime check reports `smtp_configured=False` until local settings are supplied.
+
+### Deployment Limitation
+
+Core FDAS remains a local/offline laptop application. Only optional approval-email delivery requires temporary network access to the configured SMTP provider. Provider account policy still applies; Gmail may require two-step verification and an App Password. Credentials belong only in the ignored local `backend/.env` or process environment and must never be pasted into chat or committed. The README contains exact local configuration and testing steps.
+
+### Final Status
+
+**PASS — Phase 10.12A adds commit-after-approval SMTP notification, safe failure reporting, Admin-only explicit resend, multipart secure content, UI feedback, documentation, and complete isolated verification without changing attendance behavior or production data. Documentation freeze Phase 10.12 has not started.**

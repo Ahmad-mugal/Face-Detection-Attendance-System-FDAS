@@ -16,6 +16,7 @@ export default function AdminUsers() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [messageTone, setMessageTone] = useState('success')
 
   const loadData = async () => {
     setLoading(true)
@@ -56,6 +57,7 @@ export default function AdminUsers() {
         assignedDepartmentId: accessForm.accessScope === 'Department' ? Number(accessForm.assignedDepartmentId) : null,
       })
       setMessage('User access updated.')
+      setMessageTone('success')
       setModalUser(null)
       await loadData()
     } catch (err) {
@@ -76,6 +78,7 @@ export default function AdminUsers() {
         await adminUsersApi.disable(user.userId)
         setMessage('User disabled.')
       }
+      setMessageTone('success')
       await loadData()
     } catch (err) {
       setError(getApiError(err, 'Unable to update user status.'))
@@ -91,9 +94,33 @@ export default function AdminUsers() {
     try {
       await adminUsersApi.updateAccess(user.userId, { accessScope: 'AllDepartments', assignedDepartmentId: null })
       setMessage('All departments access granted.')
+      setMessageTone('success')
       await loadData()
     } catch (err) {
       setError(getApiError(err, 'Unable to grant access.'))
+    } finally {
+      setSaving(false)
+      setActionDialog(null)
+    }
+  }
+
+  const resendApprovalEmail = async user => {
+    setSaving(true)
+    setError('')
+    try {
+      const result = await adminUsersApi.resendApprovalEmail(user.userId)
+      if (result.emailNotificationSent) {
+        setMessage('Approval email sent successfully.')
+        setMessageTone('success')
+      } else if (result.emailNotificationMessage?.includes('not configured')) {
+        setMessage('Approval email unavailable because SMTP is not configured.')
+        setMessageTone('info')
+      } else {
+        setMessage('Approval email could not be sent.')
+        setMessageTone('info')
+      }
+    } catch (err) {
+      setError(getApiError(err, 'Unable to resend the approval email.'))
     } finally {
       setSaving(false)
       setActionDialog(null)
@@ -110,7 +137,7 @@ export default function AdminUsers() {
         <CSVExportButton data={users} filename="fdas_users.csv" />
       </div>
 
-      <Toast message={message} onDismiss={() => setMessage('')} />
+      <Toast message={message} tone={messageTone} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
 
       <div className="rounded-xl fdas-card overflow-hidden">
@@ -147,6 +174,9 @@ export default function AdminUsers() {
                       <div className="flex justify-end gap-2 flex-wrap">
                         <button onClick={() => openAccessModal(user)} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: '#D4A017', color: '#715300' }}>Change Access</button>
                         <button onClick={() => setActionDialog({ type: 'grant', user })} className="px-3 py-2 rounded-lg text-xs font-bold text-white" style={{ backgroundColor: '#D4A017' }}>Grant All</button>
+                        {user.role === 'User' && user.status === 'Approved' && (
+                          <button onClick={() => setActionDialog({ type: 'resend', user })} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: '#C4533A', color: '#C4533A' }}>Resend Approval Email</button>
+                        )}
                         <button onClick={() => setActionDialog({ type: 'status', user })} className="px-3 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: user.status === 'Disabled' ? '#065f46' : '#C4533A', color: user.status === 'Disabled' ? '#065f46' : '#C4533A' }}>
                           {user.status === 'Disabled' ? 'Enable' : 'Disable'}
                         </button>
@@ -186,6 +216,10 @@ export default function AdminUsers() {
 
       <ConfirmDialog open={actionDialog?.type === 'grant'} onClose={() => setActionDialog(null)} onConfirm={() => grantAll(actionDialog.user)} title="Grant All-Department Access?" description={actionDialog?.user?.fullName} confirmLabel="Grant Access" busy={saving}>
         <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>This user will be able to operate across every department.</p>
+      </ConfirmDialog>
+
+      <ConfirmDialog open={actionDialog?.type === 'resend'} onClose={() => setActionDialog(null)} onConfirm={() => resendApprovalEmail(actionDialog.user)} title="Resend Approval Email?" description={actionDialog?.user ? `${actionDialog.user.fullName} — ${actionDialog.user.email}` : ''} confirmLabel="Send Email" busy={saving}>
+        <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>This sends another approval notice to the operator's registered email. It does not change account access or include a password.</p>
       </ConfirmDialog>
     </section>
   )
