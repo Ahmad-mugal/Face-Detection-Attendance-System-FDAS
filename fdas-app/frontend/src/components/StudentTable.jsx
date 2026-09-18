@@ -10,7 +10,9 @@ import { EmptyState } from './ui/AsyncState'
  *   actionsEnabled - Show edit/archive action buttons
  *   onEdit        - Callback (student) => void
  *   onView        - Callback (student) => void
- *   onDelete      - Callback (student) => void
+ *   onStatusChange - Callback (student) => void
+ *   onPermanentDelete - Callback (student) => void
+ *   onRegisterFace - Callback (student) => void
  *   onRecover     - Callback (student) => void
  *   onDiagnose    - Callback (student) => void
  *   showEnrollment - Show face enrollment status column
@@ -20,7 +22,9 @@ export default function StudentTable({
   actionsEnabled = false,
   onEdit,
   onView,
-  onDelete,
+  onStatusChange,
+  onPermanentDelete,
+  onRegisterFace,
   onRecover,
   onDiagnose,
   showEnrollment = true,
@@ -34,7 +38,7 @@ export default function StudentTable({
 
   return (
     <div className="fdas-table-wrap">
-      <table className="fdas-table">
+      <table className={`fdas-table ${actionsEnabled ? 'min-w-[1040px]' : ''}`}>
         <thead>
           <tr
             className="text-xs font-bold uppercase tracking-wider border-b-2"
@@ -78,9 +82,11 @@ export default function StudentTable({
               {showEnrollment && (
                 <td className="py-3 px-4">
                   {student.enrolled ? (
-                    <Badge icon="check_circle">Enrolled</Badge>
+                    <Badge icon="check_circle">Face Ready</Badge>
+                  ) : student.hasEncodedFaceTemplates ? (
+                    <Badge tone="warning" icon="hourglass_empty">Face Registration Incomplete</Badge>
                   ) : (
-                    <Badge icon="radio_button_unchecked">Not Enrolled</Badge>
+                    <Badge tone="warning" icon="radio_button_unchecked">Pending Face Registration</Badge>
                   )}
                 </td>
               )}
@@ -114,7 +120,18 @@ export default function StudentTable({
                         <Icon name="biotech" size={18} />
                       </button>
                     )}
-                    {onRecover && (
+                    {onRegisterFace && !student.enrolled && (
+                      <button
+                        onClick={() => onRegisterFace(student)}
+                        className="fdas-icon-button fdas-icon-button-sm hover:bg-emerald-50"
+                        style={{ color: '#087a68' }}
+                        title="Register face"
+                        aria-label={`Register face for ${student.name}`}
+                      >
+                        <Icon name="add_a_photo" size={18} />
+                      </button>
+                    )}
+                    {onRecover && student.enrolled && (
                       <button
                         onClick={() => onRecover(student)}
                         className="fdas-icon-button fdas-icon-button-sm hover:bg-amber-50"
@@ -137,7 +154,7 @@ export default function StudentTable({
                       </button>
                     )}
                     <button
-                      onClick={() => onDelete?.(student)}
+                      onClick={() => onStatusChange?.(student)}
                       className={`fdas-icon-button fdas-icon-button-sm ${student.status === 'Active' ? 'hover:bg-red-50' : 'hover:bg-emerald-50'}`}
                       style={{ color: student.status === 'Active' ? '#ba1a1a' : '#065f46' }}
                       title={student.status === 'Active' ? 'Deactivate student' : 'Reactivate student'}
@@ -145,6 +162,17 @@ export default function StudentTable({
                     >
                       <Icon name={student.status === 'Active' ? 'archive' : 'restore'} size={18} />
                     </button>
+                    {onPermanentDelete && (
+                      <button
+                        onClick={() => onPermanentDelete(student)}
+                        className="fdas-icon-button fdas-icon-button-sm hover:bg-red-50"
+                        style={{ color: '#ba1a1a' }}
+                        title="Delete student"
+                        aria-label={`Delete ${student.name}`}
+                      >
+                        <Icon name="delete" size={18} />
+                      </button>
+                    )}
                   </div>
                 </td>
               )}

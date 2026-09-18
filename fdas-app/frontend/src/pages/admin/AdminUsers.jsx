@@ -92,16 +92,16 @@ export default function AdminUsers() {
     }
   }
 
-  const grantAll = async user => {
+  const deleteUser = async user => {
     setSaving(true)
     setError('')
     try {
-      await adminUsersApi.updateAccess(user.userId, { accessScope: 'AllDepartments', assignedDepartmentId: null })
-      setMessage('All departments access granted.')
+      const result = await adminUsersApi.delete(user.userId)
+      setMessage(result.message)
       setMessageTone('success')
       await loadData()
     } catch (err) {
-      setError(getApiError(err, 'Unable to grant access.'))
+      setError(getApiError(err, 'Unable to delete the user.'))
     } finally {
       setSaving(false)
       setActionDialog(null)
@@ -188,14 +188,6 @@ export default function AdminUsers() {
                         <button onClick={() => setActionDialog({ type: 'status', user })} className={`fdas-button fdas-button-sm ${user.status === 'Disabled' ? 'fdas-button-secondary' : 'fdas-button-outline'}`}>
                           {user.status === 'Disabled' ? 'Enable' : 'Disable'}
                         </button>
-                        <button
-                          onClick={() => setActionDialog({ type: 'grant', user })}
-                          className="fdas-icon-button fdas-icon-button-sm"
-                          title="Grant all-department access"
-                          aria-label={`Grant all-department access for ${user.fullName}`}
-                        >
-                          <Icon name="public" size={17} />
-                        </button>
                         {user.role === 'User' && user.status === 'Approved' && (
                           <button
                             onClick={() => setActionDialog({ type: 'resend', user })}
@@ -206,6 +198,17 @@ export default function AdminUsers() {
                             <Icon name="forward_to_inbox" size={17} />
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => setActionDialog({ type: 'delete', user })}
+                          disabled={user.role === 'Admin'}
+                          className="fdas-icon-button fdas-icon-button-sm"
+                          style={{ color: '#ba1a1a' }}
+                          title={user.role === 'Admin' ? 'Administrator accounts are protected' : 'Delete user'}
+                          aria-label={user.role === 'Admin' ? `${user.fullName} is a protected administrator` : `Delete ${user.fullName}`}
+                        >
+                          <Icon name="delete" size={17} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -240,12 +243,12 @@ export default function AdminUsers() {
         <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>{actionDialog?.user?.status === 'Disabled' ? 'This user will regain access according to their assigned scope.' : 'This user will no longer be able to sign in until reactivated.'}</p>
       </ConfirmDialog>
 
-      <ConfirmDialog open={actionDialog?.type === 'grant'} onClose={() => setActionDialog(null)} onConfirm={() => grantAll(actionDialog.user)} title="Grant All-Department Access?" description={actionDialog?.user?.fullName} confirmLabel="Grant Access" busy={saving}>
-        <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>This user will be able to operate across every department.</p>
-      </ConfirmDialog>
-
       <ConfirmDialog open={actionDialog?.type === 'resend'} onClose={() => setActionDialog(null)} onConfirm={() => resendApprovalEmail(actionDialog.user)} title="Resend Approval Email?" description={actionDialog?.user ? `${actionDialog.user.fullName} — ${actionDialog.user.email}` : ''} confirmLabel="Send Email" busy={saving}>
         <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>This sends another approval notice to the operator's registered email. It does not change account access or include a password.</p>
+      </ConfirmDialog>
+
+      <ConfirmDialog open={actionDialog?.type === 'delete'} onClose={() => setActionDialog(null)} onConfirm={() => deleteUser(actionDialog.user)} title="Delete User?" description={actionDialog?.user ? `${actionDialog.user.fullName} — ${actionDialog.user.email}` : ''} confirmLabel="Delete User" destructive busy={saving}>
+        <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#ffdad6', color: '#93000a' }}>Are you sure you want to permanently delete this user? This action cannot be undone. Accounts with historical dependencies will remain unchanged and should be disabled instead.</p>
       </ConfirmDialog>
     </section>
   )

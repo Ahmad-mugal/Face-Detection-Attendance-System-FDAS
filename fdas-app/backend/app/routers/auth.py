@@ -20,6 +20,7 @@ from app.schemas.auth import (
 )
 from app.utils.jwt import create_access_token
 from app.utils.security import hash_password, verify_password
+from app.services.notifications import create_notification
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -141,6 +142,16 @@ def register_request(payload: RegisterRequest, db: Session = Depends(get_db)):
     )
     db.add(user)
     try:
+        db.flush()
+        create_notification(
+            db,
+            recipient_role="Admin",
+            type="OPERATOR_REGISTRATION_REQUEST",
+            severity="ACTION_REQUIRED",
+            title="New operator registration request",
+            message=f"{user.fullName} requested operator access for {department.departmentName}.",
+            action_url="/admin/requests",
+        )
         db.commit()
     except IntegrityError:
         db.rollback()

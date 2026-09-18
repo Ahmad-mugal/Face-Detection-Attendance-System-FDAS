@@ -123,8 +123,16 @@ await check('Manage Users action hierarchy and SMTP dialog', async () => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await openRoute('/admin/users', /manage users/i)
   const operatorRow = page.getByRole('row').filter({ hasText: 'operator.cs@fdas.local' })
-  await operatorRow.getByRole('button', { name: /change access/i }).waitFor({ state: 'visible' })
-  await operatorRow.getByRole('button', { name: /grant all-department access/i }).waitFor({ state: 'visible' })
+  if (await operatorRow.getByRole('button', { name: /grant all-department access/i }).count()) {
+    throw new Error('standalone Grant All action is still present')
+  }
+  await operatorRow.getByRole('button', { name: /change access/i }).click()
+  const accessDialog = page.getByRole('dialog', { name: /change user access/i })
+  await accessDialog.getByLabel('Access Scope').selectOption('AllDepartments')
+  if (await accessDialog.locator('option[value="AllDepartments"]').count() !== 1) {
+    throw new Error('All Departments is unavailable through Change Access')
+  }
+  await page.keyboard.press('Escape')
   await operatorRow.getByRole('button', { name: /resend approval email/i }).click()
   await page.getByRole('dialog', { name: /resend approval email/i }).waitFor()
   await page.keyboard.press('Escape')

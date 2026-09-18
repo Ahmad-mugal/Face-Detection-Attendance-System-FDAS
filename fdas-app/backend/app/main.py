@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import APP_NAME, APP_PHASE, APP_VERSION, CORS_ALLOWED_ORIGINS
+from app.database import init_db
 from app.routers.admin_users import router as admin_users_router
 from app.routers.attendance_marking import router as attendance_marking_router
 from app.routers.attendance_records import router as attendance_records_router
@@ -16,8 +17,11 @@ from app.routers.face_enrollment import router as face_enrollment_router
 from app.routers.face_matching import router as face_matching_router
 from app.routers.foundation import router as foundation_router
 from app.routers.liveness import router as liveness_router
+from app.routers.notifications import router as notifications_router
 from app.routers.students import router as students_router
 
+
+init_db()
 
 app = FastAPI(
     title=APP_NAME,
@@ -48,3 +52,4 @@ app.include_router(attendance_marking_router)
 app.include_router(attendance_records_router)
 app.include_router(liveness_router)
 app.include_router(dashboard_router)
+app.include_router(notifications_router)

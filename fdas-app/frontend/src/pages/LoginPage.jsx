@@ -97,8 +97,8 @@ export default function LoginPage() {
                 <label htmlFor="email" className="text-xs font-bold ml-1" style={{ color: '#55433b' }}>
                   Email
                 </label>
-                <div className="relative flex items-center">
-                  <Icon name="person" size={20} className="absolute left-3" style={{ color: '#ffc641' }} />
+                <div className="fdas-auth-input-wrap">
+                  <span className="fdas-auth-leading-icon"><Icon name="person" size={20} /></span>
                   <input
                     id="email"
                     type="email"
@@ -106,7 +106,7 @@ export default function LoginPage() {
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     placeholder="admin@fdas.local"
                     autoComplete="username"
-                    className="fdas-input pl-10 pr-4"
+                    className="fdas-input fdas-auth-input-leading"
                     style={{ borderColor: '#dbc1b7', color: '#4A2B0F', backgroundColor: '#ffffff' }}
                     onFocus={e => { e.target.style.borderColor = '#E8924A'; e.target.style.boxShadow = '0 0 0 3px rgba(232,146,74,0.15)' }}
                     onBlur={e => { e.target.style.borderColor = '#dbc1b7'; e.target.style.boxShadow = 'none' }}
@@ -119,8 +119,8 @@ export default function LoginPage() {
                 <label htmlFor="password" className="text-xs font-bold ml-1" style={{ color: '#55433b' }}>
                   Password
                 </label>
-                <div className="relative flex items-center">
-                  <Icon name="lock" size={20} className="absolute left-3" style={{ color: '#ffc641' }} />
+                <div className="fdas-auth-input-wrap">
+                  <span className="fdas-auth-leading-icon"><Icon name="lock" size={20} /></span>
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
@@ -128,7 +128,7 @@ export default function LoginPage() {
                     onChange={e => setForm({ ...form, password: e.target.value })}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    className="fdas-input pl-10 pr-12"
+                    className="fdas-input fdas-auth-input-leading fdas-auth-input-trailing"
                     style={{ borderColor: '#dbc1b7', color: '#4A2B0F', backgroundColor: '#ffffff' }}
                     onFocus={e => { e.target.style.borderColor = '#E8924A'; e.target.style.boxShadow = '0 0 0 3px rgba(232,146,74,0.15)' }}
                     onBlur={e => { e.target.style.borderColor = '#dbc1b7'; e.target.style.boxShadow = 'none' }}
@@ -136,8 +136,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 transition-colors"
-                    style={{ color: '#934619' }}
+                    className="fdas-auth-trailing-action transition-colors"
                     aria-label="Toggle password visibility"
                     title={showPassword ? 'Hide password' : 'Show password'}
                   >

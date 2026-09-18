@@ -24,8 +24,8 @@ CORS_ALLOWED_ORIGINS.extend(
 )
 
 APP_NAME = "FDAS Backend"
-APP_VERSION = "1.0.3"
-APP_PHASE = "Phase 10.12B - SMTP, Modal, Students, and Smart Header"
+APP_VERSION = "1.0.4"
+APP_PHASE = "Phase 10.12D - Notifications, Safe Deletion, and Student Import"
 FACE_MATCH_THRESHOLD = 0.75
 FACE_MATCH_AGGREGATION = "maximum"
 MIN_IDENTITY_MARGIN = 0.05

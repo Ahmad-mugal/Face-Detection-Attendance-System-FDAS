@@ -38,6 +38,7 @@ from app.services.face_enrollment import (
 )
 from app.services.face_processing import processing_info
 from app.services.students import ensure_student_access, get_student_or_404
+from app.services.notifications import create_notification
 
 
 router = APIRouter(tags=["face-enrollment"])
@@ -76,6 +77,19 @@ async def upload_face_enrollment(
     ensure_student_access(current_user, student)
     uploads = [await read_face_upload(file) for file in files]
     templates = create_face_templates(db, current_user, studentId, uploads)
+    student = get_student_or_404(db, studentId)
+    if student_face_registered(student):
+        create_notification(
+            db,
+            recipient_user_id=current_user.userId,
+            type="FACE_ENROLLMENT_COMPLETED",
+            severity="SUCCESS",
+            title="Face enrollment completed",
+            message=f"Face enrollment was completed for {student.fullName} ({student.rollNo}).",
+            action_url="/admin/students" if current_user.role and current_user.role.roleName == "Admin" else "/user/students",
+            department_id=student.departmentId,
+            commit=True,
+        )
     return FaceEnrollmentUploadResponse(
         studentId=studentId,
         faceRegistered=student_face_registered(student),
@@ -203,6 +217,17 @@ async def upload_deep_recovery_enrollment(
         uploads.append(RecoveryUpload(suffix=suffix, content=content))
 
     result = create_deep_recovery_enrollment(db, current_user, studentId, uploads)
+    if result["readiness"] == "Ready":
+        create_notification(
+            db,
+            recipient_user_id=current_user.userId,
+            type="FACE_ENROLLMENT_COMPLETED",
+            severity="SUCCESS",
+            title="Deep face enrollment ready",
+            message=f"{result['studentName']} ({result['rollNo']}) is now Face Ready.",
+            action_url="/admin/students" if current_user.role and current_user.role.roleName == "Admin" else "/user/students",
+            commit=True,
+        )
     return DeepRecoveryUploadResponse(
         studentId=result["studentId"],
         studentName=result["studentName"],

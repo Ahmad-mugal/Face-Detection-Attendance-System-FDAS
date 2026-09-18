@@ -4,6 +4,7 @@ import { useAttendanceSession } from '../context/useAttendanceSession'
 import { useAuth } from '../context/useAuth'
 import Icon from '../components/Icon'
 import { useSmartHeader } from '../hooks/useSmartHeader'
+import NotificationBell from '../components/NotificationBell'
 
 const sideNavLinks = [
   { to: '/user/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -191,26 +192,15 @@ export default function UserLayout() {
             <span className="font-bold text-lg truncate" style={{ color: '#C4533A' }}>FDAS Portal</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setNotificationsOpen(current => !current)
-                  setProfileOpen(false)
-                }}
-                className="fdas-icon-button relative"
-                style={{ color: '#887369' }}
-                aria-label="Open notifications"
-                title="Notifications"
-              >
-                <Icon name="notifications" size={20} />
-              </button>
-              {notificationsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border p-3 z-50" style={{ backgroundColor: '#fff8f6', borderColor: '#dbc1b7', boxShadow: '0 8px 24px rgba(232,146,74,0.2)' }}>
-                  <p className="text-xs font-black uppercase tracking-wide mb-2" style={{ color: '#C4533A' }}>Notifications</p>
-                  <div className="rounded-lg px-3 py-3 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>No new notifications.</div>
-                </div>
-              )}
-            </div>
+            <NotificationBell
+              open={notificationsOpen}
+              onToggle={() => {
+                setNotificationsOpen(current => !current)
+                setProfileOpen(false)
+              }}
+              onNavigate={guardedNavigate}
+              color="#887369"
+            />
             <button
               onClick={() => guardedNavigate('/account/preferences')}
               className="fdas-icon-button"

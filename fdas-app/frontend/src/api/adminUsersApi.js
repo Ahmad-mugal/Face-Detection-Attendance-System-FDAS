@@ -10,4 +10,5 @@ export const adminUsersApi = {
   disable: userId => apiClient.patch(`/api/admin/users/${userId}/disable`).then(response => response.data),
   enable: userId => apiClient.patch(`/api/admin/users/${userId}/enable`).then(response => response.data),
   updateAccess: (userId, payload) => apiClient.patch(`/api/admin/users/${userId}/access`, payload).then(response => response.data),
+  delete: userId => apiClient.delete(`/api/admin/users/${userId}`).then(response => response.data),
 }

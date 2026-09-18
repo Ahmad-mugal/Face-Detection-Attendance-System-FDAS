@@ -200,6 +200,7 @@ svg {
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.875rem;
+  flex-wrap: wrap;
 }
 
 .fdas-section-title {
@@ -416,6 +417,59 @@ svg {
 .fdas-badge-neutral { border-color: #d9c5bd; background: #f3e8e3; color: #684d41; }
 .fdas-badge-info { border-color: #cdb6a9; background: #fff1eb; color: #934619; }
 
+.fdas-notification-count {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  display: grid;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  place-items: center;
+  padding-inline: 0.25rem;
+  border: 2px solid #fff8f6;
+  border-radius: 9999px;
+  background: #ba1a1a;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.fdas-notification-popover {
+  position: absolute;
+  z-index: 70;
+  top: calc(100% + 0.75rem);
+  right: 0;
+  width: min(24rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid #dbc1b7;
+  border-radius: 1rem;
+  background: #fffdfb;
+  box-shadow: var(--fdas-shadow-raised);
+}
+
+.fdas-notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid #f0dfd8;
+}
+
+.fdas-notification-list { max-height: min(28rem, calc(100dvh - 10rem)); overflow-y: auto; }
+.fdas-notification-item { position: relative; display: flex; gap: 0.75rem; padding: 0.9rem 1rem; border-bottom: 1px solid #f3e8e3; background: #fffdfb; }
+.fdas-notification-item-unread { background: #fff1eb; }
+.fdas-notification-severity { flex: 0 0 auto; width: 0.45rem; height: 0.45rem; margin-top: 0.35rem; border-radius: 9999px; }
+.fdas-notification-empty { padding: 1.5rem 1rem; color: #6f5b52; font-size: 0.85rem; line-height: 1.6; text-align: center; }
+.fdas-notification-footer { padding: 0.65rem 1rem; background: #fceae4; color: #887369; font-size: 0.68rem; text-align: center; }
+
+.fdas-auth-input-wrap { position: relative; display: flex; align-items: center; min-width: 0; }
+.fdas-auth-leading-icon { position: absolute; z-index: 1; inset-block: 0; left: 0; display: grid; width: 3rem; place-items: center; pointer-events: none; color: #d49b12; }
+.fdas-auth-input-leading { padding-left: 3rem !important; }
+.fdas-auth-input-trailing { padding-right: 3.25rem !important; }
+.fdas-auth-trailing-action { position: absolute; z-index: 2; inset-block: 0; right: 0; display: grid; width: 3rem; place-items: center; color: #934619; }
+
 .fdas-state {
   display: flex;
   min-height: 11rem;
@@ -512,6 +566,7 @@ html[data-reduced-motion='true'] *::after {
   .fdas-modal-backdrop { align-items: flex-end; padding: 0.5rem; }
   .fdas-modal-panel { max-height: calc(100dvh - 1rem); border-radius: 1rem 1rem 0.75rem 0.75rem; }
   .fdas-modal-footer > .fdas-button { flex: 1 1 8rem; }
+  .fdas-notification-popover { position: fixed; top: 4.5rem; right: 0.75rem; width: calc(100vw - 1.5rem); }
 }
 
 @media (max-width: 767px) {

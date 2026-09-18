@@ -151,3 +151,8 @@ class EmailCapabilityResponse(BaseModel):
     configured: bool
     deliveryOptional: bool
     message: str
+
+
+class DeleteUserResponse(BaseModel):
+    deleted: bool
+    message: str

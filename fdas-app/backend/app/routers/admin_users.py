@@ -4,9 +4,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import require_admin
 from app.models.department import Department
+from app.models.attendance_session import AttendanceSession
+from app.models.face_template import FaceTemplate
+from app.models.notification import Notification
 from app.models.user import User
-from app.schemas.auth import AccessUpdateRequest, AdminUserListItem, ApprovalNotificationResponse, EmailCapabilityResponse
+from app.schemas.auth import AccessUpdateRequest, AdminUserListItem, ApprovalNotificationResponse, DeleteUserResponse, EmailCapabilityResponse
 from app.services.email_service import get_email_capability, send_approval_email
+from app.services.notifications import create_notification
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
@@ -83,7 +87,7 @@ def send_user_approval_notification(user: User):
 def approve_user(
     userId: int,
     payload: AccessUpdateRequest,
-    _: User = Depends(require_admin),
+    current_admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     validate_access_update(payload, db)
@@ -100,9 +104,32 @@ def approve_user(
         )
     user.status = "Approved"
     apply_access_update(user, payload)
+    create_notification(
+        db,
+        recipient_user_id=user.userId,
+        type="ACCOUNT_APPROVED",
+        severity="SUCCESS",
+        title="Account approved",
+        message="Your FDAS account was approved. Review your assigned access scope before beginning work.",
+        action_url="/account/profile",
+    )
     db.commit()
     db.refresh(user)
     delivery = send_user_approval_notification(user)
+    create_notification(
+        db,
+        recipient_role="Admin",
+        type="OPERATOR_APPROVED" if delivery.sent else "APPROVAL_EMAIL_FAILED",
+        severity="SUCCESS" if delivery.sent else "ACTION_REQUIRED",
+        title="Operator account approved" if delivery.sent else "Approval email failed",
+        message=(
+            f"{user.fullName} was approved by {current_admin.fullName}."
+            if delivery.sent
+            else f"{user.fullName} was approved, but the approval email could not be delivered."
+        ),
+        action_url="/admin/users",
+        commit=True,
+    )
     return {
         "user": to_admin_user_item(user),
         "emailNotificationSent": delivery.sent,
@@ -129,6 +156,17 @@ def resend_approval_email(
         )
 
     delivery = send_user_approval_notification(user)
+    if not delivery.sent:
+        create_notification(
+            db,
+            recipient_role="Admin",
+            type="APPROVAL_EMAIL_FAILED",
+            severity="ACTION_REQUIRED",
+            title="Approval email failed",
+            message=f"The approval email for {user.fullName} could not be delivered.",
+            action_url="/admin/users",
+            commit=True,
+        )
     return {
         "user": to_admin_user_item(user),
         "emailNotificationSent": delivery.sent,
@@ -137,27 +175,56 @@ def resend_approval_email(
 
 
 @router.patch("/users/{userId}/reject", response_model=AdminUserListItem)
-def reject_user(userId: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def reject_user(userId: int, current_admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = get_user_or_404(db, userId)
     user.status = "Rejected"
+    create_notification(
+        db,
+        recipient_role="Admin",
+        type="OPERATOR_REJECTED",
+        severity="INFO",
+        title="Operator request rejected",
+        message=f"{user.fullName}'s account request was rejected by {current_admin.fullName}.",
+        action_url="/admin/requests",
+    )
     db.commit()
     db.refresh(user)
     return to_admin_user_item(user)
 
 
 @router.patch("/users/{userId}/disable", response_model=AdminUserListItem)
-def disable_user(userId: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def disable_user(userId: int, current_admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = get_user_or_404(db, userId)
+    if user.userId == current_admin.userId:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You cannot disable your own active administrator account.")
     user.status = "Disabled"
+    create_notification(
+        db,
+        recipient_user_id=user.userId,
+        type="ACCOUNT_DISABLED",
+        severity="WARNING",
+        title="Account disabled",
+        message="Your FDAS account was disabled by an administrator. Contact an administrator if access is still required.",
+        action_url="/account/profile",
+    )
     db.commit()
     db.refresh(user)
     return to_admin_user_item(user)
 
 
 @router.patch("/users/{userId}/enable", response_model=AdminUserListItem)
-def enable_user(userId: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
+def enable_user(userId: int, current_admin: User = Depends(require_admin), db: Session = Depends(get_db)):
     user = get_user_or_404(db, userId)
     user.status = "Approved"
+    create_notification(
+        db,
+        recipient_user_id=user.userId,
+        type="ACCOUNT_ENABLED",
+        severity="SUCCESS",
+        title="Account enabled",
+        message=f"Your FDAS account was enabled by {current_admin.fullName}.",
+        action_url="/account/profile",
+    )
     db.commit()
     db.refresh(user)
     return to_admin_user_item(user)
@@ -167,12 +234,61 @@ def enable_user(userId: int, _: User = Depends(require_admin), db: Session = Dep
 def update_user_access(
     userId: int,
     payload: AccessUpdateRequest,
-    _: User = Depends(require_admin),
+    current_admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     validate_access_update(payload, db)
     user = get_user_or_404(db, userId)
     apply_access_update(user, payload)
+    scope_label = (
+        "All Departments"
+        if payload.accessScope == "AllDepartments"
+        else db.get(Department, payload.assignedDepartmentId).departmentName
+    )
+    create_notification(
+        db,
+        recipient_user_id=user.userId,
+        type="ACCESS_SCOPE_CHANGED",
+        severity="ACTION_REQUIRED",
+        title="Access scope changed",
+        message=f"Your FDAS access scope was changed to {scope_label} by {current_admin.fullName}.",
+        action_url="/account/profile",
+    )
     db.commit()
     db.refresh(user)
     return to_admin_user_item(user)
+
+
+@router.delete("/users/{userId}", response_model=DeleteUserResponse)
+def delete_user(
+    userId: int,
+    current_admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = get_user_or_404(db, userId)
+    if user.userId == current_admin.userId:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="You cannot delete your own currently signed-in account.")
+    if user.role and user.role.roleName == "Admin":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Administrator accounts are protected and cannot be permanently deleted.")
+    has_sessions = db.query(AttendanceSession).filter(AttendanceSession.startedByUserId == userId).count() > 0
+    has_templates = db.query(FaceTemplate).filter(FaceTemplate.createdByUserId == userId).count() > 0
+    if has_sessions or has_templates:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This user has historical dependencies and cannot be permanently deleted. Disable the account instead.",
+        )
+
+    display_name = user.fullName
+    db.query(Notification).filter(Notification.recipientUserId == userId).delete(synchronize_session=False)
+    db.delete(user)
+    create_notification(
+        db,
+        recipient_role="Admin",
+        type="USER_DELETED",
+        severity="WARNING",
+        title="User permanently deleted",
+        message=f"{display_name} was permanently deleted by {current_admin.fullName}.",
+        action_url="/admin/users",
+    )
+    db.commit()
+    return DeleteUserResponse(deleted=True, message="User permanently deleted.")

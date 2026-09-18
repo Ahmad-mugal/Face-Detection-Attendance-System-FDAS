@@ -86,47 +86,47 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} noValidate className="grid gap-5">
             <label className="grid gap-1">
               <span className="fdas-label">Full Name</span>
-              <input
-                type="text"
-                autoComplete="name"
-                maxLength={150}
-                value={form.fullName}
-                onChange={event => updateField('fullName', event.target.value)}
-                className={fieldClass}
-                style={fieldStyle}
-                aria-invalid={Boolean(fieldErrors.fullName)}
-              />
+              <div className="fdas-auth-input-wrap"><span className="fdas-auth-leading-icon"><Icon name="person" size={19} /></span><input
+                  type="text"
+                  autoComplete="name"
+                  maxLength={150}
+                  value={form.fullName}
+                  onChange={event => updateField('fullName', event.target.value)}
+                  className={`${fieldClass} fdas-auth-input-leading`}
+                  style={fieldStyle}
+                  aria-invalid={Boolean(fieldErrors.fullName)}
+                /></div>
               {fieldErrors.fullName && <span className="text-xs font-semibold" style={{ color: '#93000a' }}>{fieldErrors.fullName}</span>}
             </label>
 
             <label className="grid gap-1">
               <span className="fdas-label">Email</span>
-              <input
-                type="email"
-                autoComplete="email"
-                maxLength={180}
-                value={form.email}
-                onChange={event => updateField('email', event.target.value)}
-                placeholder="name@fdas.local"
-                className={fieldClass}
-                style={fieldStyle}
-                aria-invalid={Boolean(fieldErrors.email)}
-              />
+              <div className="fdas-auth-input-wrap"><span className="fdas-auth-leading-icon"><Icon name="forward_to_inbox" size={19} /></span><input
+                  type="email"
+                  autoComplete="email"
+                  maxLength={180}
+                  value={form.email}
+                  onChange={event => updateField('email', event.target.value)}
+                  placeholder="name@fdas.local"
+                  className={`${fieldClass} fdas-auth-input-leading`}
+                  style={fieldStyle}
+                  aria-invalid={Boolean(fieldErrors.email)}
+                /></div>
               {fieldErrors.email && <span className="text-xs font-semibold" style={{ color: '#93000a' }}>{fieldErrors.email}</span>}
             </label>
 
             <label className="grid gap-1">
               <span className="fdas-label">Password</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                maxLength={128}
-                value={form.password}
-                onChange={event => updateField('password', event.target.value)}
-                className={fieldClass}
-                style={fieldStyle}
-                aria-invalid={Boolean(fieldErrors.password)}
-              />
+              <div className="fdas-auth-input-wrap"><span className="fdas-auth-leading-icon"><Icon name="lock" size={19} /></span><input
+                  type="password"
+                  autoComplete="new-password"
+                  maxLength={128}
+                  value={form.password}
+                  onChange={event => updateField('password', event.target.value)}
+                  className={`${fieldClass} fdas-auth-input-leading`}
+                  style={fieldStyle}
+                  aria-invalid={Boolean(fieldErrors.password)}
+                /></div>
               <span className="text-xs" style={{ color: '#887369' }}>Use at least {PASSWORD_MIN_LENGTH} characters. Spaces-only passwords are not accepted.</span>
               {fieldErrors.password && <span className="text-xs font-semibold" style={{ color: '#93000a' }}>{fieldErrors.password}</span>}
             </label>

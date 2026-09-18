@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi.responses import Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,7 @@ from app.dependencies import require_operator_or_admin
 from app.models.student import Student
 from app.models.user import User
 from app.schemas.academic import StudentCreate, StudentRead, StudentUpdate
+from app.schemas.student_import import DeleteRecordResponse, StudentImportPreview, StudentImportResult
 from app.services.face_enrollment import has_encoded_templates, student_face_registered
 from app.services.departments import ensure_department_access
 from app.services.students import (
@@ -16,10 +18,26 @@ from app.services.students import (
     scoped_student_query,
     validate_student_department_and_class,
     validate_student_status,
+    delete_student_safely,
+)
+from app.services.student_import import (
+    MAX_IMPORT_BYTES,
+    STUDENT_IMPORT_FILENAME,
+    error_report_csv,
+    import_valid_students,
+    template_csv,
+    validate_student_csv,
+    validate_upload_metadata,
 )
 
 
 router = APIRouter(prefix="/api/students", tags=["students"])
+
+
+async def read_import_upload(file: UploadFile) -> bytes:
+    content = await file.read(MAX_IMPORT_BYTES + 1)
+    validate_upload_metadata(file.filename, file.content_type, content)
+    return content
 
 
 def to_student_read(student: Student) -> StudentRead:
@@ -70,6 +88,51 @@ def list_students(
         query = query.filter(or_(Student.rollNo.ilike(pattern), Student.fullName.ilike(pattern), Student.email.ilike(pattern)))
     students = query.order_by(Student.rollNo).all()
     return [to_student_read(student) for student in students]
+
+
+@router.get("/import/template")
+def download_import_template(_: User = Depends(require_operator_or_admin)):
+    return Response(
+        content=template_csv().encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{STUDENT_IMPORT_FILENAME}"'},
+    )
+
+
+@router.post("/import/validate", response_model=StudentImportPreview)
+async def validate_import(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_operator_or_admin),
+    db: Session = Depends(get_db),
+):
+    content = await read_import_upload(file)
+    preview, _ = validate_student_csv(content, current_user, db)
+    return preview
+
+
+@router.post("/import/confirm", response_model=StudentImportResult)
+async def confirm_import(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_operator_or_admin),
+    db: Session = Depends(get_db),
+):
+    content = await read_import_upload(file)
+    return import_valid_students(content, current_user, db)
+
+
+@router.post("/import/error-report")
+async def download_import_error_report(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_operator_or_admin),
+    db: Session = Depends(get_db),
+):
+    content = await read_import_upload(file)
+    preview, _ = validate_student_csv(content, current_user, db)
+    return Response(
+        content=error_report_csv(preview).encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="FDAS_Student_Import_Errors.csv"'},
+    )
 
 
 @router.get("/{studentId}", response_model=StudentRead)
@@ -163,3 +226,15 @@ def enable_student(studentId: int, current_user: User = Depends(require_operator
     db.commit()
     db.refresh(student)
     return to_student_read(student)
+
+
+@router.delete("/{studentId}", response_model=DeleteRecordResponse)
+def delete_student(
+    studentId: int,
+    current_user: User = Depends(require_operator_or_admin),
+    db: Session = Depends(get_db),
+):
+    return DeleteRecordResponse(
+        deleted=True,
+        message=delete_student_safely(db, current_user, studentId),
+    )

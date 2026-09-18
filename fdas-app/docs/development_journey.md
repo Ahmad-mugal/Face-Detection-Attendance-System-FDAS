@@ -5123,3 +5123,141 @@ The raw student status split is 10 Active, 1 Inactive, and 10 Disabled; the UI c
 ### Final Status
 
 **PASS — Phase 10.12C completed the system-wide professional UI/UX refinement, responsive audit, Manage Users before/after correction, screenshot review, focused browser regression, full frontend smoke, targeted backend regressions, and all 25 unified verification suites. Production data and all recognition, liveness, authorization, SMTP, security, and attendance rules remain preserved. Phase 10.12 Final Documentation Synchronization & Implementation Freeze was not started and remains ON HOLD.**
+
+## Phase 10.12D — Live Notification Center, Safe Record Deletion, Bulk Student CSV Import & Authentication UI Polish
+
+### Goal
+
+Replace the placeholder header bell with a persisted, authorization-aware local notification center; correct authentication input-icon spacing; simplify Manage Users actions; add guarded permanent deletion for eligible users and students; and add a professional CSV student-import workflow that leaves imported students ready for the existing face-registration process. Final Documentation Synchronization & Implementation Freeze remains ON HOLD.
+
+### Existing Notification Audit
+
+Before Phase 10.12D, both authenticated layouts rendered a bell and a static popover message, `No new notifications`. There was no notification table, backend API, event creation, unread count, read persistence, recipient enforcement, or live refresh. The bell was therefore placeholder-only rather than partially connected to application data.
+
+### Notification Data Model
+
+An additive `notifications` SQLite model stores an optional private `recipientUserId` or role target, optional `departmentId`, event `type`, `severity`, concise `title` and `message`, optional `actionUrl`, `readAt`, and `createdAt`. Exactly one private-user or role target is required. The table is created through the existing additive `init_db()` startup path; no existing table or record is reset.
+
+The API provides `GET /api/notifications`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/{notificationId}/read`, and `POST /api/notifications/mark-all-read`. Read notifications older than 90 days are purged during later notification creation; unread notifications are never removed by retention.
+
+### Notification Events
+
+Meaningful events now include new operator registration requests, account approval/rejection, account disable/enable, approval-email delivery failure, access or department-scope change, safe user deletion, completed student import with imported/skipped totals, normal face-enrollment completion, and successful deep-enrollment recovery. Events use INFO, SUCCESS, WARNING, or ACTION_REQUIRED severity and avoid credentials, hashes, raw exceptions, embeddings, or unnecessary personal data.
+
+### Notification Polling / Live Updates
+
+The shared notification bell performs authenticated polling every 12 seconds, which fits the local FDAS deployment without adding WebSocket or cloud infrastructure. It refreshes the unread badge and recent list, and updates immediately after mark-read or mark-all actions.
+
+### Notification Security & Scoping
+
+Visibility is enforced in SQL-backed backend queries, not by frontend filtering. Admin receives private notifications plus Admin-role events. A Department Operator receives private notifications plus User-role notifications scoped to the assigned department. An All Departments Operator receives private notifications plus department-scoped User-role events across departments. Fetching or marking a notification outside the caller's effective scope returns not found, so identifiers cannot be manipulated to read another user's private event.
+
+### Notification UI
+
+Admin and Operator headers now share `NotificationBell`. It shows an unread badge only when needed and opens a responsive popover with title, message, severity/unread indicators, relative time, action link, empty/error states, and `Mark all read`. Action URLs use existing routes such as Admin Requests, Students, or Profile; no dedicated notifications page was needed. The 375px capture confirms the popover remains inside the viewport.
+
+### Login Input Alignment
+
+Login, registration, and change-password fields now share a fixed 3rem leading-icon area, matching left input padding, a fixed 3rem trailing password-action area, and matching right padding. Automated geometry checks passed at 375, 480, 768, 1,024, 1,440, and 1,920px: entered text clears the Email/lock icon, password text clears the visibility action, focus states remain intact, and no page overflow occurs.
+
+### Manage Users Cleanup
+
+The standalone Grant All action was removed. `Change Access` remains the explicit primary action and still contains the All Departments option, preserving the existing permission model. Disable/Enable remains a status action, Resend Approval Email remains available for approved Operators, and permanent delete is a compact labeled destructive icon. Protected Admin deletion is disabled in the table and rejected by the backend.
+
+### Safe User Deletion
+
+`DELETE /api/admin/users/{userId}` is Admin-only. It blocks the current account, every Admin account, and any user referenced by attendance-session or face-template creator history, returning the exact guidance to disable the account instead. An eligible dependency-free Operator can be hard-deleted; private notifications for that user are removed in the same transaction. Missing records return 404, operators cannot call the endpoint, hashes are never returned, and no historical record is cascaded silently. The UI uses the shared `ConfirmDialog`, never native `confirm()`.
+
+### Safe Student Deletion
+
+`DELETE /api/students/{studentId}` uses existing department authorization: Admin may act institution-wide, Department Operators only in scope, and All Departments Operators keep their established scope. Any attendance history blocks deletion with guidance to deactivate instead. For an eligible student, the service validates that every referenced enrollment file remains beneath the student's storage directory, moves that directory to a quarantine name, transactionally deletes ArcFace embedding rows, face-template rows, and the student, restores the directory if the database transaction fails, and removes the quarantine only after commit. Active/inactive handling is unchanged, and historical attendance is never deleted.
+
+### Bulk Student Import Architecture
+
+The Students module now provides a four-step Select CSV → Validate → Preview → Confirm flow. Selecting a file never creates data. The backend-generated template and server validator share the exact `Name,Email,Roll Number,Department,Class` definition. Validation returns row-level Ready, Invalid, Duplicate, or Existing states; confirmation uploads the same CSV again and revalidates it server-side before writing.
+
+### CSV Template
+
+`GET /api/students/import/template` downloads `FDAS_Student_Import_Template.csv` with one empty header row and no fake student. A matching repository copy is stored at `docs/templates/FDAS_Student_Import_Template.csv`. The toolbar exposes `CSV Template` and `Import Students` beside search, Face Status, Add Student, and the existing export action.
+
+### CSV Validation
+
+The server accepts only `.csv` with practical CSV MIME types, limits uploads to 1 MB and 500 rows, decodes UTF-8 or UTF-8 BOM, and requires the five headers in exact order. It trims values, lowercases email, preserves roll-number text, validates name/email/roll requirements, rejects spreadsheet-formula prefixes, blank/malformed rows, unknown or ambiguous Department/Class names, Class/Department mismatch, unauthorized Operator departments, duplicates within the file, and existing email/roll values. Unknown configuration is never auto-created and the original upload is not persisted.
+
+### Import Preview
+
+The dialog shows Total, Valid, Invalid, Duplicate, and Existing summary cards plus Row, Name, Roll No., Department, Class, Status, and Issue columns. Only Ready rows are eligible for the explicit `Import X Valid Students` action. Invalid and duplicate rows remain visible with direct reasons rather than a generic failure.
+
+### Transactional Import
+
+Confirmation performs a fresh server validation, inserts all current Ready rows as one transaction, and rolls the entire batch back on an integrity or unexpected failure. Invalid, Duplicate, and Existing rows are skipped. Re-uploading the same CSV reports Existing instead of duplicating students. A generated `FDAS_Student_Import_Errors.csv` contains rejected rows and formula-safe cells.
+
+### Face Registration Pending State
+
+Imported records are Active students with zero templates/embeddings and display `Pending Face Registration`, never Face Ready. The Students table also distinguishes `Face Registration Incomplete` from `Face Ready`. A Face Status filter provides All, Ready, Pending, and Incomplete views without creating another database or page.
+
+### Existing Face Enrollment Reuse
+
+Each pending imported row exposes `Register Face`. It opens the existing `CameraEnrollment` / `AutoFaceEnrollmentCapture` workflow for that saved student, with the same exactly-one-face guard, continuity check, 25-sample capture, deep embedding/readiness rules, and no repeated Name, Email, Roll Number, Department, or Class fields. Deep Recovery remains available only for already-enrolled students.
+
+### Import Permissions
+
+Admin can map any configured Department/Class. Department Operators can validate and import only their assigned Department; unauthorized rows are returned as Invalid / Unauthorized Department. All Departments Operators retain their established cross-department scope. These decisions are enforced by the backend on both preview and confirmation.
+
+### Import Notifications
+
+Successful confirmation creates a private notification for the importing Admin/Operator with imported and skipped totals and an action link to that role's Students page. A partially rejected file uses WARNING severity; an all-valid import uses SUCCESS. Raw database or parser exceptions are not stored in notifications.
+
+### Browser Verification
+
+The new isolated `phase10_12d-smoke.mjs` suite passed all 8 end-to-end groups: six-width authentication geometry; Admin unread/list/read/action/mark-all behavior; refined user actions and safe user deletion; template and four-step import; pending-face enrollment reuse; safe and blocked student deletion; Operator notification/import scope; and 375px notification/import containment. Final result: 8/8, zero page errors, zero native dialogs. The intentionally blocked historical-student deletion emits the expected network 409 and is classified separately from unexpected console errors.
+
+The corrected Phase 10.12C visual suite passed 43/43 checks after replacing its obsolete Grant All assertion with the new required absence/Change Access assertion. The focused Phase 10.12B suite passed 11/11. The legacy Phase 5 smoke passed all 35 functional scenarios with zero page errors and zero native dialogs; its deliberate 409/401/400 and connection-refused console entries remain expected error-path evidence.
+
+All twelve requested Phase 10.12D screenshots are stored under `frontend/output/playwright/phase10_12d`: unread notification dropdown, login alignment, refined Manage Users actions, user-delete confirmation, student delete/register actions, import upload, validation preview, completed result, pending-face row, enrollment launch, mobile notification dropdown, and mobile import. Manual image review passed alignment, spacing, hierarchy, modal layering, accessible labeling, and viewport containment.
+
+### Backend Verification
+
+- `app.verify_phase10_12d`: PASS, all 34 notification/deletion/import and rollback checks.
+- `app.verify_phase10_12b`: PASS, all 13 checks.
+- `app.verify_phase10_12a`: PASS, all 16 checks.
+- `app.verify_phase10_10`: PASS, final deep-attendance safeguards unchanged.
+- `app.run_final_verification`: PASS on isolated port 8035, all 26 suites including Phase 10.12D.
+- `npm.cmd run lint`: PASS.
+- `npm.cmd run build`: PASS; the existing non-blocking large-chunk warning remains (891.16 kB minified, 255.56 kB gzip).
+
+The first unified-run attempt safely stopped because the user's existing backend occupied port 8000. The passing runner used isolated `FDAS_FINAL_VERIFICATION_PORT=8035`. After all isolated checks passed, the verified project Uvicorn process was restarted with the existing `.venv`; production `/health` returned `status=ok`, `database=connected`, and `/api/info` reported version `1.0.4`. This initialized only the additive empty notification table.
+
+### Data Preservation
+
+All notification-event mutation, hard deletion, CSV import, and browser verification ran only against disposable database/storage copies, and the disposable directories were removed afterward. Production application-record and storage counts are identical before and after; the SQLite file grew only because the new empty notification table and indexes were initialized:
+
+| Inventory | Before | After |
+| --- | ---: | ---: |
+| Students | 21 | 21 |
+| Active students | 10 | 10 |
+| Inactive/Disabled students | 11 | 11 |
+| Users | 7 | 7 |
+| Face templates | 4,708 | 4,708 |
+| ArcFace embeddings | 171 | 171 |
+| Attendance records | 23 | 23 |
+| Storage files | 15,549 | 15,549 |
+| Storage bytes | 27,447,638 | 27,447,638 |
+| Database bytes | 4,395,008 | 4,431,872 |
+
+The active production notification table contains 0 rows immediately after startup, confirming that test notifications were never copied into production.
+
+No production record, face template, embedding, enrollment image, attendance row, or user was reset, reseeded, or deleted. `FACE_MATCH_THRESHOLD` remains `0.75`; production ArcFace threshold remains `0.85`, margin `0.07`, three fresh queries, minimum 2-of-3 consensus, no legacy automatic fallback, exact-one-face continuity, MOVE_CLOSER-only liveness, and `0.12` area growth. Operator scope, attendance/session logic, SMTP approval behavior, PBKDF2 password handling, and JWT configuration are unchanged.
+
+### Known Limitations
+
+- Notifications use deliberate 12-second polling rather than push/WebSocket delivery and have no separate archive page; the compact recent-list popover is sufficient for the current local FYP.
+- Read-notification retention is enforced when new notifications are created rather than by a background scheduler; unread notifications are preserved.
+- Permanent user deletion is intentionally unavailable for Admin and dependency-bearing accounts, and permanent student deletion is intentionally unavailable once attendance history exists.
+- Student storage cleanup is coordinated with a quarantine/restore transaction pattern; SQLite and filesystem operations cannot form one native atomic transaction, so startup/storage backup practice remains important.
+- Wide data tables intentionally scroll inside their own container on narrow screens.
+- The existing Vite large-chunk warning and non-blocking SQLAlchemy subquery/InsightFace deprecation warnings remain future maintenance work. The SMTP `OSError` in verification is the deliberate mocked failure case.
+
+### Final Status
+
+**PASS — Phase 10.12D completed the persisted live notification center, backend recipient enforcement, authentication icon alignment, Manage Users cleanup, safe user/student deletion, transactional scoped CSV import, pending face-registration workflow, documentation, isolated browser verification, and all 26 unified backend suites. Production data and every recognition, liveness, authorization, SMTP, authentication-security, and attendance rule remain preserved. Final Documentation Synchronization & Implementation Freeze was not started and remains ON HOLD.**
