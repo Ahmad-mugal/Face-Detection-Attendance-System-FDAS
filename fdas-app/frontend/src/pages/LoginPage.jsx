@@ -91,6 +91,12 @@ export default function LoginPage() {
               <p className="text-sm mt-1" style={{ color: '#55433b' }}>Sign in to manage attendance</p>
             </header>
 
+            {location.state?.recoveryMessage && (
+              <div role="status" className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#d1fae5', borderColor: '#86efac', color: '#065f46' }}>
+                {location.state.recoveryMessage}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               {/* Username */}
               <div className="flex flex-col gap-1">
@@ -157,9 +163,20 @@ export default function LoginPage() {
                   />
                   <span className="text-xs" style={{ color: '#55433b' }}>Remember me</span>
                 </label>
-                <a href="#" className="text-xs underline underline-offset-2 transition-colors" style={{ color: '#934619' }}>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs underline underline-offset-2 transition-colors"
+                  style={{ color: '#934619' }}
+                  aria-label="Recover your FDAS password"
+                  onKeyDown={event => {
+                    if (event.key === ' ') {
+                      event.preventDefault()
+                      event.currentTarget.click()
+                    }
+                  }}
+                >
                   Forgot Password?
-                </a>
+                </Link>
               </div>
 
               {/* Error */}

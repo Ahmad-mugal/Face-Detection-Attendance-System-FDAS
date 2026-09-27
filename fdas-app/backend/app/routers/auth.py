@@ -1,29 +1,77 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from urllib.parse import urlencode
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.config import FRONTEND_BASE_URL
+from app.database import SessionLocal, get_db
 from app.dependencies import require_approved_user
 from app.models.department import Department
 from app.models.role import Role
 from app.models.user import User
 from app.schemas.auth import (
+    AdminCodePasswordResetRequest,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
+    GenericPasswordRecoveryResponse,
     LoginRequest,
     LoginResponse,
     ProfileUpdateRequest,
     RegisterRequest,
     RegisterRequestResponse,
     RegistrationDepartmentOption,
+    PasswordResetRequest,
     UserProfile,
 )
 from app.utils.jwt import create_access_token
 from app.utils.security import hash_password, verify_password
 from app.services.notifications import create_notification
+from app.services.email_service import load_smtp_settings, send_password_reset_email
+from app.services.password_recovery import (
+    PUBLIC_RECOVERY_MESSAGE,
+    enforce_recovery_rate_limit,
+    is_recovery_eligible,
+    issue_email_token,
+    reset_with_admin_code,
+    reset_with_email_token,
+)
+from app.models.password_reset import PasswordResetToken
+from app.utils.time import utc_now_naive
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+def deliver_password_reset_email(
+    *,
+    password_reset_token_id: int,
+    user_name: str,
+    recipient_email: str,
+    reset_url: str,
+) -> None:
+    delivery = send_password_reset_email(
+        user_name=user_name,
+        recipient_email=recipient_email,
+        reset_url=reset_url,
+    )
+    if delivery.sent:
+        return
+    with SessionLocal() as db:
+        credential = db.get(PasswordResetToken, password_reset_token_id)
+        if credential is not None and credential.usedAt is None and credential.revokedAt is None:
+            credential.revokedAt = utc_now_naive()
+        create_notification(
+            db,
+            recipient_role="Admin",
+            type="PASSWORD_RESET_EMAIL_FAILED",
+            severity="ACTION_REQUIRED",
+            title="Password reset email failed",
+            message="A requested password reset email could not be delivered. The reset link was revoked.",
+            action_url="/admin/users",
+        )
+        db.commit()
 
 
 def build_user_profile(user: User) -> UserProfile:
@@ -102,6 +150,52 @@ def change_password(
     current_user.passwordHash = hash_password(payload.newPassword)
     db.commit()
     return {"message": "Password changed successfully."}
+
+
+@router.post("/forgot-password", response_model=GenericPasswordRecoveryResponse)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    client_identity = request.client.host if request.client else "local-unknown"
+    enforce_recovery_rate_limit(db, email=payload.email, client_identity=client_identity)
+    user = db.query(User).filter(func.lower(User.email) == payload.email).one_or_none()
+    if is_recovery_eligible(user) and load_smtp_settings().configured:
+        raw_token, credential = issue_email_token(db, user)
+        reset_url = f"{FRONTEND_BASE_URL}/reset-password?{urlencode({'token': raw_token})}"
+        db.commit()
+        background_tasks.add_task(
+            deliver_password_reset_email,
+            password_reset_token_id=credential.passwordResetTokenId,
+            user_name=user.fullName,
+            recipient_email=user.email,
+            reset_url=reset_url,
+        )
+    else:
+        db.commit()
+    return {"message": PUBLIC_RECOVERY_MESSAGE}
+
+
+@router.post("/reset-password", response_model=GenericPasswordRecoveryResponse)
+def reset_password(payload: PasswordResetRequest, db: Session = Depends(get_db)):
+    reset_with_email_token(db, raw_token=payload.token, new_password=payload.newPassword)
+    return {"message": "Password reset successfully. Please sign in with your new password."}
+
+
+@router.post("/reset-password/admin-code", response_model=GenericPasswordRecoveryResponse)
+def reset_password_with_admin_code(
+    payload: AdminCodePasswordResetRequest,
+    db: Session = Depends(get_db),
+):
+    reset_with_admin_code(
+        db,
+        email=payload.email,
+        recovery_code=payload.recoveryCode,
+        new_password=payload.newPassword,
+    )
+    return {"message": "Password reset successfully. Please sign in with your new password."}
 
 
 @router.get("/registration-departments", response_model=list[RegistrationDepartmentOption])

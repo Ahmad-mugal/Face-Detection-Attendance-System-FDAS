@@ -7,10 +7,12 @@ from app.models.department import Department
 from app.models.attendance_session import AttendanceSession
 from app.models.face_template import FaceTemplate
 from app.models.notification import Notification
+from app.models.password_reset import PasswordResetToken
 from app.models.user import User
-from app.schemas.auth import AccessUpdateRequest, AdminUserListItem, ApprovalNotificationResponse, DeleteUserResponse, EmailCapabilityResponse
+from app.schemas.auth import AccessUpdateRequest, AdminRecoveryCodeResponse, AdminUserListItem, ApprovalNotificationResponse, DeleteUserResponse, EmailCapabilityResponse
 from app.services.email_service import get_email_capability, send_approval_email
 from app.services.notifications import create_notification
+from app.services.password_recovery import issue_admin_code
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin-users"])
@@ -259,6 +261,31 @@ def update_user_access(
     return to_admin_user_item(user)
 
 
+@router.post("/users/{userId}/password-recovery-code", response_model=AdminRecoveryCodeResponse)
+def generate_password_recovery_code(
+    userId: int,
+    current_admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = get_user_or_404(db, userId)
+    recovery_code, credential = issue_admin_code(db, user, current_admin)
+    create_notification(
+        db,
+        recipient_user_id=user.userId,
+        type="ADMIN_PASSWORD_RECOVERY_ISSUED",
+        severity="ACTION_REQUIRED",
+        title="Administrator-assisted password recovery initiated",
+        message="An administrator generated a short-lived recovery code for your account. Contact administration if you did not request assistance.",
+        action_url="/login",
+    )
+    db.commit()
+    return {
+        "recoveryCode": recovery_code,
+        "expiresAt": credential.expiresAt,
+        "message": "Recovery code generated. It will be shown only in this response and expires in 10 minutes.",
+    }
+
+
 @router.delete("/users/{userId}", response_model=DeleteUserResponse)
 def delete_user(
     userId: int,
@@ -280,6 +307,7 @@ def delete_user(
 
     display_name = user.fullName
     db.query(Notification).filter(Notification.recipientUserId == userId).delete(synchronize_session=False)
+    db.query(PasswordResetToken).filter(PasswordResetToken.userId == userId).delete(synchronize_session=False)
     db.delete(user)
     create_notification(
         db,

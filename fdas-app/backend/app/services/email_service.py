@@ -23,6 +23,7 @@ SMTP_ENVIRONMENT_KEYS = {
 DEFAULT_SMTP_PORT = 587
 DEFAULT_SMTP_TIMEOUT_SECONDS = 10
 APPROVAL_EMAIL_SUBJECT = "FDAS Account Approved"
+PASSWORD_RESET_EMAIL_SUBJECT = "FDAS Password Reset"
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,13 @@ class EmailDeliveryResult:
 
 @dataclass(frozen=True)
 class ApprovalEmailContent:
+    subject: str
+    text_body: str
+    html_body: str
+
+
+@dataclass(frozen=True)
+class PasswordResetEmailContent:
     subject: str
     text_body: str
     html_body: str
@@ -157,25 +165,56 @@ def build_approval_email(
     )
 
 
-def send_approval_email(
+def build_password_reset_email(
     *,
-    operator_name: str,
-    recipient_email: str,
-    department_name: str | None,
-) -> EmailDeliveryResult:
+    user_name: str,
+    reset_url: str,
+    expiry_minutes: int = 20,
+) -> PasswordResetEmailContent:
+    text_body = (
+        f"Hello {user_name},\n\n"
+        "A password reset was requested for your FDAS account.\n\n"
+        f"Open this short-lived link to choose a new password:\n{reset_url}\n\n"
+        f"This link expires in {expiry_minutes} minutes and can be used only once.\n\n"
+        "If you did not request this, you may ignore this email. Your current password remains unchanged.\n\n"
+        "Regards,\nFDAS Administration"
+    )
+    safe_name = html.escape(user_name)
+    safe_url = html.escape(reset_url, quote=True)
+    html_body = f"""\
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;background:#f9f3ed;font-family:Arial,sans-serif;color:#4a2b0f;">
+    <div style="max-width:600px;margin:24px auto;background:#ffffff;border:1px solid #eadbd4;border-radius:12px;overflow:hidden;">
+      <div style="background:#c4533a;color:#ffffff;padding:22px 28px;">
+        <div style="font-size:24px;font-weight:700;">FDAS</div>
+        <div style="margin-top:4px;font-size:14px;">Secure Password Recovery</div>
+      </div>
+      <div style="padding:28px;line-height:1.6;">
+        <p>Hello {safe_name},</p>
+        <p>A password reset was requested for your FDAS account.</p>
+        <p><a href="{safe_url}" style="display:inline-block;padding:12px 18px;border-radius:9px;background:#c4533a;color:#ffffff;text-decoration:none;font-weight:700;">Reset FDAS Password</a></p>
+        <p>This single-use link expires in <strong>{expiry_minutes} minutes</strong>.</p>
+        <p style="color:#6f5b52;">If you did not request this, you may ignore this email. Your current password remains unchanged.</p>
+        <p>Regards,<br><strong>FDAS Administration</strong></p>
+      </div>
+    </div>
+  </body>
+</html>
+"""
+    return PasswordResetEmailContent(
+        subject=PASSWORD_RESET_EMAIL_SUBJECT,
+        text_body=text_body,
+        html_body=html_body,
+    )
+
+
+def _send_email(*, recipient_email: str, content: ApprovalEmailContent | PasswordResetEmailContent, purpose: str) -> EmailDeliveryResult:
     settings = load_smtp_settings()
     if not settings.configured:
-        return EmailDeliveryResult(
-            sent=False,
-            message="Approval email unavailable because SMTP is not configured.",
-        )
+        return EmailDeliveryResult(sent=False, message=f"{purpose} email unavailable because SMTP is not configured.")
 
     try:
-        content = build_approval_email(
-            operator_name=operator_name,
-            login_id=recipient_email,
-            department_name=department_name,
-        )
         message = EmailMessage()
         message["Subject"] = content.subject
         message["From"] = f"{settings.from_name} <{settings.from_email}>"
@@ -191,14 +230,33 @@ def send_approval_email(
             if settings.username:
                 smtp.login(settings.username, settings.password)
             smtp.send_message(message)
-    except Exception as exc:  # SMTP/network failures must not undo account approval.
-        logger.error("Approval email delivery failed (%s).", type(exc).__name__)
-        return EmailDeliveryResult(
-            sent=False,
-            message="Approval email could not be sent.",
-        )
+    except Exception as exc:
+        logger.error("%s email delivery failed (%s).", purpose, type(exc).__name__)
+        return EmailDeliveryResult(sent=False, message=f"{purpose} email could not be sent.")
 
-    return EmailDeliveryResult(
-        sent=True,
-        message="Approval email sent successfully.",
+    return EmailDeliveryResult(sent=True, message=f"{purpose} email sent successfully.")
+
+
+def send_approval_email(
+    *,
+    operator_name: str,
+    recipient_email: str,
+    department_name: str | None,
+) -> EmailDeliveryResult:
+    return _send_email(
+        recipient_email=recipient_email,
+        content=build_approval_email(
+            operator_name=operator_name,
+            login_id=recipient_email,
+            department_name=department_name,
+        ),
+        purpose="Approval",
+    )
+
+
+def send_password_reset_email(*, user_name: str, recipient_email: str, reset_url: str) -> EmailDeliveryResult:
+    return _send_email(
+        recipient_email=recipient_email,
+        content=build_password_reset_email(user_name=user_name, reset_url=reset_url),
+        purpose="Password reset",
     )

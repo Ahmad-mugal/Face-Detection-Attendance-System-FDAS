@@ -5261,3 +5261,169 @@ No production record, face template, embedding, enrollment image, attendance row
 ### Final Status
 
 **PASS — Phase 10.12D completed the persisted live notification center, backend recipient enforcement, authentication icon alignment, Manage Users cleanup, safe user/student deletion, transactional scoped CSV import, pending face-registration workflow, documentation, isolated browser verification, and all 26 unified backend suites. Production data and every recognition, liveness, authorization, SMTP, authentication-security, and attendance rule remain preserved. Final Documentation Synchronization & Implementation Freeze was not started and remains ON HOLD.**
+
+## FDAS Camera Preview Correction + Secure Forgot Password Recovery
+
+### Goal and Scope
+
+Correct the shared face-enrollment/deep-recovery camera preview so it presents a complete, undistorted head-and-shoulders view, and replace the dead Login `Forgot Password?` control with secure email and offline Admin-assisted recovery. The work is additive: it does not change enrollment sampling, face continuity, ArcFace recognition, attendance, liveness, department authorization, existing SMTP approval behavior, or existing records. Final Documentation Synchronization & Implementation Freeze remains ON HOLD.
+
+### Camera Audit and Correction
+
+New Student enrollment, existing-student Register Face, and Deep Enrollment Recovery all reuse `CameraEnrollment`, which delegates to `AutoFaceEnrollmentCapture`. The shared preview previously had only a shallow minimum height and rendered video with `object-cover`, producing a panoramic-looking region that could crop useful top/bottom camera content.
+
+The correction was made once in the shared component. The preview is now an approximately 4:3 surface, uses the available modal width, is capped at 520px visible height on normal desktop screens, and uses a viewport-derived width cap equivalent to a 62vh height cap. At narrow widths it scales naturally without document overflow, while the existing viewport-bounded modal body provides vertical scrolling.
+
+Video now uses centered `object-contain`; it is not stretched and does not crop the source frame. A non-interactive head-and-shoulders outline and `One face · Face camera · Keep forehead and chin visible` guidance were added. The hidden canvas still uses `video.videoWidth`/`video.videoHeight`, and its raw `drawImage` capture path is unchanged. Mirroring, raw frame bytes, exactly-one-face validation, continuity, 25-sample enrollment, deep validation, upload behavior, and recognition/liveness semantics were not changed.
+
+All shared Admin/User Add Student, existing Register Face, and Deep Enrollment Recovery routes inherit the correction.
+
+### Password-Recovery Architecture
+
+Two additive tables were added through the existing `Base.metadata.create_all()` startup path:
+
+- `password_reset_tokens`: user, HMAC-SHA256 credential hash, `EMAIL_LINK`/`ADMIN_CODE` type, expiry, one-time use, creator Admin where applicable, failed-attempt count, revocation, and creation time.
+- `password_reset_throttles`: HMAC privacy keys for normalized email and client identity plus creation time. Raw email addresses are not stored in this table.
+
+Reset tokens and Admin codes are never stored in plaintext. A replacement revokes the previous unused credential of the same mode. A successful reset atomically claims the still-valid credential with a conditional database update, hashes the new password with the existing PBKDF2 helper, consumes the credential, revokes the user's other outstanding reset credentials, and creates a private `PASSWORD_CHANGED` notification in the same transaction.
+
+### Public Email Recovery
+
+Login now links to `/forgot-password` with visible focus, Enter activation, and explicit Space activation. The page uses the shared login/registration email normalization and always returns:
+
+`If an eligible account exists for this email, password recovery instructions have been prepared.`
+
+Unknown, Pending, Rejected, Disabled, Approved, Admin, and SMTP states are not distinguished publicly. Approved and Disabled accounts are recovery-eligible; Pending and Rejected accounts cannot bypass approval. Disabled remains Disabled after reset. Admin may recover through the SMTP path but is not eligible for an operator Admin code.
+
+When SMTP is configured, an eligible account receives a cryptographically random `secrets.token_urlsafe(48)` credential whose HMAC-SHA256 hash alone is stored. It expires after 20 minutes, is single-use, and uses trusted `FDAS_FRONTEND_BASE_URL` rather than an untrusted Host header. The existing SMTP loader/transport is reused. Delivery runs after the public response; failed delivery revokes the token and creates a private Admin notification without logging the link, token, or raw exception.
+
+The branded email contains user name, reset purpose, short-lived link, expiry, and ignore-if-not-requested guidance. It never contains an old/new password, hash, SMTP secret, JWT, or internal exception. `/reset-password` reuses the registration password rules, requires matching New/Confirm fields, performs no automatic login, and returns to Login with the success message.
+
+Request throttling uses persistent local state suitable for this single-laptop deployment: a 60-second per-email cooldown, five requests per normalized email per 15 minutes, and twenty requests per client per 15 minutes. Only HMAC privacy keys are stored; rows older than 24 hours are removed during later requests. A 429 does not reveal account existence.
+
+### Offline Admin-Assisted Recovery
+
+Admin Manage Users exposes `Generate Password Recovery Code` for Operator rows, enabled only for Approved or Disabled Operators and protected by the existing Admin dependency. The custom confirmation instructs the Admin to verify the Operator physically/administratively, explains the 10-minute lifetime and one-time behavior, and states that the Admin never sees or selects the final password.
+
+The code contains 12 cryptographically random characters from an ambiguity-reduced Base32-style alphabet, is formatted `XXXX-XXXX-XXXX`, is shown once, and is stored only as an HMAC-SHA256 hash. A replacement revokes the previous unused Admin code. Five invalid attempts revoke it.
+
+The Operator uses `/reset-password/admin-code` with registered email, code, New Password, and Confirm New Password. The backend checks eligibility, Operator role, hash, expiry, revocation, use state, and attempt count. Recovery does not change status, role, department, or access scope.
+
+### UI and Accessibility
+
+`AuthRecoveryShell` gives Forgot Password, email reset, and Admin-code reset the existing FDAS authentication visual language. Pages reuse FDAS controls, fixed leading/trailing icon regions, separate password visibility controls, inline validation, safe API errors, responsive cards, and Back to Sign In. Admin confirmation and one-time-code presentation reuse the shared accessible modal/focus system; no native alert, confirm, or prompt is used.
+
+### Verification and Screenshot Evidence
+
+`app.verify_password_recovery` passed all 31 reported checks: generic public behavior, normalization, SMTP configured/unavailable behavior, hashed storage, response secrecy, throttling, valid/expired/used/random/replaced credentials, PBKDF2, new/old login behavior, Pending/Rejected blocking, Disabled preservation, Admin authorization, code expiry/attempt/single-use/replacement rules, role/department/scope preservation, security notification creation, throttle privacy, and matching-password schemas.
+
+The dedicated isolated Playwright suite passed all 9 grouped checks:
+
+- Forgot Password Enter/Space navigation and page load.
+- Identical known/unknown public result.
+- Responsive auth pages at 375, 480, 768, 1,024, 1,440, and 1,920px.
+- Mismatch validation and successful email-token reset without automatic login.
+- Safe invalid/expired combined error.
+- Admin physical-verification confirmation and code shown once.
+- Operator-selected final password through the Admin code.
+- Standard enrollment 4:3/contain/height/overflow checks at all six widths.
+- Deep Enrollment Recovery inheritance of the same preview behavior.
+
+Result: 9/9 groups, zero failures, zero page errors, zero native dialogs, zero unexpected console errors. One expected HTTP 400 is the deliberate invalid-token check. Browser credential/enrollment mutations used a copied database. Camera captures used a read-only real enrollment image as a deterministic canvas webcam fixture. Detector responses were deterministic only for unobstructed layout screenshots; the real backend exactly-one-face and continuity safeguards passed the unified Phase 10.6C verifier.
+
+Required camera evidence is stored in `frontend/output/playwright/password_recovery_camera`:
+
+- `06-standard-enrollment-desktop-1440.png`
+- `07-standard-enrollment-mobile-375.png`
+- `08-deep-recovery-desktop-1440.png`
+- `09-deep-recovery-mobile-375.png`
+
+Additional screenshots cover the generic Forgot Password result, successful email reset, Admin confirmation, one-time code, and Admin-code reset form. Manual review confirmed a complete undistorted head-and-shoulders view, readable guide, desktop height target, mobile containment, and scrollable modal content.
+
+Regression results:
+
+- `app.verify_password_recovery`: PASS, 31/31 reported checks.
+- `app.run_final_verification`: PASS, all 27 suites including this verifier.
+- Legacy Phase 3's seeded `operator.cs@fdas.local` positive fixture is normalized to Approved only in the runner's disposable copy because production intentionally has it Disabled.
+- Phase 5 browser smoke: PASS, 35/35 functional scenarios, zero page errors/native dialogs; nine console entries are deliberate error paths.
+- Phase 10.12B browser suite: PASS, 11/11 groups.
+- Phase 10.12C visual suite: PASS, 43/43 checks.
+- Phase 10.12D browser suite: PASS, 8/8 groups, zero page errors/native dialogs/unexpected console errors.
+- `npm.cmd run lint`: PASS.
+- `npm.cmd run build`: PASS.
+- Python `compileall`: PASS.
+- Controlled production startup: PASS; `/health` returned `status=ok`, `database=connected`, and `/api/info` reported version `1.0.5`.
+
+Every mutation-capable test used a disposable database/storage copy. The dedicated runner disables SMTP so tests cannot send real mail. Temporary workspaces/processes were removed.
+
+### Files Changed
+
+Created:
+
+- `backend/app/models/password_reset.py`
+- `backend/app/services/password_recovery.py`
+- `backend/app/verify_password_recovery.py`
+- `backend/scripts/run_password_recovery_camera_verification.ps1`
+- `backend/scripts/run_isolated_frontend_regressions.ps1`
+- `frontend/scripts/password-recovery-camera-smoke.mjs`
+- `frontend/src/components/AuthRecoveryShell.jsx`
+- `frontend/src/components/RecoveryPasswordFields.jsx`
+- `frontend/src/pages/ForgotPasswordPage.jsx`
+- `frontend/src/pages/ResetPasswordPage.jsx`
+- `frontend/src/pages/AdminCodeResetPage.jsx`
+
+Modified:
+
+- `backend/.env.example`
+- `backend/app/config.py`
+- `backend/app/models/__init__.py`
+- `backend/app/routers/admin_users.py`
+- `backend/app/routers/auth.py`
+- `backend/app/run_final_verification.py`
+- `backend/app/schemas/auth.py`
+- `backend/app/services/email_service.py`
+- `frontend/package.json`
+- `frontend/src/App.jsx`
+- `frontend/src/api/adminUsersApi.js`
+- `frontend/src/api/authApi.js`
+- `frontend/src/components/AutoFaceEnrollmentCapture.jsx`
+- `frontend/src/index.css`
+- `frontend/src/pages/LoginPage.jsx`
+- `frontend/src/pages/admin/AdminUsers.jsx`
+- `frontend/src/validation/authValidation.js`
+- `docs/development_journey.md`
+
+### Production Data Preservation
+
+Baseline and final fingerprints for every existing application table are identical. The only database change is creation of two empty additive recovery tables during controlled version 1.0.5 startup.
+
+| Inventory | Before | After | Unchanged SHA-256 |
+| --- | ---: | ---: | --- |
+| Users | 6 | 6 | `2926517de9c5aaffa7f3f505b96f644f3eaee9c58c2cc82571467143d1c406ee` |
+| Students | 21 | 21 | `aed05825b4997fe882b3a191d30cc8bb96b0ac80829eb02d651431d19aaca0e8` |
+| Attendance records | 23 | 23 | `acaa4d3551a52277dd926b38df0994e83172e66187aead48457ddcbed1931d44` |
+| Face templates | 4,708 | 4,708 | `019e3653a20b60a8ef2f790d880222b09fa63a65b0c6788a7c3113de49127dd5` |
+| ArcFace embeddings | 171 | 171 | `e45cb3508f8118ce154c3365dbec4c4f424bc22e1cbd4582b96301cb393e41e2` |
+| Notifications | 2 | 2 | `40e9a32ad3b28e1502571e1b1a82834bb82a67d0b79cae6e7827fcb2d2561291` |
+| Storage files | 15,549 | 15,549 | `571540a1ad23ede87d4480f875243c757db210a11c2fd6f01a73dd4bdba797fa` |
+| Storage bytes | 27,447,638 | 27,447,638 | same manifest |
+
+`password_reset_tokens` and `password_reset_throttles` contain 0 production rows. SQLite integrity is `ok`. The database grew from 4,431,872 to 4,481,024 bytes solely for empty tables/indexes; its new file hash is `d17f4ef3c3f8fe12613458caef2924b8fdff34b129c55f46c9f4934a9285a2fd`.
+
+No production user, student, attendance row, face template, ArcFace embedding, notification, or storage file was reset, reseeded, deleted, or rewritten.
+
+### Preserved Security and Attendance Configuration
+
+`FACE_MATCH_THRESHOLD` remains `0.75`. Production recognition remains InsightFace `buffalo_l` / `arcface_v1`, deep threshold `0.85`, identity margin `0.07`, three fresh queries, minimum 2-of-3 consensus, active deep attendance, and no legacy automatic fallback. Exactly-one-face/continuity safeguards, 25-sample enrollment, Deep Enrollment Recovery rules, MOVE_CLOSER-only liveness, `0.12` area growth, department authorization, duplicate prevention, session logic, SMTP approval behavior, PBKDF2 (120,000 iterations), and HS256 JWT configuration are unchanged.
+
+### Known Limitations and Warnings
+
+- Authentication uses stateless one-hour JWTs without a revocation store. A reset cannot immediately revoke an already-issued token; it remains valid until expiry. No unsafe partial mechanism was added.
+- Email recovery depends on configured SMTP; the Admin-assisted code is the offline fallback.
+- `FDAS_FRONTEND_BASE_URL` defaults to `http://127.0.0.1:5173` and must be explicitly configured for another origin.
+- Throttling is database-backed for one local FDAS instance, not distributed.
+- Vite retains the non-blocking large-bundle warning (905.43 kB minified, 258.64 kB gzip). Existing SQLAlchemy subquery and InsightFace/scikit-image deprecation warnings remain. The approval-email `OSError` in verification is an intentional mocked failure.
+
+### Final Status
+
+**PASS — the shared camera preview now provides a responsive, uncropped 4:3 enrollment/recovery view, and FDAS now has secure generic email recovery plus a hashed, expiring, single-use Admin-assisted offline recovery code. All dedicated, unified, frontend, and isolated browser regressions pass; existing production data and protected recognition/liveness/attendance/security configuration are preserved. Final Documentation Synchronization & Implementation Freeze was not started and remains ON HOLD.**

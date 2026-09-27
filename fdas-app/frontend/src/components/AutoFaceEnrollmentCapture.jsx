@@ -263,23 +263,30 @@ export default function AutoFaceEnrollmentCapture({ studentId, studentName, onCo
         </span>
       </div>
 
-      <div className="relative flex items-center justify-center min-h-[240px]" style={{ backgroundColor: '#221a16' }}>
-        <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover" muted playsInline />
-        <canvas ref={canvasRef} className="hidden" />
-        <div className="absolute inset-4 rounded-xl border-2 border-dashed pointer-events-none" style={{ borderColor: active ? '#D4A017' : '#55433b' }} />
-        {!streamRef.current && (
-          <div className="text-center p-8 relative z-10">
-            <Icon name={status === 'complete' ? 'check_circle' : 'videocam'} size={64} className="block mx-auto mb-3" style={{ color: status === 'complete' ? '#15803d' : '#887369' }} />
-            <p className="text-sm font-bold" style={{ color: status === 'complete' ? '#dcfce7' : '#887369' }}>
-              {status === 'complete' ? 'Capturing complete' : 'Camera preview'}
-            </p>
+      <div className="flex justify-center" style={{ backgroundColor: '#221a16' }}>
+        <div className="fdas-enrollment-preview relative flex items-center justify-center overflow-hidden" data-enrollment-preview>
+          <video ref={videoRef} className="absolute inset-0 h-full w-full object-contain object-center" muted playsInline />
+          <canvas ref={canvasRef} className="hidden" />
+          <div className="absolute inset-4 rounded-xl border-2 border-dashed pointer-events-none" style={{ borderColor: active ? '#D4A017' : '#806b62' }} />
+          <div className="fdas-enrollment-head-guide" aria-hidden="true">
+            <span className="fdas-enrollment-head-outline" />
+            <span className="fdas-enrollment-shoulder-outline" />
           </div>
-        )}
-        {['stabilizing', 'paused'].includes(status) && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/45">
-            <span className="max-w-md px-6 text-center text-lg font-black text-white">{faceGuard.message}</span>
-          </div>
-        )}
+          <div className="fdas-enrollment-guide-copy" aria-hidden="true">One face · Face camera · Keep forehead and chin visible</div>
+          {!streamRef.current && (
+            <div className="text-center p-8 relative z-10">
+              <Icon name={status === 'complete' ? 'check_circle' : 'videocam'} size={64} className="block mx-auto mb-3" style={{ color: status === 'complete' ? '#15803d' : '#887369' }} />
+              <p className="text-sm font-bold" style={{ color: status === 'complete' ? '#dcfce7' : '#bca79e' }}>
+                {status === 'complete' ? 'Capturing complete' : 'Camera preview'}
+              </p>
+            </div>
+          )}
+          {['stabilizing', 'paused'].includes(status) && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/45">
+              <span className="max-w-md px-6 text-center text-lg font-black text-white">{faceGuard.message}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-3" style={{ backgroundColor: '#FFF0E6' }}>

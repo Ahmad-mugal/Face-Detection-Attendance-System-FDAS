@@ -3,7 +3,7 @@ import CSVExportButton from '../../components/CSVExportButton'
 import { adminUsersApi } from '../../api/adminUsersApi'
 import { departmentsApi } from '../../api/departmentsApi'
 import { getApiError } from '../../api/client'
-import { ConfirmDialog, FormDialog } from '../../components/ui/Modal'
+import { ConfirmDialog, FormDialog, Modal } from '../../components/ui/Modal'
 import Toast from '../../components/ui/Toast'
 import Icon from '../../components/Icon'
 import Badge from '../../components/ui/Badge'
@@ -21,6 +21,7 @@ export default function AdminUsers() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [messageTone, setMessageTone] = useState('success')
+  const [recoveryResult, setRecoveryResult] = useState(null)
 
   const loadData = async () => {
     setLoading(true)
@@ -131,6 +132,34 @@ export default function AdminUsers() {
     }
   }
 
+  const generateRecoveryCode = async user => {
+    setSaving(true)
+    setError('')
+    try {
+      const result = await adminUsersApi.generatePasswordRecoveryCode(user.userId)
+      setRecoveryResult({ ...result, user })
+      setMessage('One-time password recovery code generated.')
+      setMessageTone('success')
+    } catch (err) {
+      setError(getApiError(err, 'Unable to generate a password recovery code.'))
+    } finally {
+      setSaving(false)
+      setActionDialog(null)
+    }
+  }
+
+  const copyRecoveryCode = async () => {
+    if (!recoveryResult?.recoveryCode) return
+    try {
+      await navigator.clipboard.writeText(recoveryResult.recoveryCode)
+      setMessage('Recovery code copied. Share it only with the verified Operator.')
+      setMessageTone('info')
+    } catch {
+      setMessage('Copy was blocked by the browser. Select the code and copy it manually.')
+      setMessageTone('warning')
+    }
+  }
+
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
       <PageHeader
@@ -198,6 +227,18 @@ export default function AdminUsers() {
                             <Icon name="forward_to_inbox" size={17} />
                           </button>
                         )}
+                        {user.role === 'User' && (
+                          <button
+                            type="button"
+                            onClick={() => setActionDialog({ type: 'recovery', user })}
+                            disabled={!['Approved', 'Disabled'].includes(user.status)}
+                            className="fdas-icon-button fdas-icon-button-sm"
+                            title={['Approved', 'Disabled'].includes(user.status) ? 'Generate password recovery code' : 'Recovery requires an approved or disabled account'}
+                            aria-label={`Generate password recovery code for ${user.fullName}`}
+                          >
+                            <Icon name="verified_user" size={17} />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setActionDialog({ type: 'delete', user })}
@@ -250,6 +291,34 @@ export default function AdminUsers() {
       <ConfirmDialog open={actionDialog?.type === 'delete'} onClose={() => setActionDialog(null)} onConfirm={() => deleteUser(actionDialog.user)} title="Delete User?" description={actionDialog?.user ? `${actionDialog.user.fullName} — ${actionDialog.user.email}` : ''} confirmLabel="Delete User" destructive busy={saving}>
         <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#ffdad6', color: '#93000a' }}>Are you sure you want to permanently delete this user? This action cannot be undone. Accounts with historical dependencies will remain unchanged and should be disabled instead.</p>
       </ConfirmDialog>
+
+      <ConfirmDialog open={actionDialog?.type === 'recovery'} onClose={() => setActionDialog(null)} onConfirm={() => generateRecoveryCode(actionDialog.user)} title="Generate Password Recovery Code?" description={actionDialog?.user ? `${actionDialog.user.fullName} — ${actionDialog.user.email}` : ''} confirmLabel="Generate Code" busy={saving}>
+        <div className="space-y-3 rounded-xl border p-4 text-sm" style={{ backgroundColor: '#FFF0E6', borderColor: '#ebcf7b', color: '#55433b' }}>
+          <p className="font-bold" style={{ color: '#4A2B0F' }}>Verify the Operator's identity before continuing.</p>
+          <p>The generated code expires in 10 minutes, works once, and is shown only once. Give it directly to the verified Operator.</p>
+          <p>The Operator chooses their own final password; administrators never see or set it.</p>
+        </div>
+      </ConfirmDialog>
+
+      <Modal
+        open={Boolean(recoveryResult)}
+        onClose={() => setRecoveryResult(null)}
+        title="One-Time Recovery Code"
+        description={recoveryResult ? `${recoveryResult.user.fullName} — ${recoveryResult.user.email}` : ''}
+        size="md"
+        footer={<button type="button" onClick={() => setRecoveryResult(null)} className="fdas-button fdas-button-primary">Done</button>}
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border p-4" style={{ backgroundColor: '#fffdfb', borderColor: '#dbc1b7' }}>
+            <label htmlFor="generatedRecoveryCode" className="fdas-label">Recovery code</label>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <input id="generatedRecoveryCode" readOnly value={recoveryResult?.recoveryCode || ''} className="fdas-input flex-1 text-center font-mono text-lg font-black tracking-widest" />
+              <button type="button" onClick={copyRecoveryCode} className="fdas-button fdas-button-secondary">Copy Code</button>
+            </div>
+          </div>
+          <p className="text-sm leading-6" style={{ color: '#55433b' }}>This code expires at {recoveryResult ? new Date(recoveryResult.expiresAt).toLocaleTimeString() : ''}. It cannot be viewed again after this dialog closes. Do not email it or store it in notes.</p>
+        </div>
+      </Modal>
     </section>
   )
 }

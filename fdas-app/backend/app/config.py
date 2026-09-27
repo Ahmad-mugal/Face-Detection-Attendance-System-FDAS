@@ -24,8 +24,9 @@ CORS_ALLOWED_ORIGINS.extend(
 )
 
 APP_NAME = "FDAS Backend"
-APP_VERSION = "1.0.4"
-APP_PHASE = "Phase 10.12D - Notifications, Safe Deletion, and Student Import"
+APP_VERSION = "1.0.5"
+APP_PHASE = "Camera Preview Correction and Secure Password Recovery"
+FRONTEND_BASE_URL = os.getenv("FDAS_FRONTEND_BASE_URL", "http://127.0.0.1:5173").strip().rstrip("/")
 FACE_MATCH_THRESHOLD = 0.75
 FACE_MATCH_AGGREGATION = "maximum"
 MIN_IDENTITY_MARGIN = 0.05

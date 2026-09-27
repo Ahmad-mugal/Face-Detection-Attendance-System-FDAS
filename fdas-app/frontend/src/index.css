@@ -470,6 +470,63 @@ svg {
 .fdas-auth-input-trailing { padding-right: 3.25rem !important; }
 .fdas-auth-trailing-action { position: absolute; z-index: 2; inset-block: 0; right: 0; display: grid; width: 3rem; place-items: center; color: #934619; }
 
+.fdas-enrollment-preview {
+  width: min(100%, 43.333rem, 82.666vh);
+  aspect-ratio: 4 / 3;
+  max-height: 520px;
+  background: #17110f;
+}
+
+.fdas-enrollment-head-guide {
+  position: absolute;
+  inset: 8% 22% 11%;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.fdas-enrollment-head-outline {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 52%;
+  height: 67%;
+  transform: translateX(-50%);
+  border: 2px solid rgba(255, 255, 255, 0.64);
+  border-radius: 48% 48% 45% 45%;
+  box-shadow: 0 0 0 1px rgba(74, 43, 15, 0.24);
+}
+
+.fdas-enrollment-shoulder-outline {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 92%;
+  height: 39%;
+  transform: translateX(-50%);
+  border: 2px solid rgba(255, 255, 255, 0.56);
+  border-bottom: 0;
+  border-radius: 50% 50% 0 0;
+}
+
+.fdas-enrollment-guide-copy {
+  position: absolute;
+  z-index: 6;
+  right: 1.25rem;
+  bottom: 1.1rem;
+  left: 1.25rem;
+  border-radius: 9999px;
+  padding: 0.42rem 0.75rem;
+  background: rgba(23, 17, 15, 0.72);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+}
+
 .fdas-state {
   display: flex;
   min-height: 11rem;

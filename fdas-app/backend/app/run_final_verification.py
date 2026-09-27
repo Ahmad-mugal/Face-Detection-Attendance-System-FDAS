@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import socket
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -68,6 +69,7 @@ VERIFIERS: tuple[VerifierSpec, ...] = (
     VerifierSpec("Phase 10.12A Approval Email", "app.verify_phase10_12a"),
     VerifierSpec("Phase 10.12B SMTP/UI Infrastructure", "app.verify_phase10_12b"),
     VerifierSpec("Phase 10.12D Notifications/Delete/Import", "app.verify_phase10_12d"),
+    VerifierSpec("Camera Preview & Password Recovery", "app.verify_password_recovery"),
 )
 
 
@@ -103,7 +105,17 @@ def prepare_isolated_backend(temp_root: Path) -> Path:
     database_source = SOURCE_BACKEND_DIR / "fdas_local.db"
     if not database_source.is_file():
         raise FileNotFoundError(f"Active database was not found at {database_source}")
-    shutil.copy2(database_source, isolated_backend / "fdas_local.db")
+    isolated_database = isolated_backend / "fdas_local.db"
+    shutil.copy2(database_source, isolated_database)
+
+    # Legacy Phase 3 uses this seeded operator as its positive RBAC fixture.
+    # Normalize only the disposable copy because the real account may be
+    # intentionally disabled in production.
+    with sqlite3.connect(isolated_database) as connection:
+        connection.execute(
+            "UPDATE users SET status = 'Approved' WHERE email = 'operator.cs@fdas.local'"
+        )
+        connection.commit()
 
     gitignore_source = SOURCE_BACKEND_DIR / ".gitignore"
     if gitignore_source.is_file():

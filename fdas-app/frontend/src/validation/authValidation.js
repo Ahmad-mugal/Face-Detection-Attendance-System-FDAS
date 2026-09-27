@@ -10,6 +10,21 @@ export function normalizeEmail(value) {
   return value.trim().toLowerCase()
 }
 
+export function validateEmail(value) {
+  const email = normalizeEmail(value)
+  if (!email) return 'Email is required.'
+  if (email.length > EMAIL_MAX_LENGTH) return `Email must be at most ${EMAIL_MAX_LENGTH} characters long.`
+  if (!emailPattern.test(email)) return 'Enter a valid email address.'
+  return ''
+}
+
+export function validatePassword(value) {
+  if (!value || !value.trim()) return 'Password is required.'
+  if (value.length < PASSWORD_MIN_LENGTH) return `Password must be at least ${PASSWORD_MIN_LENGTH} characters long.`
+  if (value.length > PASSWORD_MAX_LENGTH) return `Password must be at most ${PASSWORD_MAX_LENGTH} characters long.`
+  return ''
+}
+
 export function validateRegistrationForm(form) {
   const values = {
     fullName: form.fullName.trim(),
@@ -27,21 +42,11 @@ export function validateRegistrationForm(form) {
     errors.fullName = `Full name must be at most ${FULL_NAME_MAX_LENGTH} characters long.`
   }
 
-  if (!values.email) {
-    errors.email = 'Email is required.'
-  } else if (values.email.length > EMAIL_MAX_LENGTH) {
-    errors.email = `Email must be at most ${EMAIL_MAX_LENGTH} characters long.`
-  } else if (!emailPattern.test(values.email)) {
-    errors.email = 'Enter a valid email address.'
-  }
+  errors.email = validateEmail(values.email)
+  if (!errors.email) delete errors.email
 
-  if (!values.password || !values.password.trim()) {
-    errors.password = 'Password is required.'
-  } else if (values.password.length < PASSWORD_MIN_LENGTH) {
-    errors.password = `Password must be at least ${PASSWORD_MIN_LENGTH} characters long.`
-  } else if (values.password.length > PASSWORD_MAX_LENGTH) {
-    errors.password = `Password must be at most ${PASSWORD_MAX_LENGTH} characters long.`
-  }
+  errors.password = validatePassword(values.password)
+  if (!errors.password) delete errors.password
 
   if (!Number.isInteger(values.requestedDepartmentId) || values.requestedDepartmentId <= 0) {
     errors.requestedDepartmentId = 'Please select a department.'

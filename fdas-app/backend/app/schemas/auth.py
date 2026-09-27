@@ -1,7 +1,7 @@
 from datetime import datetime
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 FULL_NAME_MIN_LENGTH = 2
@@ -155,4 +155,57 @@ class EmailCapabilityResponse(BaseModel):
 
 class DeleteUserResponse(BaseModel):
     deleted: bool
+    message: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+    _normalize_email = field_validator("email")(normalize_email)
+
+
+class PasswordResetRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=256)
+    newPassword: str
+    confirmPassword: str
+
+    @field_validator("newPassword", "confirmPassword")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        return RegisterRequest.validate_password(value)
+
+    @model_validator(mode="after")
+    def validate_confirmation(self):
+        if self.newPassword != self.confirmPassword:
+            raise ValueError("New password and confirmation do not match.")
+        return self
+
+
+class AdminCodePasswordResetRequest(BaseModel):
+    email: str
+    recoveryCode: str = Field(min_length=12, max_length=20)
+    newPassword: str
+    confirmPassword: str
+
+    _normalize_email = field_validator("email")(normalize_email)
+
+    @field_validator("newPassword", "confirmPassword")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        return RegisterRequest.validate_password(value)
+
+    @model_validator(mode="after")
+    def validate_confirmation(self):
+        if self.newPassword != self.confirmPassword:
+            raise ValueError("New password and confirmation do not match.")
+        return self
+
+
+class GenericPasswordRecoveryResponse(BaseModel):
+    message: str
+
+
+class AdminRecoveryCodeResponse(BaseModel):
+    recoveryCode: str
+    expiresAt: datetime
     message: str
