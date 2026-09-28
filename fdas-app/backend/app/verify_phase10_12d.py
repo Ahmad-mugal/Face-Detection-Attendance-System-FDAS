@@ -22,6 +22,7 @@ from app.models.role import Role
 from app.models.student import Student
 from app.models.user import User
 from app.routers import admin_users
+from app.routers.notifications import to_notification_read
 from app.routers.students import to_student_read
 from app.services.face_enrollment import student_face_registered
 from app.services.notifications import (
@@ -145,12 +146,16 @@ def main() -> None:
             private_notice = create_notification(db, recipient_user_id=cs_operator.userId, type="PRIVATE_TEST", severity="ACTION_REQUIRED", title="Private update", message="Private operator update.", action_url="/account/profile", commit=True)
 
             results["notification_creation"] = db.query(Notification).count() == 4
+            created_transport = to_notification_read(private_notice).model_dump(mode="json")
+            results["notification_created_at_serialized_as_utc"] = created_transport["createdAt"].endswith("Z")
             results["admin_notification_scope"] = {item.notificationId for item in list_notifications(db, admin)} == {admin_notice.notificationId}
             results["operator_department_scope"] = {item.notificationId for item in list_notifications(db, cs_operator)} == {cs_notice.notificationId, private_notice.notificationId}
             results["all_departments_operator_scope"] = {item.notificationId for item in list_notifications(db, all_operator)} == {cs_notice.notificationId, it_notice.notificationId}
             results["unauthorized_notification_retrieval_blocked"] = get_visible_notification(db, it_operator, private_notice.notificationId) is None
             results["unread_count"] = unread_count(db, cs_operator) == 2
             mark_notification_read(db, private_notice)
+            read_transport = to_notification_read(private_notice).model_dump(mode="json")
+            results["notification_read_at_serialized_as_utc"] = read_transport["readAt"].endswith("Z")
             results["mark_read"] = unread_count(db, cs_operator) == 1
             results["mark_all_read"] = mark_all_notifications_read(db, cs_operator) == 1 and unread_count(db, cs_operator) == 0
 

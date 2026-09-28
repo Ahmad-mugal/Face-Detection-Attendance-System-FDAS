@@ -9,6 +9,21 @@ from app.services.departments import ensure_department_access, get_department_or
 VALID_TIME_WINDOW_STATUSES = {"Active", "Inactive"}
 
 
+def deactivate_other_active_time_windows(
+    db: Session,
+    departmentId: int,
+    *,
+    exclude_window_id: int | None = None,
+) -> int:
+    query = db.query(AttendanceTimeWindow).filter(
+        AttendanceTimeWindow.departmentId == departmentId,
+        AttendanceTimeWindow.status == "Active",
+    )
+    if exclude_window_id is not None:
+        query = query.filter(AttendanceTimeWindow.windowId != exclude_window_id)
+    return query.update({AttendanceTimeWindow.status: "Inactive"}, synchronize_session=False)
+
+
 def get_time_window_or_404(db: Session, windowId: int) -> AttendanceTimeWindow:
     window = db.query(AttendanceTimeWindow).filter(AttendanceTimeWindow.windowId == windowId).one_or_none()
     if window is None:

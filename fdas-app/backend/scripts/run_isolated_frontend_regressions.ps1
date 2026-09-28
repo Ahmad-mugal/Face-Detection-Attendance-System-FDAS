@@ -1,3 +1,5 @@
+param([string[]]$Only)
+
 $ErrorActionPreference = 'Stop'
 
 $backendRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
@@ -14,11 +16,18 @@ $backendProcess = $null
 $isolatedRoots = [System.Collections.Generic.List[string]]::new()
 
 $suites = @(
-    @{ Name = 'Phase 5 browser smoke'; Script = 'scripts\phase5-smoke.mjs'; Flag = 'FDAS_SMOKE_ISOLATED' },
-    @{ Name = 'Phase 10.12B browser smoke'; Script = 'scripts\phase10_12b-smoke.mjs'; Flag = 'FDAS_PHASE10_12B_ISOLATED' },
-    @{ Name = 'Phase 10.12C visual regression'; Script = 'scripts\phase10_12c-visual.mjs'; Flag = 'FDAS_PHASE10_12C_CAPTURE' },
-    @{ Name = 'Phase 10.12D browser smoke'; Script = 'scripts\phase10_12d-smoke.mjs'; Flag = 'FDAS_PHASE10_12D_ISOLATED' }
+    @{ Key = 'phase5'; Name = 'Phase 5 browser smoke'; Script = 'scripts\phase5-smoke.mjs'; Flag = 'FDAS_SMOKE_ISOLATED' },
+    @{ Key = 'phase10.12b'; Name = 'Phase 10.12B browser smoke'; Script = 'scripts\phase10_12b-smoke.mjs'; Flag = 'FDAS_PHASE10_12B_ISOLATED' },
+    @{ Key = 'phase10.12c'; Name = 'Phase 10.12C visual regression'; Script = 'scripts\phase10_12c-visual.mjs'; Flag = 'FDAS_PHASE10_12C_CAPTURE' },
+    @{ Key = 'phase10.12d'; Name = 'Phase 10.12D browser smoke'; Script = 'scripts\phase10_12d-smoke.mjs'; Flag = 'FDAS_PHASE10_12D_ISOLATED' },
+    @{ Key = 'ui-cleanup'; Name = 'UI cleanup and print browser smoke'; Script = 'scripts\ui-cleanup-print-smoke.mjs'; Flag = 'FDAS_UI_CLEANUP_ISOLATED' }
 )
+
+if ($Only.Count -gt 0) {
+    $unknownSuites = @($Only | Where-Object { $_ -notin $suites.Key })
+    if ($unknownSuites.Count -gt 0) { throw "Unknown browser suite key(s): $($unknownSuites -join ', ')" }
+    $suites = @($suites | Where-Object { $_.Key -in $Only })
+}
 
 if (-not (Test-Path -LiteralPath $pythonPath -PathType Leaf)) { throw "Missing FDAS interpreter: $pythonPath" }
 if (-not (Test-Path -LiteralPath $viteScript -PathType Leaf)) { throw "Missing Vite entrypoint: $viteScript" }

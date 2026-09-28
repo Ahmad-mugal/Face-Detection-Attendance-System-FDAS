@@ -188,6 +188,47 @@ def main() -> None:
         },
         token=admin_token,
     )
+    created_window_id = created_window.get("windowId") if isinstance(created_window, dict) else None
+    edit_window_status, edited_window = request(
+        "PATCH",
+        f"/api/attendance-time-windows/{created_window_id}",
+        {
+            "departmentId": cs_department_id,
+            "startTime": "08:45:00",
+            "endTime": "09:15:00",
+            "graceMinutes": 17,
+            "status": "Active",
+        },
+        token=admin_token,
+    )
+    create_inactive_window_status, inactive_window = request(
+        "POST",
+        "/api/attendance-time-windows",
+        {
+            "departmentId": cs_department_id,
+            "startTime": "10:30:00",
+            "endTime": "11:00:00",
+            "graceMinutes": 17,
+            "status": "Inactive",
+        },
+        token=admin_token,
+    )
+    inactive_window_id = inactive_window.get("windowId") if isinstance(inactive_window, dict) else None
+    activate_window_status, activated_window = request(
+        "PATCH",
+        f"/api/attendance-time-windows/{inactive_window_id}/activate",
+        token=admin_token,
+    )
+    active_windows_status, active_windows = request("GET", "/api/attendance-time-windows", token=admin_token)
+    active_cs_windows = [
+        window for window in active_windows
+        if window.get("departmentId") == cs_department_id and window.get("status") == "Active"
+    ] if isinstance(active_windows, list) else []
+    deactivate_window_status, deactivated_window = request(
+        "PATCH",
+        f"/api/attendance-time-windows/{inactive_window_id}/deactivate",
+        token=admin_token,
+    )
     operator_window_create_status, _ = request(
         "POST",
         "/api/attendance-time-windows",
@@ -232,6 +273,11 @@ def main() -> None:
         "disable_student": disable_student_status == 200 and isinstance(disabled_student, dict) and disabled_student.get("status") == "Disabled",
         "enable_student": enable_student_status == 200 and isinstance(enabled_student, dict) and enabled_student.get("status") == "Active",
         "create_time_window": create_window_status == 201 and isinstance(created_window, dict),
+        "edit_time_window": edit_window_status == 200 and isinstance(edited_window, dict) and edited_window.get("startTime") == "08:45:00",
+        "create_inactive_time_window": create_inactive_window_status == 201 and isinstance(inactive_window, dict),
+        "activate_time_window": activate_window_status == 200 and isinstance(activated_window, dict) and activated_window.get("status") == "Active",
+        "one_active_time_window_per_department": active_windows_status == 200 and len(active_cs_windows) == 1 and active_cs_windows[0].get("windowId") == inactive_window_id,
+        "deactivate_time_window": deactivate_window_status == 200 and isinstance(deactivated_window, dict) and deactivated_window.get("status") == "Inactive",
         "operator_own_time_windows_only": operator_own_windows_only,
         "operator_time_window_create_blocked": operator_window_create_status == 403,
         "class_filters": filtered_classes_status == 200 and isinstance(filtered_classes, list) and len(filtered_classes) >= 1,

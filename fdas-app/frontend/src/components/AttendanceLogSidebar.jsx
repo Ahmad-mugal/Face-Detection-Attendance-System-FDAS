@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom'
  *   records - Array of { id, studentName, rollNumber, markedAt, confidence }
  *   title   - Sidebar title
  */
-export default function AttendanceLogSidebar({ records = [], title = "Today's Log", actionPath, actionLabel = 'Open Analytics' }) {
+export default function AttendanceLogSidebar({ records = [], title = "Today's Log", actionPath, actionLabel = 'Open Reports' }) {
   return (
     <div
       className="fdas-card border-t-[3px] flex flex-col overflow-hidden"

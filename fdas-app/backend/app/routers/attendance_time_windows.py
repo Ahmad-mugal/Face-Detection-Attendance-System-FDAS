@@ -7,6 +7,7 @@ from app.models.attendance_time_window import AttendanceTimeWindow
 from app.models.user import User
 from app.schemas.academic import AttendanceTimeWindowCreate, AttendanceTimeWindowRead, AttendanceTimeWindowUpdate
 from app.services.attendance_time_windows import (
+    deactivate_other_active_time_windows,
     ensure_time_window_access,
     get_time_window_or_404,
     scoped_time_window_query,
@@ -56,6 +57,8 @@ def create_time_window(payload: AttendanceTimeWindowCreate, _: User = Depends(re
         graceMinutes=payload.graceMinutes,
         status=payload.status,
     )
+    if payload.status == "Active":
+        deactivate_other_active_time_windows(db, payload.departmentId)
     db.add(window)
     db.commit()
     db.refresh(window)
@@ -82,6 +85,8 @@ def update_time_window(
     if payload.status is not None:
         validate_time_window_status(payload.status)
         window.status = payload.status
+    if window.status == "Active":
+        deactivate_other_active_time_windows(db, window.departmentId, exclude_window_id=window.windowId)
     db.commit()
     db.refresh(window)
     return to_time_window_read(window)
@@ -90,6 +95,7 @@ def update_time_window(
 @router.patch("/{windowId}/activate", response_model=AttendanceTimeWindowRead)
 def activate_time_window(windowId: int, _: User = Depends(require_admin), db: Session = Depends(get_db)):
     window = get_time_window_or_404(db, windowId)
+    deactivate_other_active_time_windows(db, window.departmentId, exclude_window_id=window.windowId)
     window.status = "Active"
     db.commit()
     db.refresh(window)

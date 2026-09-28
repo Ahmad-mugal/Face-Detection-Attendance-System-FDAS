@@ -77,6 +77,21 @@ async function capture(name) {
   await page.screenshot({ path: path.join(outputDir, `${name}.png`), animations: 'disabled' })
 }
 
+async function assertStudentIdColumn() {
+  const table = page.locator('[data-student-table]')
+  await table.waitFor({ state: 'visible' })
+  const headings = (await table.locator('thead th').allTextContents()).map(value => value.trim())
+  if (headings[0] !== 'Student ID' || headings[1] !== 'Name') {
+    throw new Error(`unexpected leading student columns: ${headings.slice(0, 2).join(', ')}`)
+  }
+  if (!headings.includes('Roll No.')) throw new Error('Roll No. column is missing')
+
+  const displayedIds = (await table.locator('[data-student-id]').allTextContents()).map(value => value.trim())
+  if (!displayedIds.length) throw new Error('no database student IDs were rendered')
+  const invalidId = displayedIds.find(value => !/^#\d+$/.test(value))
+  if (invalidId) throw new Error(`student ID is not displayed as #<studentId>: ${invalidId}`)
+}
+
 if (captureMode === 'before') {
   await login('admin@fdas.local', 'Admin@12345', '/admin/dashboard')
   await openRoute('/admin/users', /manage users/i)
@@ -92,12 +107,32 @@ const adminViews = [
   { slug: 'admin-users', route: '/admin/users', heading: /manage users/i, primary: /export csv/i },
   { slug: 'admin-classes', route: '/admin/classes', heading: /manage classes/i, primary: /add new class/i },
   { slug: 'admin-attendance', route: '/admin/attendance/live', heading: /attendance marking/i, primary: /start session/i },
-  { slug: 'admin-analytics', route: '/admin/analytics', heading: /attendance analytics/i, primary: /export csv/i },
+  { slug: 'admin-reports', route: '/admin/analytics', heading: /attendance reports/i, primary: /export csv/i },
   { slug: 'account-profile', route: '/account/profile', heading: /account profile/i, primary: /save changes/i },
   { slug: 'account-preferences', route: '/account/preferences', heading: /account preferences/i, primary: /table density/i },
 ]
 
 await check('admin login', async () => login('admin@fdas.local', 'Admin@12345', '/admin/dashboard'))
+
+await check('Admin navigation and dashboard use Reports terminology', async () => {
+  await openRoute('/admin/dashboard', /fdas dashboard/i)
+  const reportsLink = page.getByRole('link', { name: /^reports$/i })
+  await reportsLink.waitFor({ state: 'visible' })
+  if (await reportsLink.getAttribute('href') !== '/admin/analytics') {
+    throw new Error('Reports navigation no longer preserves /admin/analytics')
+  }
+  await page.getByRole('link', { name: /open reports/i }).click()
+  await page.waitForURL('**/admin/analytics')
+  await page.getByRole('heading', { name: /attendance reports/i, level: 1 }).waitFor()
+  if (await page.getByText(/attendance analytics/i).count()) {
+    throw new Error('legacy Attendance Analytics wording remains visible')
+  }
+})
+
+await check('Admin Students shows database IDs before Name and retains Roll No.', async () => {
+  await openRoute('/admin/students', /active students/i)
+  await assertStudentIdColumn()
+})
 
 for (const width of [1440, 1920]) {
   await page.setViewportSize({ width, height: width === 1920 ? 1080 : 1000 })
@@ -169,6 +204,10 @@ await check('attendance controls remain available', async () => {
 })
 
 await check('operator login', async () => login('operator.cs@fdas.local', 'Operator@12345', '/user/dashboard'))
+await check('Operator Students shares the database Student ID column', async () => {
+  await openRoute('/user/students', /active students/i)
+  await assertStudentIdColumn()
+})
 const operatorViews = [
   { slug: 'operator-dashboard', route: '/user/dashboard', heading: /department dashboard/i },
   { slug: 'operator-students', route: '/user/students', heading: /active students/i },
@@ -193,6 +232,19 @@ for (const width of [375, 480, 768, 1024, 1280, 1440, 1920]) {
     await openRoute('/admin/students', /active students/i)
     await assertLayout(width)
     await page.getByRole('link', { name: /add student/i }).waitFor({ state: 'visible' })
+    if (width <= 768) {
+      const tableOverflow = await page.locator('[data-student-table]').evaluate(table => ({
+        tableWidth: table.scrollWidth,
+        wrapperWidth: table.parentElement?.clientWidth || 0,
+        wrapperOverflowX: getComputedStyle(table.parentElement).overflowX,
+      }))
+      if (tableOverflow.tableWidth <= tableOverflow.wrapperWidth) {
+        throw new Error(`student table does not overflow its ${tableOverflow.wrapperWidth}px wrapper at ${width}px`)
+      }
+      if (!['auto', 'scroll'].includes(tableOverflow.wrapperOverflowX)) {
+        throw new Error(`student table wrapper cannot scroll horizontally: ${tableOverflow.wrapperOverflowX}`)
+      }
+    }
   })
 }
 

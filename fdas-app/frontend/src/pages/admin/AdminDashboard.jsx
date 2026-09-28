@@ -33,7 +33,7 @@ export default function AdminDashboard() {
       <PageHeader
         eyebrow="Admin Overview"
         title="FDAS Dashboard"
-        description="Real-time overview of enrolled students, registered users, active classes, and attendance analytics."
+        description="Real-time overview of enrolled students, registered users, active classes, and attendance reports."
         actions={<div className="fdas-card px-4 py-2.5 text-sm" style={{ color: '#55433b' }}>
           <Icon name="bolt" size={18} className="mr-1" style={{ color: '#D4A017' }} />
           Active session: <strong style={{ color: '#934619' }}>{summary?.activeSessionName || 'None'}</strong>
@@ -77,7 +77,7 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-5 min-w-0 items-start">
         <AttendanceChart data={summary?.weeklyChart || []} title="Weekly Attendance Trend" height={360} />
-        <AttendanceLogSidebar records={summary?.recentRecords || []} title="Live Attendance Log" actionPath="/admin/analytics" actionLabel="Open Analytics" />
+        <AttendanceLogSidebar records={summary?.recentRecords || []} title="Live Attendance Log" actionPath="/admin/analytics" actionLabel="Open Reports" />
       </div>
     </section>
   )

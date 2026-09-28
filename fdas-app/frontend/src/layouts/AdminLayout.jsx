@@ -10,7 +10,7 @@ const navLinks = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { to: '/admin/students', label: 'Students', icon: 'group' },
   { to: '/admin/attendance/live', label: 'Attendance', icon: 'event_available' },
-  { to: '/admin/analytics', label: 'Analytics', icon: 'bar_chart' },
+  { to: '/admin/analytics', label: 'Reports', icon: 'bar_chart' },
 ];
 
 const settingsLinks = [

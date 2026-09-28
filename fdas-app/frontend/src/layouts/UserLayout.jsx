@@ -201,15 +201,6 @@ export default function UserLayout() {
               onNavigate={guardedNavigate}
               color="#887369"
             />
-            <button
-              onClick={() => guardedNavigate('/account/preferences')}
-              className="fdas-icon-button"
-              style={{ color: '#887369' }}
-              aria-label="Settings"
-              title="Account preferences"
-            >
-              <Icon name="settings" size={20} />
-            </button>
             <div className="relative">
               <button
                 type="button"

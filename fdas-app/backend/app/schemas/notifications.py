@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 
 
 class NotificationRead(BaseModel):
@@ -13,6 +13,13 @@ class NotificationRead(BaseModel):
     isRead: bool
     readAt: datetime | None = None
     createdAt: datetime
+
+    @field_serializer("readAt", "createdAt", when_used="json")
+    def serialize_utc_timestamp(self, value: datetime | None) -> str | None:
+        if value is None:
+            return None
+        utc_value = value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+        return utc_value.isoformat().replace("+00:00", "Z")
 
 
 class NotificationListResponse(BaseModel):

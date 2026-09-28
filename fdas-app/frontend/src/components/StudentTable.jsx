@@ -38,12 +38,13 @@ export default function StudentTable({
 
   return (
     <div className="fdas-table-wrap">
-      <table className={`fdas-table ${actionsEnabled ? 'min-w-[1040px]' : ''}`}>
+      <table className={`fdas-table ${actionsEnabled ? 'min-w-[1100px]' : ''}`} data-student-table>
         <thead>
           <tr
             className="text-xs font-bold uppercase tracking-wider border-b-2"
             style={{ borderColor: '#C4533A', color: '#C4533A', backgroundColor: '#fff1eb' }}
           >
+            <th className="fdas-student-id-column whitespace-nowrap">Student ID</th>
             <th className="whitespace-nowrap">Name</th>
             <th className="py-3 px-4 whitespace-nowrap">Roll No.</th>
             <th className="py-3 px-4 whitespace-nowrap">Class</th>
@@ -60,6 +61,11 @@ export default function StudentTable({
               className="border-b transition-colors hover:bg-orange-50/40"
               style={{ borderColor: '#f0dfd8', backgroundColor: idx % 2 === 0 ? '#FFF0E6' : '#ffffff' }}
             >
+              <td className="fdas-student-id-column" data-student-id>
+                <span className="text-xs font-mono font-bold whitespace-nowrap" style={{ color: '#795900' }}>
+                  #{student.studentId}
+                </span>
+              </td>
               <td className="py-3 px-4">
                 <div className="flex items-center gap-3">
                   <div

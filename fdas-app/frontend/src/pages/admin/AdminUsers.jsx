@@ -179,15 +179,15 @@ export default function AdminUsers() {
           <EmptyState title="No users found" description="Approved accounts will appear here once they are available." icon="manage_accounts" />
         ) : (
           <div className="fdas-table-wrap">
-            <table className="fdas-table min-w-[1160px] table-fixed">
+            <table className="fdas-table fdas-users-table table-fixed">
               <colgroup>
-                <col className="w-[16%]" />
-                <col className="w-[20%]" />
+                <col className="w-[15%]" />
+                <col className="w-[18%]" />
                 <col className="w-[7%]" />
-                <col className="w-[14%]" />
                 <col className="w-[13%]" />
-                <col className="w-[9%]" />
-                <col className="w-[21%]" />
+                <col className="w-[12%]" />
+                <col className="w-[10%]" />
+                <col className="w-[25%]" />
               </colgroup>
               <thead>
                 <tr>
@@ -196,8 +196,8 @@ export default function AdminUsers() {
                   <th className="p-4">Role</th>
                   <th className="p-4">Assigned Department</th>
                   <th className="p-4">Access Scope</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="p-4 fdas-users-status-cell">Status</th>
+                  <th className="p-4 text-right fdas-users-actions-cell">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,11 +208,11 @@ export default function AdminUsers() {
                     <td>{user.role}</td>
                     <td><span className="line-clamp-2">{user.assignedDepartment || 'All Departments'}</span></td>
                     <td><span className="line-clamp-2">{user.accessScope === 'AllDepartments' ? 'All Departments' : 'Department Only'}</span></td>
-                    <td>
+                    <td className="fdas-users-status-cell">
                       <Badge>{user.status}</Badge>
                     </td>
-                    <td>
-                      <div className="fdas-table-actions">
+                    <td className="fdas-users-actions-cell">
+                      <div className="fdas-table-actions fdas-user-actions">
                         <button onClick={() => openAccessModal(user)} className="fdas-button fdas-button-primary fdas-button-sm">Change Access</button>
                         <button onClick={() => setActionDialog({ type: 'status', user })} className={`fdas-button fdas-button-sm ${user.status === 'Disabled' ? 'fdas-button-secondary' : 'fdas-button-outline'}`}>
                           {user.status === 'Disabled' ? 'Enable' : 'Disable'}

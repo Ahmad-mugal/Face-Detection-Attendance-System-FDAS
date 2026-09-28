@@ -197,12 +197,12 @@ await check('approved operator resend uses custom dialog and safe feedback', asy
   await page.unroute('**/api/admin/users/*/resend-approval-email')
 })
 
-await check('live attendance log opens analytics', async () => {
+await check('live attendance log opens reports', async () => {
   await page.goto(`${baseUrl}/admin/dashboard`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('heading', { name: /fdas dashboard/i }).waitFor()
-  await page.getByRole('link', { name: /open analytics/i }).click()
+  await page.getByRole('link', { name: /open reports/i }).click()
   await page.waitForURL('**/admin/analytics', { timeout: 10000 })
-  await page.getByRole('heading', { name: /attendance analytics/i }).waitFor()
+  await page.getByRole('heading', { name: /attendance reports/i }).waitFor()
   await page.goto(`${baseUrl}/admin/dashboard`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('heading', { name: /fdas dashboard/i }).waitFor()
   await page.waitForTimeout(600)

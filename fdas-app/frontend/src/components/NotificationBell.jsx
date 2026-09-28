@@ -1,21 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { notificationsApi } from '../api/notificationsApi'
+import { notificationRelativeTime } from '../utils/notificationTime'
 import Icon from './Icon'
 
 export const NOTIFICATION_POLL_INTERVAL_MS = 12000
-
-function relativeTime(value) {
-  const timestamp = new Date(value).getTime()
-  if (Number.isNaN(timestamp)) return 'Recently'
-  const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000))
-  if (seconds < 60) return 'Just now'
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return days < 7 ? `${days}d ago` : new Date(value).toLocaleDateString()
-}
 
 function severityTone(severity) {
   if (severity === 'SUCCESS') return '#087a68'
@@ -117,7 +105,7 @@ export default function NotificationBell({ open, onToggle, onNavigate, color = '
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="text-sm font-black" style={{ color: '#4A2B0F' }}>{notification.title}</h3>
-                    <time className="text-[11px] whitespace-nowrap" style={{ color: '#887369' }} dateTime={notification.createdAt}>{relativeTime(notification.createdAt)}</time>
+                    <time className="text-[11px] whitespace-nowrap" style={{ color: '#887369' }} dateTime={notification.createdAt}>{notificationRelativeTime(notification.createdAt)}</time>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed" style={{ color: '#6f5b52' }}>{notification.message}</p>
                   <div className="mt-2 flex items-center justify-between gap-2">

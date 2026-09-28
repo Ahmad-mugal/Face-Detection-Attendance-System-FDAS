@@ -21,6 +21,11 @@ export default function AdminTiming() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const duplicateActiveDepartments = Object.entries(
+    timings
+      .filter(timing => timing.status === 'Active')
+      .reduce((counts, timing) => ({ ...counts, [timing.departmentName]: (counts[timing.departmentName] || 0) + 1 }), {}),
+  ).filter(([, count]) => count > 1)
 
   const loadData = async () => {
     setLoading(true)
@@ -118,6 +123,11 @@ export default function AdminTiming() {
 
       <Toast message={message} onDismiss={() => setMessage('')} />
       {error && <div className="rounded-xl border px-4 py-3 text-sm font-semibold" style={{ backgroundColor: '#ffdad6', borderColor: '#f2b8b5', color: '#93000a' }}>{error}</div>}
+      {duplicateActiveDepartments.length > 0 && (
+        <div className="rounded-xl border px-4 py-3 text-sm font-semibold" role="alert" style={{ backgroundColor: '#fff4ce', borderColor: '#e7c96d', color: '#654b00' }}>
+          Multiple active windows were found for {duplicateActiveDepartments.map(([name]) => name).join(', ')}. Session scheduling currently uses the newest active window. Edit and save the intended Active window, activate an inactive window, or deactivate the extras to establish one active schedule.
+        </div>
+      )}
 
       {loading ? (
         <div className="fdas-card"><LoadingState label="Loading attendance time windows…" /></div>
@@ -160,10 +170,11 @@ export default function AdminTiming() {
               <label><span className="fdas-label">End Time</span><input type="time" className="fdas-input mt-1" value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} /></label>
               <label><span className="fdas-label">Status</span><select className="fdas-input mt-1" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}><option>Active</option><option>Inactive</option></select></label>
             </div>
+            {form.status === 'Active' && <p className="mt-3 text-xs" style={{ color: '#6f5b52' }}>Saving an Active window makes it the only active scheduling window for this department.</p>}
       </FormDialog>
 
       <ConfirmDialog open={Boolean(statusDialog)} onClose={() => setStatusDialog(null)} onConfirm={() => toggleTiming(statusDialog)} title={statusDialog?.status === 'Active' ? 'Deactivate Time Window?' : 'Activate Time Window?'} description={statusDialog?.departmentName} confirmLabel={statusDialog?.status === 'Active' ? 'Deactivate' : 'Activate'} destructive={statusDialog?.status === 'Active'} busy={saving}>
-        <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>{statusDialog?.status === 'Active' ? 'Attendance will no longer open under this schedule until the window is activated again.' : 'This schedule will become available for attendance sessions.'}</p>
+        <p className="rounded-xl p-4 text-sm" style={{ backgroundColor: '#FFF0E6', color: '#55433b' }}>{statusDialog?.status === 'Active' ? 'Attendance will no longer open under this schedule until the window is activated again.' : 'This schedule will become the department’s only active scheduling window.'}</p>
       </ConfirmDialog>
     </section>
   )

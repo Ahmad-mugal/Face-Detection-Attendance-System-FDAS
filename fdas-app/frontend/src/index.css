@@ -262,6 +262,27 @@ svg {
   white-space: nowrap;
 }
 
+.fdas-table .fdas-student-id-column {
+  width: 5.75rem;
+  min-width: 5.75rem;
+  max-width: 5.75rem;
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+}
+
+.fdas-users-table { min-width: 82.5rem; }
+.fdas-users-table .fdas-users-status-cell { padding-right: 1.25rem !important; }
+.fdas-users-table .fdas-users-actions-cell {
+  min-width: 20.5rem;
+  padding-left: 1.5rem !important;
+  padding-right: 1.25rem !important;
+}
+.fdas-user-actions { gap: 0.5rem; }
+.fdas-user-actions .fdas-button-sm { min-height: 2.375rem; padding-inline: 0.7rem; }
+.fdas-user-actions .fdas-icon-button-sm { width: 2.375rem; height: 2.375rem; }
+
+.fdas-print-only { display: none; }
+
 .fdas-session-table { min-width: 26rem; font-size: 0.78rem; }
 .fdas-session-table th,
 .fdas-session-table td { padding-inline: 0.7rem !important; }
@@ -639,6 +660,138 @@ html[data-reduced-motion='true'] *::after {
 
 @media (min-width: 768px) {
   .fdas-mobile-nav-button { display: none; }
+}
+
+@media print {
+  @page { size: landscape; margin: 10mm; }
+
+  html,
+  body,
+  #root,
+  main {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body * { visibility: hidden; }
+
+  .fdas-print-report,
+  .fdas-print-report * { visibility: visible; }
+
+  .fdas-print-report {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #111 !important;
+    background: #fff !important;
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .fdas-print-report .fdas-no-print { display: none !important; }
+  .fdas-print-report .fdas-print-only { display: block !important; }
+
+  .fdas-print-report-header {
+    margin-bottom: 0.35cm;
+    padding-bottom: 0.25cm;
+    border-bottom: 2px solid #4A2B0F;
+  }
+
+  .fdas-print-brand {
+    color: #934619 !important;
+    font-size: 11pt;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+  }
+
+  .fdas-print-report-title {
+    margin: 0.05cm 0;
+    color: #111 !important;
+    font-size: 20pt;
+    line-height: 1.15;
+  }
+
+  .fdas-print-report-header p { margin: 0; color: #333 !important; font-size: 9pt; }
+
+  .fdas-print-report-meta {
+    margin-bottom: 0.35cm;
+    font-size: 8.5pt;
+  }
+
+  .fdas-print-report-meta dl {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.12cm 0.4cm;
+    margin: 0 0 0.25cm;
+  }
+
+  .fdas-print-report-meta dl > div { min-width: 0; }
+  .fdas-print-report-meta dt { color: #555 !important; font-size: 7pt; font-weight: 800; text-transform: uppercase; }
+  .fdas-print-report-meta dd { margin: 0.02cm 0 0; color: #111 !important; font-weight: 700; overflow-wrap: anywhere; }
+
+  .fdas-print-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border: 1px solid #aaa;
+  }
+
+  .fdas-print-summary > div { padding: 0.15cm 0.25cm; border-right: 1px solid #bbb; }
+  .fdas-print-summary > div:last-child { border-right: 0; }
+  .fdas-print-summary span { display: block; color: #555 !important; font-size: 7pt; font-weight: 800; text-transform: uppercase; }
+  .fdas-print-summary strong { display: block; margin-top: 0.02cm; color: #111 !important; font-size: 11pt; }
+
+  .fdas-report-table-card {
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  .fdas-report-table-card .fdas-table-wrap { overflow: visible !important; }
+  .fdas-report-table-card table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed;
+    border-collapse: collapse;
+    color: #111 !important;
+    background: #fff !important;
+    font-size: 7.5pt;
+  }
+
+  .fdas-report-table-card thead { display: table-header-group; color: #111 !important; background: #eee !important; }
+  .fdas-report-table-card tbody { display: table-row-group; }
+  .fdas-report-table-card tr { break-inside: avoid; page-break-inside: avoid; }
+  .fdas-report-table-card th,
+  .fdas-report-table-card td {
+    height: auto;
+    padding: 0.12cm 0.14cm !important;
+    border: 1px solid #aaa;
+    color: #111 !important;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .fdas-report-table-card th:nth-child(1) { width: 16%; }
+  .fdas-report-table-card th:nth-child(2) { width: 13%; }
+  .fdas-report-table-card th:nth-child(3) { width: 19%; }
+  .fdas-report-table-card th:nth-child(4) { width: 16%; }
+  .fdas-report-table-card th:nth-child(5) { width: 10%; }
+  .fdas-report-table-card th:nth-child(6) { width: 13%; }
+  .fdas-report-table-card th:nth-child(7) { width: 13%; }
+
+  .fdas-report-table-card [class*='rounded-full'] {
+    border: 0 !important;
+    padding: 0 !important;
+    color: #111 !important;
+    background: transparent !important;
+  }
 }
 
 /* === Shared Utilities === */

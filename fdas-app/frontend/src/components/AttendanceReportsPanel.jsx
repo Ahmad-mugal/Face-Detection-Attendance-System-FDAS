@@ -33,7 +33,7 @@ function compactFilters(filters) {
   }
 }
 
-export default function AttendanceReportsPanel({ title = 'Attendance Analytics', eyebrow = 'Reports', mode = 'admin' }) {
+export default function AttendanceReportsPanel({ title = 'Attendance Reports', eyebrow = 'Reports', mode = 'admin' }) {
   const { assignedDepartmentId, assignedDepartmentName, hasAllDepartmentsAccess } = useAuth()
   const canChooseDepartment = mode === 'admin' || hasAllDepartmentsAccess()
   const departmentLabel = mode === 'user' && !canChooseDepartment ? 'Assigned Department' : 'Department'
@@ -57,6 +57,7 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [printGeneratedAt, setPrintGeneratedAt] = useState(() => new Date())
 
   useEffect(() => {
     departmentsApi.list()
@@ -110,6 +111,25 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
     )
   }, [filters.studentSearch, records])
 
+  const printSummary = useMemo(() => {
+    const confidences = displayedRecords
+      .map(record => record.recognitionConfidence)
+      .filter(value => typeof value === 'number')
+    return {
+      totalRecords: displayedRecords.length,
+      presentCount: displayedRecords.filter(record => record.status === 'Present').length,
+      uniqueStudents: new Set(displayedRecords.map(record => record.studentId || record.rollNo)).size,
+      averageConfidence: confidences.length
+        ? confidences.reduce((total, value) => total + value, 0) / confidences.length
+        : null,
+    }
+  }, [displayedRecords])
+
+  const selectedDepartment = canChooseDepartment
+    ? departments.find(department => String(department.departmentId) === String(filters.departmentId))?.departmentName || 'All Departments'
+    : assignedDepartmentName || 'Assigned Department'
+  const selectedClass = classes.find(item => String(item.classId) === String(filters.classId))?.className || 'All Classes'
+
   const updateFilter = (key, value) => {
     setFilters(current => ({
       ...current,
@@ -133,15 +153,31 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
     }
   }
 
+  const printReport = () => {
+    setPrintGeneratedAt(new Date())
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()))
+  }
+
   return (
-    <section className="fdas-page space-y-5 animate-fade-in-up">
-      <PageHeader eyebrow={eyebrow} title={title} description="Filter attendance activity, review recognition results, and export the current report view." actions={
-        <button onClick={exportCsv} disabled={records.length === 0} className="fdas-button fdas-button-warning">
-          Export CSV
-        </button>
+    <section className="fdas-page fdas-print-report space-y-5 animate-fade-in-up">
+      <div className="fdas-print-only fdas-print-report-header">
+        <div className="fdas-print-brand">FDAS</div>
+        <div className="fdas-print-report-title">Attendance Report</div>
+        <p>Face Detection Attendance System</p>
+      </div>
+
+      <PageHeader className="fdas-no-print" eyebrow={eyebrow} title={title} description="Filter attendance activity, review recognition results, and export or print the current report view." actions={
+        <>
+          <button type="button" onClick={printReport} disabled={loading || displayedRecords.length === 0} className="fdas-button fdas-button-secondary">
+            Print
+          </button>
+          <button type="button" onClick={exportCsv} disabled={records.length === 0} className="fdas-button fdas-button-warning">
+            Export CSV
+          </button>
+        </>
       } />
 
-      <div className="fdas-card fdas-card-section">
+      <div className="fdas-card fdas-card-section fdas-no-print">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
           <label>
             <span className="text-xs font-bold uppercase" style={{ color: '#55433b' }}>{departmentLabel}</span>
@@ -189,34 +225,52 @@ export default function AttendanceReportsPanel({ title = 'Attendance Analytics',
         </div>
       </div>
 
-      <div className="rounded-xl p-3.5 text-xs border" style={{ backgroundColor: '#fff1eb', borderColor: '#f0dfd8', color: '#55433b' }}>
+      <div className="rounded-xl p-3.5 text-xs border fdas-no-print" style={{ backgroundColor: '#fff1eb', borderColor: '#f0dfd8', color: '#55433b' }}>
         <p className="font-bold" style={{ color: '#4A2B0F' }}>Reports & Export Information:</p>
         <p className="mt-0.5" style={{ color: '#887369' }}>
           • <strong style={{ color: '#4A2B0F' }}>Liveness Status:</strong> Displayed directly from each stored attendance record (<code className="font-mono text-[11px]">Passed</code>, <code className="font-mono text-[11px]">Failed</code>, or <code className="font-mono text-[11px]">NotChecked</code>).
           <br />
-          • <strong style={{ color: '#4A2B0F' }}>Export Availability:</strong> CSV Export is available for filtered records. PDF and Excel exports are planned as future enhancements.
+          • <strong style={{ color: '#4A2B0F' }}>Export Availability:</strong> CSV export and browser printing are available for filtered records. The browser print dialog can also save as PDF where supported.
         </p>
       </div>
 
-      {error && <div className="rounded-xl px-4 py-3 text-sm font-bold" style={{ backgroundColor: '#ffdad6', color: '#93000a' }}>{error}</div>}
-      {message && !error && <div className="rounded-xl px-4 py-3 text-sm font-bold" style={{ backgroundColor: '#FFF0E6', color: '#795900' }}>{message}</div>}
+      {error && <div className="rounded-xl px-4 py-3 text-sm font-bold fdas-no-print" style={{ backgroundColor: '#ffdad6', color: '#93000a' }}>{error}</div>}
+      {message && !error && <div className="rounded-xl px-4 py-3 text-sm font-bold fdas-no-print" style={{ backgroundColor: '#FFF0E6', color: '#795900' }}>{message}</div>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 fdas-no-print">
         <StatsCard title="Total Records" value={summary.totalRecords} icon="fact_check" iconColor="#D4A017" />
         <StatsCard title="Present" value={summary.presentCount} icon="how_to_reg" iconColor="#065f46" />
         <StatsCard title="Unique Students" value={summary.uniqueStudentsMarked} icon="groups" iconColor="#E8924A" />
         <StatsCard title="Avg Confidence" value={summary.averageRecognitionConfidence === null ? '-' : summary.averageRecognitionConfidence.toFixed(3)} icon="verified" iconColor="#C4533A" />
       </div>
 
-      <div className="fdas-card overflow-hidden">
-        <div className="px-5 py-4 flex items-center justify-between border-b" style={{ borderColor: '#f0dfd8' }}>
+      <div className="fdas-print-only fdas-print-report-meta" data-print-report-meta>
+        <dl>
+          <div><dt>Department</dt><dd>{selectedDepartment}</dd></div>
+          <div><dt>Class</dt><dd>{selectedClass}</dd></div>
+          <div><dt>Date From</dt><dd>{filters.dateFrom || 'Any date'}</dd></div>
+          <div><dt>Date To</dt><dd>{filters.dateTo || 'Any date'}</dd></div>
+          <div><dt>Student / Filter</dt><dd>{filters.studentSearch.trim() || 'All Students'}</dd></div>
+          <div><dt>Status</dt><dd>{filters.status || 'All Statuses'}</dd></div>
+          <div><dt>Generated</dt><dd>{printGeneratedAt.toLocaleString()}</dd></div>
+        </dl>
+        <div className="fdas-print-summary">
+          <div><span>Total Records</span><strong>{printSummary.totalRecords}</strong></div>
+          <div><span>Present</span><strong>{printSummary.presentCount}</strong></div>
+          <div><span>Unique Students</span><strong>{printSummary.uniqueStudents}</strong></div>
+          <div><span>Average Confidence</span><strong>{printSummary.averageConfidence === null ? '-' : printSummary.averageConfidence.toFixed(3)}</strong></div>
+        </div>
+      </div>
+
+      <div className="fdas-card overflow-hidden fdas-report-table-card">
+        <div className="px-5 py-4 flex items-center justify-between border-b fdas-no-print" style={{ borderColor: '#f0dfd8' }}>
           <h2 className="fdas-section-title">Attendance Records</h2>
           <button onClick={loadReports} disabled={loading} className="fdas-button fdas-button-secondary fdas-button-sm">
             {loading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
         <div className="fdas-table-wrap">
-          <table className="fdas-table">
+          <table className="fdas-table" data-print-report-table>
             <thead>
               <tr>
                 <th className="p-4">Student</th>

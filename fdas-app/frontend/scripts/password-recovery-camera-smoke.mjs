@@ -241,6 +241,15 @@ await check('Operator chooses the final password with the one-time Admin code', 
   if (!loginResponse.ok()) throw new Error('new Admin-code password could not authenticate')
 })
 
+await check('New password-change notification displays Just now', async () => {
+  await login('operator.it@fdas.local', adminCodePassword, '/user/dashboard')
+  await page.getByRole('button', { name: /open notifications/i }).click()
+  const center = page.getByRole('dialog', { name: 'Notifications' })
+  const passwordChanged = center.locator('article').filter({ hasText: 'Account password changed' }).first()
+  await passwordChanged.waitFor()
+  await passwordChanged.locator('time').filter({ hasText: 'Just now' }).waitFor()
+})
+
 // Camera checks below verify rendering geometry. The single-face and deep-detector
 // enforcement paths are covered by backend verifiers; stable responses keep the
 // visual evidence unobstructed and deterministic here.
