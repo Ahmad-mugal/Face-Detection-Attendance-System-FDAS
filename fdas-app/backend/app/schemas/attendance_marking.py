@@ -66,3 +66,75 @@ class AttendanceSessionRecordRead(BaseModel):
     recognitionMethod: str | None = None
     identityMargin: float | None = None
     livenessStatus: str | None = None
+
+
+class FastFaceBoundingBox(BaseModel):
+    x: int
+    y: int
+    width: int
+    height: int
+    normalizedX: float
+    normalizedY: float
+    normalizedWidth: float
+    normalizedHeight: float
+
+
+class FastFaceOutcome(BaseModel):
+    faceId: str
+    faceIndex: int
+    bbox: FastFaceBoundingBox
+    detectionScore: float
+    status: str
+    message: str
+    quality: dict[str, bool | float | str] = Field(default_factory=dict)
+    attendanceMarked: bool = False
+    attendanceRecordId: int | None = None
+    studentId: int | None = None
+    studentName: str | None = None
+    rollNo: str | None = None
+    classId: int | None = None
+    className: str | None = None
+    recognitionConfidence: float | None = None
+    secondRecognitionConfidence: float | None = None
+    identityMargin: float | None = None
+    thresholdUsed: float
+    requiredMargin: float
+    recognitionProvider: str
+    recognitionEncodingVersion: str
+    recognitionMethod: str
+    livenessStatus: str
+
+
+class FastAttendanceTiming(BaseModel):
+    decodeMilliseconds: float
+    detectorMilliseconds: float
+    alignmentMilliseconds: float
+    embeddingMilliseconds: float
+    galleryMilliseconds: float
+    matchingMilliseconds: float
+    recognitionMilliseconds: float
+    serviceMilliseconds: float
+    databaseMilliseconds: float
+    totalMilliseconds: float
+
+
+class FastAttendanceResult(BaseModel):
+    attendanceMode: str
+    sessionId: int
+    departmentId: int
+    departmentName: str | None = None
+    sourceWidth: int
+    sourceHeight: int
+    rotationDegrees: int = 0
+    mirroredPreview: bool = True
+    faces: list[FastFaceOutcome] = Field(default_factory=list)
+    facesDetected: int
+    markedCount: int
+    alreadyMarkedCount: int
+    rejectedCount: int
+    qualityIssueCount: int = 0
+    candidateStudentCount: int
+    candidateEmbeddingCount: int
+    galleryCacheHit: bool
+    timing: FastAttendanceTiming
+    diagnostics: dict[str, int] = Field(default_factory=dict)

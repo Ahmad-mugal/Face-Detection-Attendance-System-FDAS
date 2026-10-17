@@ -1,5 +1,8 @@
 fdas-app/backend/.venv/
 fdas-app/backend/fdas_local.db
 fdas-app/backend/storage/
+fdas-app/.python311/
+fdas-app/python-3.11.9-amd64.exe
+fdas-app/python-3.11.9-embed-amd64.zip
 __pycache__/
 *.pyc

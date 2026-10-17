@@ -1,5 +1,9 @@
 from fastapi import HTTPException, status
+import time
+import threading
+
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import (
@@ -18,12 +22,14 @@ from app.models.user import User
 from app.services.attendance_sessions import ACTIVE_SESSION_STATUS, ensure_session_access, get_session_or_404
 from app.services.face_enrollment import FACE_ENROLLMENT_SAMPLE_COUNT
 from app.services.deep_face import DEEP_FACE_PROVIDER
+from app.services.deep_face_matching import match_fast_multi_face_for_attendance
 from app.services.face_processing import validate_single_face_bytes
 from app.utils.time import utc_now_naive
 
 
 PRESENT_STATUS = "Present"
 LIVENESS_STATUS_NOT_CHECKED = "NotChecked"
+_attendance_write_lock = threading.Lock()
 
 
 def ensure_active_session(session: AttendanceSession) -> None:
@@ -204,34 +210,49 @@ def create_attendance_from_match_result(
             liveness_status=liveness_status,
         )
 
-    existing = get_existing_record(db, session.sessionId, student.studentId)
-    if existing is not None:
-        return record_to_mark_result(
-            existing,
-            attendance_marked=False,
-            status_value="DuplicateAttendance",
-            message="Attendance is already marked for this student in this session.",
-            threshold_used=match_result.get("thresholdUsed", FACE_MATCH_THRESHOLD),
-            match_result=match_result,
-        )
+    with _attendance_write_lock:
+        existing = get_existing_record(db, session.sessionId, student.studentId)
+        if existing is not None:
+            return record_to_mark_result(
+                existing,
+                attendance_marked=False,
+                status_value="DuplicateAttendance",
+                message="Attendance is already marked for this student in this session.",
+                threshold_used=match_result.get("thresholdUsed", FACE_MATCH_THRESHOLD),
+                match_result=match_result,
+            )
 
-    record = AttendanceRecord(
-        sessionId=session.sessionId,
-        studentId=student.studentId,
-        departmentId=session.departmentId,
-        classId=student.classId,
-        markedAt=utc_now_naive(),
-        status=PRESENT_STATUS,
-        recognitionConfidence=match_result.get("similarityScore"),
-        recognitionProvider=match_result.get("recognitionProvider"),
-        recognitionEncodingVersion=match_result.get("encodingVersion"),
-        recognitionMethod=match_result.get("aggregationMethod"),
-        identityMargin=match_result.get("scoreMargin"),
-        livenessStatus=liveness_status or LIVENESS_STATUS_NOT_CHECKED,
-    )
-    db.add(record)
-    db.commit()
-    db.refresh(record)
+        record = AttendanceRecord(
+            sessionId=session.sessionId,
+            studentId=student.studentId,
+            departmentId=session.departmentId,
+            classId=student.classId,
+            markedAt=utc_now_naive(),
+            status=PRESENT_STATUS,
+            recognitionConfidence=match_result.get("similarityScore"),
+            recognitionProvider=match_result.get("recognitionProvider"),
+            recognitionEncodingVersion=match_result.get("encodingVersion"),
+            recognitionMethod=match_result.get("aggregationMethod"),
+            identityMargin=match_result.get("scoreMargin"),
+            livenessStatus=liveness_status or LIVENESS_STATUS_NOT_CHECKED,
+        )
+        db.add(record)
+        try:
+            db.commit()
+            db.refresh(record)
+        except IntegrityError:
+            db.rollback()
+            concurrent_record = get_existing_record(db, session.sessionId, student.studentId)
+            if concurrent_record is not None:
+                return record_to_mark_result(
+                    concurrent_record,
+                    attendance_marked=False,
+                    status_value="DuplicateAttendance",
+                    message="Attendance is already marked for this student in this session.",
+                    threshold_used=match_result.get("thresholdUsed", FACE_MATCH_THRESHOLD),
+                    match_result=match_result,
+                )
+            raise
     return record_to_mark_result(
         record,
         attendance_marked=True,
@@ -282,6 +303,106 @@ def mark_attendance_by_face(db: Session, currentUser: User, sessionId: int, imag
             "encodingVersion": DEEP_FACE_ENCODING_VERSION,
         },
     )
+
+
+def mark_fast_multi_face_attendance(
+    db: Session,
+    current_user: User,
+    session_id: int,
+    image_bytes: bytes,
+) -> dict:
+    """Recognize and persist each eligible identity with per-face isolation."""
+    request_started = time.perf_counter()
+    session = get_session_or_404(db, session_id)
+    ensure_session_access(current_user, session)
+    ensure_active_session(session)
+    recognition = match_fast_multi_face_for_attendance(
+        db,
+        current_user,
+        session.departmentId,
+        image_bytes,
+    )
+
+    database_started = time.perf_counter()
+    outcomes: list[dict] = []
+    for face in recognition["faces"]:
+        if face.get("matched") is not True:
+            outcomes.append(face)
+            continue
+        try:
+            persisted = create_attendance_from_match_result(
+                db,
+                session,
+                face,
+                liveness_status=LIVENESS_STATUS_NOT_CHECKED,
+            )
+        except Exception:
+            db.rollback()
+            outcomes.append(
+                {
+                    **face,
+                    "matched": False,
+                    "attendanceMarked": False,
+                    "attendanceRecordId": None,
+                    "status": "PersistenceError",
+                    "message": "This face could not be recorded safely; other face results were preserved.",
+                    "studentId": None,
+                    "studentName": None,
+                    "rollNo": None,
+                    "classId": None,
+                    "className": None,
+                }
+            )
+            continue
+
+        fast_status = (
+            "AlreadyMarked"
+            if persisted["status"] == "DuplicateAttendance"
+            else persisted["status"]
+        )
+        outcomes.append(
+            {
+                **face,
+                **persisted,
+                "status": fast_status,
+                "livenessStatus": LIVENESS_STATUS_NOT_CHECKED,
+            }
+        )
+
+    database_milliseconds = (time.perf_counter() - database_started) * 1000.0
+    marked_count = sum(1 for face in outcomes if face.get("attendanceMarked") is True)
+    already_marked_count = sum(1 for face in outcomes if face.get("status") == "AlreadyMarked")
+    quality_issue_count = sum(1 for face in outcomes if face.get("status") in {"PoorFaceQuality", "InvalidEmbedding"})
+    rejected_count = sum(
+        1 for face in outcomes
+        if face.get("status") in {"Unknown", "Ambiguous", "NotEligible", "IdentityConflict", "PersistenceError"}
+    )
+    timing = {
+        **recognition["timing"],
+        "databaseMilliseconds": round(database_milliseconds, 3),
+        "totalMilliseconds": round((time.perf_counter() - request_started) * 1000.0, 3),
+    }
+    return {
+        "attendanceMode": "FAST_MULTI_FACE",
+        "sessionId": session.sessionId,
+        "departmentId": session.departmentId,
+        "departmentName": session.department.departmentName if session.department else None,
+        "sourceWidth": recognition["sourceWidth"],
+        "sourceHeight": recognition["sourceHeight"],
+        "rotationDegrees": recognition["rotationDegrees"],
+        "mirroredPreview": recognition["mirroredPreview"],
+        "faces": outcomes,
+        "facesDetected": len(outcomes),
+        "markedCount": marked_count,
+        "alreadyMarkedCount": already_marked_count,
+        "rejectedCount": rejected_count,
+        "qualityIssueCount": quality_issue_count,
+        "candidateStudentCount": recognition["candidateStudentCount"],
+        "candidateEmbeddingCount": recognition["candidateEmbeddingCount"],
+        "galleryCacheHit": recognition["galleryCacheHit"],
+        "timing": timing,
+        "diagnostics": recognition["diagnostics"],
+    }
 
 
 def list_session_records(db: Session, currentUser: User, sessionId: int) -> list[AttendanceRecord]:

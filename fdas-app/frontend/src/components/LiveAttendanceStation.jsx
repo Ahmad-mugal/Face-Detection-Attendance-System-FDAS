@@ -8,11 +8,14 @@ import { studentsApi } from '../api/studentsApi'
 import { useAttendanceSession } from '../context/useAttendanceSession'
 import { useAuth } from '../context/useAuth'
 import Icon from './Icon'
+import FaceOverlay from './FaceOverlay'
 import { loadPreferences } from '../utils/preferences'
+import { EMPTY_FACE_TRACKER, reconcileFaceTracks } from '../utils/faceTracking'
 import StatsCard from './StatsCard'
 import PageHeader from './ui/PageHeader'
 
 const SCAN_INTERVAL_MS = 1800
+const FAST_SCAN_INTERVAL_MS = 250
 const LIVENESS_BASELINE_FRAME_COUNT = 2
 const LIVENESS_MOVEMENT_FRAME_COUNT = 10
 const LIVENESS_FRAME_COUNT = LIVENESS_BASELINE_FRAME_COUNT + LIVENESS_MOVEMENT_FRAME_COUNT
@@ -163,6 +166,50 @@ function buildResultMessage(result) {
   }
 }
 
+function buildFastResultMessage(result) {
+  if (result.markedCount > 0) {
+    const names = result.faces
+      .filter(face => face.attendanceMarked && face.studentName)
+      .map(face => face.studentName)
+      .join(', ')
+    return {
+      tone: 'success',
+      text: `${result.markedCount} attendance ${result.markedCount === 1 ? 'record' : 'records'} marked successfully${names ? `: ${names}` : ''}.`,
+    }
+  }
+  if (result.facesDetected === 0) {
+    return { tone: 'info', text: 'Looking for faces. Look toward the camera.' }
+  }
+  if (result.alreadyMarkedCount > 0 && result.rejectedCount === 0) {
+    const names = result.faces
+      .filter(face => face.status === 'AlreadyMarked' && face.studentName)
+      .map(face => face.studentName)
+      .join(', ')
+    return {
+      tone: 'info',
+      text: names
+        ? `Already marked Present: ${names}.`
+        : 'All recognized students in view are already marked Present.',
+    }
+  }
+  if (result.qualityIssueCount > 0 && result.rejectedCount === 0 && result.alreadyMarkedCount === 0) {
+    return {
+      tone: 'info',
+      text: 'Face detected. Please hold still or improve lighting.',
+    }
+  }
+  if (result.rejectedCount > 0) {
+    return {
+      tone: 'warning',
+      text: 'Face detected, but unrecognized or not eligible for this session.',
+    }
+  }
+  return {
+    tone: 'info',
+    text: 'Attendance scan completed.',
+  }
+}
+
 export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
   const showDevelopmentDiagnostics = mode === 'diagnostic'
   const autoRefreshAttendance = loadPreferences().autoRefreshAttendance
@@ -172,6 +219,8 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
   const scanningRef = useRef(false)
   const scanInFlightRef = useRef(false)
   const scanTimeoutRef = useRef(null)
+  const faceTrackerRef = useRef(EMPTY_FACE_TRACKER)
+  const lastSuccessMessageTimeRef = useRef(0)
   const lastChallengeIndexRef = useRef(-1)
   const controlledCycleRef = useRef(1)
   const controlledRetryRef = useRef(0)
@@ -204,6 +253,20 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     message: 'No face detected.',
     ready: false,
   })
+  const [fastFaces, setFastFaces] = useState([])
+  const [fastScanSummary, setFastScanSummary] = useState({
+    facesDetected: 0,
+    markedCount: 0,
+    alreadyMarkedCount: 0,
+    rejectedCount: 0,
+    qualityIssueCount: 0,
+  })
+  const [fastFrameGeometry, setFastFrameGeometry] = useState({
+    sourceWidth: 0,
+    sourceHeight: 0,
+    mirroredPreview: true,
+  })
+  const [fastTiming, setFastTiming] = useState(null)
   const [deepAttendancePolicy, setDeepAttendancePolicy] = useState({
     integratedForAttendance: false,
     activeForAttendance: false,
@@ -219,10 +282,21 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     controlledMatchingThreshold: null,
     controlledRequiredIdentityMargin: null,
     deepRecognitionReady: false,
+    attendanceMode: null,
+    livenessRequiredForAttendance: true,
+    multiFaceAttendanceEnabled: false,
+    fastAttendanceSingleQuery: false,
   })
 
+  const fastAttendanceMode = (
+    deepAttendancePolicy.attendanceMode === 'FAST_MULTI_FACE'
+    && deepAttendancePolicy.multiFaceAttendanceEnabled
+  )
+  const secureAttendanceMode = deepAttendancePolicy.attendanceMode === 'SECURE_SINGLE_FACE'
+
   const controlledAttendanceMode = (
-    mode === 'admin'
+    secureAttendanceMode
+    && mode === 'admin'
     && deepAttendancePolicy.integratedForAttendance
     && deepAttendancePolicy.attendanceSafetyHold
     && !deepAttendancePolicy.activeForAttendance
@@ -242,7 +316,9 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     deepAttendancePolicy.activeForAttendance
     && !deepAttendancePolicy.attendanceSafetyHold
   )
-  const attendanceScanningEnabled = normalAttendanceAllowed || controlledAttendanceSessionAllowed
+  const attendanceScanningEnabled = fastAttendanceMode
+    ? normalAttendanceAllowed
+    : secureAttendanceMode && (normalAttendanceAllowed || controlledAttendanceSessionAllowed)
 
   const selectedDepartment = useMemo(() => {
     const selectedId = Number(departmentId)
@@ -255,6 +331,11 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     scanningRef.current = false
     setScanning(false)
     setLivenessInstruction(null)
+    setFastFaces([])
+    setFastScanSummary({ facesDetected: 0, markedCount: 0, alreadyMarkedCount: 0, rejectedCount: 0, qualityIssueCount: 0 })
+    setFastTiming(null)
+    lastSuccessMessageTimeRef.current = 0
+    faceTrackerRef.current = EMPTY_FACE_TRACKER
     if (scanTimeoutRef.current) {
       clearTimeout(scanTimeoutRef.current)
       scanTimeoutRef.current = null
@@ -515,6 +596,48 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         setMessage({ tone: 'warning', text: 'Camera frame is not ready yet.' })
         return
       }
+      if (fastAttendanceMode) {
+        const roundTripStarted = performance.now()
+        const result = await attendanceMarkingApi.markByFaceFast({
+          sessionId: activeSession.sessionId,
+          file: initialFace,
+        })
+        const frontendRoundTripMilliseconds = performance.now() - roundTripStarted
+        const tracked = reconcileFaceTracks(faceTrackerRef.current, result.faces)
+        faceTrackerRef.current = tracked.tracker
+        setFastFaces(tracked.faces)
+        setFastFrameGeometry({
+          sourceWidth: result.sourceWidth,
+          sourceHeight: result.sourceHeight,
+          mirroredPreview: result.mirroredPreview !== false,
+        })
+        setFastScanSummary({
+          facesDetected: result.facesDetected,
+          markedCount: result.markedCount,
+          alreadyMarkedCount: result.alreadyMarkedCount,
+          rejectedCount: result.rejectedCount,
+          qualityIssueCount: result.qualityIssueCount || 0,
+        })
+        setFastTiming({
+          ...result.timing,
+          frontendRoundTripMilliseconds: Number(frontendRoundTripMilliseconds.toFixed(3)),
+        })
+        setLastResult(result)
+        const nextMessage = buildFastResultMessage(result)
+        if (result.markedCount > 0) {
+          lastSuccessMessageTimeRef.current = Date.now()
+          setMessage(nextMessage)
+        } else {
+          const elapsed = Date.now() - lastSuccessMessageTimeRef.current
+          if (elapsed >= 4500) {
+            setMessage(nextMessage)
+          }
+        }
+        if (result.markedCount > 0 || result.alreadyMarkedCount > 0) {
+          await loadRecords(activeSession.sessionId)
+        }
+        return
+      }
       const initialGuard = await inspectAttendanceFrame(initialFace)
       if (!initialGuard.ready || initialGuard.faceCount !== 1) {
         setMessage({ tone: 'warning', text: initialGuard.message })
@@ -683,10 +806,13 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
     } finally {
       scanInFlightRef.current = false
       if (scanningRef.current) {
-        scanTimeoutRef.current = setTimeout(runScan, SCAN_INTERVAL_MS)
+        scanTimeoutRef.current = setTimeout(
+          runScan,
+          fastAttendanceMode ? FAST_SCAN_INTERVAL_MS : SCAN_INTERVAL_MS,
+        )
       }
     }
-  }, [activeSession, cameraOn, controlledAttendanceSessionAllowed, deepAttendancePolicy.controlledAttendanceStudentId, loadRecords, stopScanning])
+  }, [activeSession, cameraOn, controlledAttendanceSessionAllowed, deepAttendancePolicy.controlledAttendanceStudentId, fastAttendanceMode, loadRecords, stopScanning])
 
   const startScanning = () => {
     if (!activeSession) {
@@ -709,7 +835,12 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
       setControlledTestResults([])
     }
     setScanning(true)
-    setMessage({ tone: 'info', text: 'Scanning started. Complete one quick liveness challenge per scan.' })
+    setMessage({
+      tone: 'info',
+      text: fastAttendanceMode
+        ? 'Scanning started. Look toward the camera; multiple registered students can be recognized together.'
+        : 'Scanning started. Complete one quick liveness challenge per scan.',
+    })
     runScan()
   }
 
@@ -839,7 +970,9 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
 
   return (
     <section className="fdas-page space-y-5 animate-fade-in-up">
-      <PageHeader eyebrow="Live Attendance" title="Attendance Marking" description="Start a session, verify one-person liveness, and record eligible attendance securely." actions={
+      <PageHeader eyebrow="Live Attendance" title="Attendance Marking" description={fastAttendanceMode
+        ? 'Start a session and recognize multiple eligible registered students in one camera view.'
+        : 'Start a session and record eligible attendance securely.'} actions={
         <div className="flex flex-wrap gap-2">
           <button onClick={startBackendSession} disabled={loading || !departmentId || Boolean(activeSession)} className="fdas-button fdas-button-warning">
             Start Session
@@ -952,7 +1085,7 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
         </div>
       )}
 
-      {attendanceFaceGuard.status !== 'Unchecked' && (
+      {!fastAttendanceMode && attendanceFaceGuard.status !== 'Unchecked' && (
         <div
           className="rounded-xl px-4 py-3 text-sm font-bold border"
           style={{
@@ -1075,7 +1208,11 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
           <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b" style={{ borderColor: '#f0dfd8' }}>
             <div>
               <h2 className="font-black" style={{ color: '#4A2B0F' }}>Live Camera</h2>
-              <p className="text-xs" style={{ color: '#887369' }}>Follow the on-screen instruction, then return to the center and hold still.</p>
+              <p className="text-xs" style={{ color: '#887369' }}>
+                {fastAttendanceMode
+                  ? 'Look toward the camera. Multiple registered students can be recognized together.'
+                  : 'Follow the on-screen instruction, then return to the center and hold still.'}
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={cameraOn ? () => { stopCamera(); setMessage({ tone: 'info', text: 'Camera stopped.' }) } : startCamera} disabled={!activeSession} className="fdas-button fdas-button-outline fdas-button-sm">
@@ -1088,17 +1225,41 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
               </button>
             </div>
           </div>
+          {fastAttendanceMode && (
+            <div className="flex flex-wrap gap-2 px-5 py-3 border-b text-xs font-bold" style={{ borderColor: '#f0dfd8', color: '#55433b' }} aria-live="polite">
+              <span className="rounded-full bg-stone-100 px-3 py-1">Faces detected: {fastScanSummary.facesDetected}</span>
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-800">Marked this scan: {fastScanSummary.markedCount}</span>
+              <span className="rounded-full bg-sky-100 px-3 py-1 text-sky-800">Already marked: {fastScanSummary.alreadyMarkedCount}</span>
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-900">Unrecognized/Not eligible: {fastScanSummary.rejectedCount}</span>
+              {fastScanSummary.qualityIssueCount > 0 && (
+                <span className="rounded-full bg-yellow-100 px-3 py-1 text-yellow-900">Hold still / Quality: {fastScanSummary.qualityIssueCount}</span>
+              )}
+              {mode === 'admin' && fastTiming && (
+                <span className="rounded-full bg-stone-100 px-3 py-1" title="Frame upload through API response">
+                  Roundtrip: {Math.round(fastTiming.frontendRoundTripMilliseconds)} ms
+                </span>
+              )}
+            </div>
+          )}
           <div className="relative min-h-[340px] sm:min-h-[400px] flex items-center justify-center" style={{ backgroundColor: '#221a16' }}>
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className="absolute inset-0 h-full w-full object-cover"
+              className={`absolute inset-0 h-full w-full ${fastAttendanceMode ? 'object-contain' : 'object-cover'}`}
               style={{ display: cameraOn ? 'block' : 'none', transform: 'scaleX(-1)' }}
             />
+            {cameraOn && fastAttendanceMode && (
+              <FaceOverlay
+                faces={fastFaces}
+                sourceWidth={fastFrameGeometry.sourceWidth}
+                sourceHeight={fastFrameGeometry.sourceHeight}
+                mirrored={fastFrameGeometry.mirroredPreview}
+              />
+            )}
             <canvas ref={canvasRef} className="hidden" />
-            <div className="absolute inset-6 rounded-xl border-2 border-dashed" style={{ borderColor: cameraOn ? '#D4A017' : '#55433b' }} />
+            {!fastAttendanceMode && <div className="absolute inset-6 rounded-xl border-2 border-dashed" style={{ borderColor: cameraOn ? '#D4A017' : '#55433b' }} />}
             {!cameraOn && (
               <div className="text-center relative z-10 p-8">
                 <Icon name="videocam_off" size={80} className="block mx-auto mb-3" style={{ color: '#887369' }} />
@@ -1113,7 +1274,9 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
                 </div>
                 <div className="absolute bottom-5 left-5 right-5 rounded-xl p-3 text-center font-bold text-sm" style={{ backgroundColor: scanning ? 'rgba(6,95,70,0.9)' : 'rgba(196,83,58,0.9)', color: '#fff' }}>
                   {scanning
-                    ? (livenessInstruction || `Liveness challenge: ${currentChallenge?.label || 'Get ready'}`)
+                    ? (fastAttendanceMode
+                        ? 'Scanning all visible faces…'
+                        : (livenessInstruction || `Liveness challenge: ${currentChallenge?.label || 'Get ready'}`))
                     : (!attendanceScanningEnabled ? 'Attendance scanning is currently unavailable.' : 'Camera ready. Start scanning to mark attendance.')}
                 </div>
               </>
@@ -1135,13 +1298,12 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
                   <th className="px-4 py-3">Student</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Confidence</th>
-                  <th className="px-4 py-3">Liveness</th>
                 </tr>
               </thead>
               <tbody>
                 {records.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-4 py-10 text-center" style={{ color: '#887369' }}>No attendance records yet.</td>
+                    <td colSpan="3" className="px-4 py-10 text-center" style={{ color: '#887369' }}>No attendance records yet.</td>
                   </tr>
                 ) : records.map(record => (
                   <tr key={record.id} className="border-t" style={{ borderColor: 'rgba(232,146,74,0.18)' }}>
@@ -1153,7 +1315,6 @@ export default function LiveAttendanceStation({ mode = 'admin', pagePath }) {
                     </td>
                     <td className="px-4 py-3 font-bold" style={{ color: record.status === 'Present' ? '#065f46' : '#92400e' }}>{record.status}</td>
                     <td className="px-4 py-3 font-mono" style={{ color: '#4A2B0F' }}>{formatConfidence(record.recognitionConfidence)}</td>
-                    <td className="px-4 py-3" style={{ color: '#887369' }}>{record.livenessStatus || 'NotChecked'}</td>
                   </tr>
                 ))}
               </tbody>

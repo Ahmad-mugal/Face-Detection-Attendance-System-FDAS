@@ -92,6 +92,8 @@ def call_live(
     with patch("app.routers.attendance_marking.DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE", True), patch(
         "app.routers.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", False
     ), patch(
+        "app.routers.attendance_marking.ATTENDANCE_MODE", "SECURE_SINGLE_FACE"
+    ), patch(
         "app.services.attendance_marking.IDENTITY_MATCHING_SAFETY_HOLD", False
     ), patch("app.routers.attendance_marking.DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED", False), patch(
         "app.routers.attendance_marking.verify_liveness", return_value=liveness_result

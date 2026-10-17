@@ -115,10 +115,9 @@ export default function AdminLayout() {
                 to={link.to}
                 onClick={event => handleGuardedNavClick(link.to, event)}
                 className={({ isActive }) =>
-                  `flex items-center gap-1 px-2 lg:px-3 py-2 rounded-lg font-semibold text-xs lg:text-sm whitespace-nowrap transition-all duration-200 ${
-                    isActive
-                      ? 'text-[#C4533A] border-b-2 border-[#D4A017] rounded-none pb-[14px]'
-                      : 'text-[#4A2B0F] opacity-80 hover:text-[#C4533A] hover:bg-orange-50'
+                  `flex items-center gap-1 px-2 lg:px-3 py-2 rounded-lg font-semibold text-xs lg:text-sm whitespace-nowrap transition-all duration-200 ${isActive
+                    ? 'text-[#C4533A] border-b-2 border-[#D4A017] rounded-none pb-[14px]'
+                    : 'text-[#4A2B0F] opacity-80 hover:text-[#C4533A] hover:bg-orange-50'
                   }`
                 }
               >
@@ -135,11 +134,10 @@ export default function AdminLayout() {
                   setNotificationsOpen(false)
                   setProfileOpen(false)
                 }}
-                className={`flex items-center gap-1 px-2 lg:px-3 py-2 rounded-lg font-semibold text-xs lg:text-sm whitespace-nowrap transition-all duration-200 ${
-                  isSettingsActive
+                className={`flex items-center gap-1 px-2 lg:px-3 py-2 rounded-lg font-semibold text-xs lg:text-sm whitespace-nowrap transition-all duration-200 ${isSettingsActive
                     ? 'text-[#C4533A] border-b-2 border-[#D4A017] rounded-none pb-[14px]'
                     : 'text-[#4A2B0F] opacity-80 hover:text-[#C4533A] hover:bg-orange-50'
-                }`}
+                  }`}
               >
                 <Icon name="settings" size={18} />
                 Settings
@@ -157,10 +155,9 @@ export default function AdminLayout() {
                       to={link.to}
                       onClick={event => handleGuardedNavClick(link.to, event)}
                       className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all ${
-                          isActive
-                            ? 'text-[#C4533A] bg-orange-50 font-bold'
-                            : 'text-[#4A2B0F] hover:bg-orange-50 hover:text-[#C4533A]'
+                        `flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all ${isActive
+                          ? 'text-[#C4533A] bg-orange-50 font-bold'
+                          : 'text-[#4A2B0F] hover:bg-orange-50 hover:text-[#C4533A]'
                         } first:rounded-t-xl last:rounded-b-xl`
                       }
                     >
@@ -235,8 +232,7 @@ export default function AdminLayout() {
                 to={link.to}
                 onClick={event => handleGuardedNavClick(link.to, event)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    isActive ? 'bg-orange-100 text-[#C4533A] font-bold' : 'text-[#4A2B0F] hover:bg-orange-50'
+                  `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${isActive ? 'bg-orange-100 text-[#C4533A] font-bold' : 'text-[#4A2B0F] hover:bg-orange-50'
                   }`
                 }
               >

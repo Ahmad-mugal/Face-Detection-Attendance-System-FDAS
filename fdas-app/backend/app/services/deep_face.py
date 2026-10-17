@@ -17,6 +17,7 @@ from app.config import (
     DEEP_FACE_EXECUTION_PROVIDER,
     DEEP_FACE_MODEL_DIRECTORY,
     DEEP_FACE_MODEL_NAME,
+    DEEP_FAST_QUERY_MIN_FACE_AREA_RATIO,
     DEEP_QUERY_MAX_BRIGHTNESS,
     DEEP_QUERY_MIN_BLUR_VARIANCE,
     DEEP_QUERY_MIN_BRIGHTNESS,
@@ -56,6 +57,32 @@ class DeepEncodingResult:
     faceBox: tuple[int, int, int, int] | None = None
     quality: dict[str, bool | float | str] | None = None
     haarBackgroundFalsePositiveReconciled: bool = False
+
+
+@dataclass(frozen=True)
+class FastFaceEncoding:
+    faceIndex: int
+    faceBox: tuple[int, int, int, int]
+    detectionScore: float
+    status: str
+    message: str
+    quality: dict[str, bool | float | str]
+    embedding: np.ndarray | None = field(default=None, repr=False)
+
+
+@dataclass(frozen=True)
+class FastFrameEncoding:
+    sourceWidth: int
+    sourceHeight: int
+    faces: tuple[FastFaceEncoding, ...]
+    rawDetectionCount: int
+    duplicateDetectionCount: int
+    invalidDetectionCount: int
+    decodeMilliseconds: float
+    detectorMilliseconds: float
+    alignmentMilliseconds: float
+    embeddingMilliseconds: float
+    totalMilliseconds: float
 
 
 class DeepFaceService:
@@ -168,7 +195,194 @@ class DeepFaceService:
         return boxes
 
     @staticmethod
-    def _query_quality(image: np.ndarray, face_box: tuple[int, int, int, int]) -> dict[str, bool | float | str]:
+    def _clamp_face_box(
+        raw_box,
+        frame_width: int,
+        frame_height: int,
+    ) -> tuple[int, int, int, int] | None:
+        if raw_box is None or len(raw_box) < 4:
+            return None
+        values = np.asarray(raw_box[:4], dtype=np.float64)
+        if values.size != 4 or not np.all(np.isfinite(values)):
+            return None
+        left, top, right, bottom = [float(value) for value in values]
+        if right <= left or bottom <= top:
+            return None
+        x1 = max(0, min(frame_width - 1, int(round(left))))
+        y1 = max(0, min(frame_height - 1, int(round(top))))
+        x2 = max(x1 + 1, min(frame_width, int(round(right))))
+        y2 = max(y1 + 1, min(frame_height, int(round(bottom))))
+        if x2 <= x1 or y2 <= y1:
+            return None
+        return x1, y1, x2 - x1, y2 - y1
+
+    @staticmethod
+    def _box_iou(
+        left_box: tuple[int, int, int, int],
+        right_box: tuple[int, int, int, int],
+    ) -> float:
+        left_x, left_y, left_width, left_height = left_box
+        right_x, right_y, right_width, right_height = right_box
+        intersection_left = max(left_x, right_x)
+        intersection_top = max(left_y, right_y)
+        intersection_right = min(left_x + left_width, right_x + right_width)
+        intersection_bottom = min(left_y + left_height, right_y + right_height)
+        intersection_width = max(0, intersection_right - intersection_left)
+        intersection_height = max(0, intersection_bottom - intersection_top)
+        intersection_area = float(intersection_width * intersection_height)
+        union_area = float(
+            (left_width * left_height)
+            + (right_width * right_height)
+            - intersection_area
+        )
+        return intersection_area / union_area if union_area > 0 else 0.0
+
+    def encode_fast_attendance_frame_bytes(self, image_bytes: bytes) -> FastFrameEncoding:
+        """Detect once and batch-encode every quality-eligible face in a frame."""
+        started = time.perf_counter()
+        decode_started = time.perf_counter()
+        image = decode_image_bytes(image_bytes)
+        decode_milliseconds = (time.perf_counter() - decode_started) * 1000.0
+        frame_height, frame_width = image.shape[:2]
+        application = self.initialize()
+
+        with self._inference_lock:
+            detector_started = time.perf_counter()
+            raw_boxes, raw_landmarks = application.det_model.detect(image, max_num=0)
+            detector_milliseconds = (time.perf_counter() - detector_started) * 1000.0
+
+            raw_detection_count = int(raw_boxes.shape[0]) if raw_boxes is not None else 0
+            detections: list[dict] = []
+            invalid_detection_count = 0
+            for index in range(raw_detection_count):
+                face_box = self._clamp_face_box(raw_boxes[index, :4], frame_width, frame_height)
+                landmarks = raw_landmarks[index] if raw_landmarks is not None else None
+                if face_box is None or landmarks is None or not np.all(np.isfinite(landmarks)):
+                    invalid_detection_count += 1
+                    continue
+                raw_score = float(raw_boxes[index, 4]) if raw_boxes.shape[1] > 4 else 0.0
+                detection_score = raw_score if np.isfinite(raw_score) else 0.0
+                detections.append(
+                    {
+                        "faceBox": face_box,
+                        "landmarks": landmarks,
+                        "detectionScore": detection_score,
+                    }
+                )
+
+            detections.sort(key=lambda item: -item["detectionScore"])
+            unique_detections: list[dict] = []
+            duplicate_detection_count = 0
+            for detection in detections:
+                if any(
+                    self._box_iou(detection["faceBox"], existing["faceBox"]) >= 0.85
+                    for existing in unique_detections
+                ):
+                    duplicate_detection_count += 1
+                    continue
+                unique_detections.append(detection)
+            unique_detections.sort(
+                key=lambda item: (
+                    item["faceBox"][0],
+                    item["faceBox"][1],
+                    -item["faceBox"][2] * item["faceBox"][3],
+                )
+            )
+
+            face_rows: list[dict] = []
+            eligible_rows: list[tuple[int, dict]] = []
+            for face_index, detection in enumerate(unique_detections, start=1):
+                quality = self._query_quality(
+                    image,
+                    detection["faceBox"],
+                    minimum_face_area_ratio=DEEP_FAST_QUERY_MIN_FACE_AREA_RATIO,
+                )
+                row = {
+                    **detection,
+                    "faceIndex": face_index,
+                    "quality": quality,
+                    "status": "Ready" if quality["passed"] else "PoorFaceQuality",
+                    "message": (
+                        "Face is ready for ArcFace matching."
+                        if quality["passed"]
+                        else f"Face quality needs a fresh capture: {quality['reason']}."
+                    ),
+                    "embedding": None,
+                }
+                face_rows.append(row)
+                if quality["passed"]:
+                    eligible_rows.append((len(face_rows) - 1, row))
+
+            alignment_milliseconds = 0.0
+            embedding_milliseconds = 0.0
+            if eligible_rows:
+                from insightface.utils import face_align
+
+                recognition_model = application.models["recognition"]
+                alignment_started = time.perf_counter()
+                aligned_faces = [
+                    face_align.norm_crop(
+                        image,
+                        landmark=row["landmarks"],
+                        image_size=recognition_model.input_size[0],
+                    )
+                    for _row_index, row in eligible_rows
+                ]
+                alignment_milliseconds = (time.perf_counter() - alignment_started) * 1000.0
+                embedding_started = time.perf_counter()
+                raw_embeddings = recognition_model.get_feat(aligned_faces)
+                embedding_milliseconds = (time.perf_counter() - embedding_started) * 1000.0
+
+                for embedding_index, (row_index, row) in enumerate(eligible_rows):
+                    raw_embedding = np.asarray(raw_embeddings[embedding_index], dtype=np.float32).reshape(-1)
+                    norm = float(np.linalg.norm(raw_embedding))
+                    if (
+                        raw_embedding.size != DEEP_FACE_EMBEDDING_DIMENSION
+                        or not np.all(np.isfinite(raw_embedding))
+                        or norm <= 0.0
+                        or not np.isfinite(norm)
+                    ):
+                        face_rows[row_index] = {
+                            **row,
+                            "status": "InvalidEmbedding",
+                            "message": "The deep model returned an invalid embedding for this face.",
+                        }
+                        continue
+                    face_rows[row_index]["embedding"] = raw_embedding / norm
+
+        faces = tuple(
+            FastFaceEncoding(
+                faceIndex=row["faceIndex"],
+                faceBox=row["faceBox"],
+                detectionScore=round(float(row["detectionScore"]), 6),
+                status=row["status"],
+                message=row["message"],
+                quality=row["quality"],
+                embedding=row["embedding"],
+            )
+            for row in face_rows
+        )
+        return FastFrameEncoding(
+            sourceWidth=frame_width,
+            sourceHeight=frame_height,
+            faces=faces,
+            rawDetectionCount=raw_detection_count,
+            duplicateDetectionCount=duplicate_detection_count,
+            invalidDetectionCount=invalid_detection_count,
+            decodeMilliseconds=round(decode_milliseconds, 3),
+            detectorMilliseconds=round(detector_milliseconds, 3),
+            alignmentMilliseconds=round(alignment_milliseconds, 3),
+            embeddingMilliseconds=round(embedding_milliseconds, 3),
+            totalMilliseconds=round((time.perf_counter() - started) * 1000.0, 3),
+        )
+
+    @staticmethod
+    def _query_quality(
+        image: np.ndarray,
+        face_box: tuple[int, int, int, int],
+        *,
+        minimum_face_area_ratio: float = DEEP_QUERY_MIN_FACE_AREA_RATIO,
+    ) -> dict[str, bool | float | str]:
         frame_height, frame_width = image.shape[:2]
         x, y, width, height = face_box
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -180,7 +394,7 @@ class DeepFaceService:
         brightness = float(crop.mean()) if crop.size else 0.0
         edge_clearance = float(min(x, y, frame_width - (x + width), frame_height - (y + height))) / shortest_side
         failures: list[str] = []
-        if area_ratio < DEEP_QUERY_MIN_FACE_AREA_RATIO:
+        if area_ratio < minimum_face_area_ratio:
             failures.append("face_too_small")
         if blur_variance < DEEP_QUERY_MIN_BLUR_VARIANCE:
             failures.append("blurred")
@@ -194,7 +408,7 @@ class DeepFaceService:
             "passed": not failures,
             "reason": ",".join(failures) if failures else "quality_checks_passed",
             "faceAreaRatio": round(area_ratio, 6),
-            "minimumFaceAreaRatio": DEEP_QUERY_MIN_FACE_AREA_RATIO,
+            "minimumFaceAreaRatio": minimum_face_area_ratio,
             "blurVariance": round(blur_variance, 3),
             "minimumBlurVariance": DEEP_QUERY_MIN_BLUR_VARIANCE,
             "brightness": round(brightness, 3),

@@ -39,6 +39,11 @@ class DeepFaceInfo(BaseModel):
     queryMinimumBrightness: float | None = None
     queryMaximumBrightness: float | None = None
     queryMinimumEdgeClearanceRatio: float | None = None
+    attendanceMode: str
+    livenessRequiredForAttendance: bool
+    multiFaceAttendanceEnabled: bool
+    fastAttendanceSingleQuery: bool
+    fastQueryMinimumFaceAreaRatio: float
 
 
 class DeepEncodingDryRunResponse(BaseModel):

@@ -5,7 +5,12 @@ $ErrorActionPreference = 'Stop'
 $backendRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $projectRoot = Split-Path -Parent $backendRoot
 $frontendRoot = Join-Path $projectRoot 'frontend'
-$pythonPath = Join-Path $backendRoot '.venv\Scripts\python.exe'
+$portablePythonPath = Join-Path $projectRoot '.python311\python.exe'
+$pythonPath = $(if (Test-Path -LiteralPath $portablePythonPath -PathType Leaf) {
+    $portablePythonPath
+} else {
+    Join-Path $backendRoot '.venv\Scripts\python.exe'
+})
 $nodePath = (Get-Command node.exe -ErrorAction Stop).Source
 $viteScript = Join-Path $frontendRoot 'node_modules\vite\bin\vite.js'
 $viteScriptRelative = 'node_modules\vite\bin\vite.js'
@@ -16,6 +21,7 @@ $backendProcess = $null
 $isolatedRoots = [System.Collections.Generic.List[string]]::new()
 
 $suites = @(
+    @{ Key = 'fast-attendance'; Name = 'Fast attendance browser smoke'; Script = 'scripts\fast-attendance-smoke.mjs'; Flag = 'FDAS_FAST_ATTENDANCE_BROWSER_ISOLATED' },
     @{ Key = 'phase5'; Name = 'Phase 5 browser smoke'; Script = 'scripts\phase5-smoke.mjs'; Flag = 'FDAS_SMOKE_ISOLATED' },
     @{ Key = 'phase10.12b'; Name = 'Phase 10.12B browser smoke'; Script = 'scripts\phase10_12b-smoke.mjs'; Flag = 'FDAS_PHASE10_12B_ISOLATED' },
     @{ Key = 'phase10.12c'; Name = 'Phase 10.12C visual regression'; Script = 'scripts\phase10_12c-visual.mjs'; Flag = 'FDAS_PHASE10_12C_CAPTURE' },
@@ -42,6 +48,7 @@ $environmentChanges = @{
     FDAS_SMTP_PASSWORD = ''
     FDAS_SMTP_FROM_EMAIL = ''
     FDAS_DEEP_FACE_MODEL_DIR = (Join-Path $backendRoot 'models\insightface\buffalo_l')
+    FDAS_ATTENDANCE_MODE = 'FAST_MULTI_FACE'
     VITE_API_BASE_URL = "http://127.0.0.1:$backendPort"
     FDAS_API_BASE_URL = "http://127.0.0.1:$backendPort"
 }
@@ -55,9 +62,6 @@ function Stop-TestProcesses {
     if ($script:backendProcess -and -not $script:backendProcess.HasExited) {
         Stop-Process -Id $script:backendProcess.Id -Force -ErrorAction SilentlyContinue
     }
-    Get-CimInstance Win32_Process | Where-Object {
-        $_.CommandLine -and ($_.CommandLine.Contains("--port $backendPort") -or $_.CommandLine.Contains("--port $frontendPort"))
-    } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     $script:backendProcess = $null
 }
 
@@ -85,7 +89,12 @@ try {
         New-Item -ItemType Directory -Path $isolatedBackend -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $backendRoot 'app') -Destination $isolatedBackend -Recurse
         Copy-Item -LiteralPath (Join-Path $backendRoot 'fdas_local.db') -Destination $isolatedBackend
-        Copy-Item -LiteralPath (Join-Path $backendRoot 'storage') -Destination $isolatedBackend -Recurse
+        if ($suite.Key -eq 'fast-attendance') {
+            New-Item -ItemType Directory -Path (Join-Path $isolatedBackend 'storage') -Force | Out-Null
+        }
+        else {
+            Copy-Item -LiteralPath (Join-Path $backendRoot 'storage') -Destination $isolatedBackend -Recurse
+        }
 
         $isolatedDatabase = Join-Path $isolatedBackend 'fdas_local.db'
         $normalizeCode = 'import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute(sys.argv[2]); c.commit(); c.close()'
@@ -95,7 +104,8 @@ try {
 
         $backendStdout = Join-Path $backendRoot "output\$($suite.Name.Replace(' ', '-')).stdout.log"
         $backendStderr = Join-Path $backendRoot "output\$($suite.Name.Replace(' ', '-')).stderr.log"
-        $backendProcess = Start-Process -FilePath $pythonPath -ArgumentList @('-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', "$backendPort") -WorkingDirectory $isolatedBackend -WindowStyle Hidden -RedirectStandardOutput $backendStdout -RedirectStandardError $backendStderr -PassThru
+        $backendLaunchCode = '"import os,sys;sys.path.insert(0,os.getcwd());import uvicorn;uvicorn.run(''app.main:app'',host=''127.0.0.1'',port=' + $backendPort + ')"'
+        $backendProcess = Start-Process -FilePath $pythonPath -ArgumentList @('-c', $backendLaunchCode) -WorkingDirectory $isolatedBackend -WindowStyle Hidden -RedirectStandardOutput $backendStdout -RedirectStandardError $backendStderr -PassThru
 
         $backendReady = $false
         for ($attempt = 0; $attempt -lt 60; $attempt += 1) {

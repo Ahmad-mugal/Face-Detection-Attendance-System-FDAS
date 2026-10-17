@@ -9,6 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "verify:notification-time": "node scripts/notification-time-verifier.mjs",
+    "verify:fast-attendance": "node scripts/fast-attendance-unit.mjs",
+    "smoke:fast-attendance": "node scripts/fast-attendance-smoke.mjs",
     "smoke:password-recovery-camera": "node scripts/password-recovery-camera-smoke.mjs",
     "smoke:ui-cleanup": "node scripts/ui-cleanup-print-smoke.mjs",
     "smoke:phase10.12c": "node scripts/phase10_12c-visual.mjs",

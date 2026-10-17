@@ -228,8 +228,6 @@ export default function AttendanceReportsPanel({ title = 'Attendance Reports', e
       <div className="rounded-xl p-3.5 text-xs border fdas-no-print" style={{ backgroundColor: '#fff1eb', borderColor: '#f0dfd8', color: '#55433b' }}>
         <p className="font-bold" style={{ color: '#4A2B0F' }}>Reports & Export Information:</p>
         <p className="mt-0.5" style={{ color: '#887369' }}>
-          • <strong style={{ color: '#4A2B0F' }}>Liveness Status:</strong> Displayed directly from each stored attendance record (<code className="font-mono text-[11px]">Passed</code>, <code className="font-mono text-[11px]">Failed</code>, or <code className="font-mono text-[11px]">NotChecked</code>).
-          <br />
           • <strong style={{ color: '#4A2B0F' }}>Export Availability:</strong> CSV export and browser printing are available for filtered records. The browser print dialog can also save as PDF where supported.
         </p>
       </div>
@@ -279,14 +277,13 @@ export default function AttendanceReportsPanel({ title = 'Attendance Reports', e
                 <th className="p-4">Marked At</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Confidence</th>
-                <th className="p-4">Liveness</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7"><LoadingState label="Loading attendance records…" compact /></td></tr>
+                <tr><td colSpan="6"><LoadingState label="Loading attendance records…" compact /></td></tr>
               ) : displayedRecords.length === 0 ? (
-                <tr><td colSpan="7"><EmptyState title="No attendance records found" description="Adjust the filters and refresh the report." icon="fact_check" /></td></tr>
+                <tr><td colSpan="6"><EmptyState title="No attendance records found" description="Adjust the filters and refresh the report." icon="fact_check" /></td></tr>
               ) : displayedRecords.map(record => (
                 <tr key={record.attendanceRecordId} className="border-t" style={{ borderColor: '#f0dfd8' }}>
                   <td className="p-4">
@@ -298,7 +295,6 @@ export default function AttendanceReportsPanel({ title = 'Attendance Reports', e
                   <td className="p-4">{formatDateTime(record.markedAt)}</td>
                   <td><Badge>{record.status}</Badge></td>
                   <td className="p-4 font-mono">{formatConfidence(record.recognitionConfidence)}</td>
-                  <td><Badge tone={record.livenessStatus === 'Passed' ? 'success' : record.livenessStatus === 'Failed' ? 'danger' : 'neutral'}>{record.livenessStatus || 'NotChecked'}</Badge></td>
                 </tr>
               ))}
             </tbody>

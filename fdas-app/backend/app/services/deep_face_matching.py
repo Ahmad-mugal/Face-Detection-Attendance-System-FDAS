@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import statistics
+import threading
+import time
 from dataclasses import dataclass
 
 import numpy as np
@@ -11,6 +13,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import (
+    ATTENDANCE_MODE,
+    ATTENDANCE_MODE_FAST_MULTI_FACE,
+    ATTENDANCE_MODE_SECURE_SINGLE_FACE,
     DEEP_ENROLLMENT_MIN_EMBEDDINGS,
     DEEP_ATTENDANCE_CONTROLLED_STUDENT_ID,
     DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED,
@@ -18,6 +23,7 @@ from app.config import (
     DEEP_CONTROLLED_MATCH_THRESHOLD,
     DEEP_FACE_EMBEDDING_DIMENSION,
     DEEP_FACE_ENCODING_VERSION,
+    DEEP_FAST_QUERY_MIN_FACE_AREA_RATIO,
     DEEP_MATCH_CALIBRATION_LABEL,
     DEEP_MATCH_MIN_IDENTITY_MARGIN,
     DEEP_MATCH_SCORING_METHOD,
@@ -67,6 +73,41 @@ class DeepStudentScore:
     bestTemplateId: int
     bestEmbeddingId: int
     templatesEvaluated: int
+
+
+@dataclass(frozen=True)
+class FastGalleryIdentity:
+    studentId: int
+    studentName: str
+    rollNo: str
+    classId: int
+    className: str | None
+    departmentId: int
+    departmentName: str | None
+    embeddingIndexes: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class FastDeepGallery:
+    departmentId: int
+    fingerprint: str
+    identities: tuple[FastGalleryIdentity, ...]
+    embeddingMatrix: np.ndarray
+    templateIds: tuple[int, ...]
+    embeddingIds: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class FastGalleryScore:
+    identity: FastGalleryIdentity
+    score: float
+    bestTemplateId: int
+    bestEmbeddingId: int
+    templatesEvaluated: int
+
+
+_fast_gallery_cache: dict[tuple[str, int], FastDeepGallery] = {}
+_fast_gallery_cache_lock = threading.Lock()
 
 
 def parse_deep_embedding(embedding_data: str | None) -> np.ndarray | None:
@@ -187,6 +228,164 @@ def load_deep_match_candidates(
             )
         )
     return candidates
+
+
+def _fast_gallery_fingerprint(db: Session, department_id: int) -> str:
+    student_rows = (
+        db.query(
+            Student.studentId,
+            Student.departmentId,
+            Student.classId,
+            Student.status,
+            Student.updatedAt,
+        )
+        .filter(Student.departmentId == department_id)
+        .order_by(Student.studentId)
+        .all()
+    )
+    embedding_rows = (
+        db.query(
+            FaceTemplateEmbedding.faceTemplateEmbeddingId,
+            FaceTemplateEmbedding.studentId,
+            FaceTemplateEmbedding.faceTemplateId,
+            FaceTemplateEmbedding.encodingVersion,
+            FaceTemplateEmbedding.isActive,
+            FaceTemplateEmbedding.updatedAt,
+            FaceTemplate.isActive,
+            FaceTemplate.updatedAt,
+        )
+        .join(Student, Student.studentId == FaceTemplateEmbedding.studentId)
+        .join(FaceTemplate, FaceTemplate.templateId == FaceTemplateEmbedding.faceTemplateId)
+        .filter(
+            Student.departmentId == department_id,
+            FaceTemplateEmbedding.encodingVersion == DEEP_FACE_ENCODING_VERSION,
+        )
+        .order_by(FaceTemplateEmbedding.faceTemplateEmbeddingId)
+        .all()
+    )
+    payload = repr((student_rows, embedding_rows)).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _build_fast_gallery(
+    db: Session,
+    current_user: User,
+    department_id: int,
+    fingerprint: str,
+) -> FastDeepGallery:
+    candidates = load_deep_match_candidates(db, current_user, department_id)
+    identities: list[FastGalleryIdentity] = []
+    vectors: list[np.ndarray] = []
+    template_ids: list[int] = []
+    embedding_ids: list[int] = []
+    by_student: dict[int, list[DeepMatchCandidate]] = {}
+    for candidate in candidates:
+        by_student.setdefault(candidate.student.studentId, []).append(candidate)
+
+    for student_id in sorted(by_student):
+        student_candidates = by_student[student_id]
+        student = student_candidates[0].student
+        indexes: list[int] = []
+        for candidate in student_candidates:
+            indexes.append(len(vectors))
+            vectors.append(np.asarray(candidate.vector, dtype=np.float32))
+            template_ids.append(candidate.template.templateId)
+            embedding_ids.append(candidate.embedding.faceTemplateEmbeddingId)
+        identities.append(
+            FastGalleryIdentity(
+                studentId=student.studentId,
+                studentName=student.fullName,
+                rollNo=student.rollNo,
+                classId=student.classId,
+                className=student.classroom.className if student.classroom else None,
+                departmentId=student.departmentId,
+                departmentName=student.department.departmentName if student.department else None,
+                embeddingIndexes=tuple(indexes),
+            )
+        )
+
+    matrix = (
+        np.ascontiguousarray(np.stack(vectors), dtype=np.float32)
+        if vectors
+        else np.empty((0, DEEP_FACE_EMBEDDING_DIMENSION), dtype=np.float32)
+    )
+    matrix.setflags(write=False)
+    return FastDeepGallery(
+        departmentId=department_id,
+        fingerprint=fingerprint,
+        identities=tuple(identities),
+        embeddingMatrix=matrix,
+        templateIds=tuple(template_ids),
+        embeddingIds=tuple(embedding_ids),
+    )
+
+
+def get_cached_fast_gallery(
+    db: Session,
+    current_user: User,
+    department_id: int,
+) -> tuple[FastDeepGallery, bool]:
+    """Return a scoped immutable gallery, invalidated by identity data changes."""
+    ensure_department_access(current_user, department_id)
+    fingerprint = _fast_gallery_fingerprint(db, department_id)
+    bind_key = str(db.get_bind().url)
+    cache_key = (bind_key, department_id)
+    with _fast_gallery_cache_lock:
+        cached = _fast_gallery_cache.get(cache_key)
+        if cached is not None and cached.fingerprint == fingerprint:
+            return cached, True
+        gallery = _build_fast_gallery(db, current_user, department_id, fingerprint)
+        _fast_gallery_cache[cache_key] = gallery
+        return gallery, False
+
+
+def clear_fast_gallery_cache() -> None:
+    with _fast_gallery_cache_lock:
+        _fast_gallery_cache.clear()
+
+
+def rank_fast_gallery_embeddings(
+    query_embeddings: list[np.ndarray],
+    gallery: FastDeepGallery,
+) -> list[list[FastGalleryScore]]:
+    """Vectorize cosine comparisons while preserving per-student mean_top_3."""
+    if not query_embeddings:
+        return []
+    query_matrix = np.ascontiguousarray(np.stack(query_embeddings), dtype=np.float32)
+    query_norms = np.linalg.norm(query_matrix, axis=1, keepdims=True)
+    if (
+        query_matrix.shape[1] != DEEP_FACE_EMBEDDING_DIMENSION
+        or not np.all(np.isfinite(query_matrix))
+        or np.any(query_norms <= 0.0)
+    ):
+        raise ValueError("Fast attendance query embedding is invalid")
+    if gallery.embeddingMatrix.shape[0] == 0:
+        return [[] for _query in query_embeddings]
+
+    similarities = (query_matrix / query_norms) @ gallery.embeddingMatrix.T
+    rankings: list[list[FastGalleryScore]] = []
+    for query_similarities in similarities:
+        scores: list[FastGalleryScore] = []
+        for identity in gallery.identities:
+            indexes = np.asarray(identity.embeddingIndexes, dtype=np.int64)
+            identity_similarities = query_similarities[indexes]
+            top_count = min(3, identity_similarities.size)
+            top_indexes = np.argpartition(identity_similarities, -top_count)[-top_count:]
+            score = round(float(np.mean(identity_similarities[top_indexes])), 6)
+            best_local_index = int(np.argmax(identity_similarities))
+            best_global_index = identity.embeddingIndexes[best_local_index]
+            scores.append(
+                FastGalleryScore(
+                    identity=identity,
+                    score=score,
+                    bestTemplateId=gallery.templateIds[best_global_index],
+                    bestEmbeddingId=gallery.embeddingIds[best_global_index],
+                    templatesEvaluated=len(identity.embeddingIndexes),
+                )
+            )
+        scores.sort(key=lambda item: (-item.score, item.identity.studentId))
+        rankings.append(scores)
+    return rankings
 
 
 def exclude_query_leakage(
@@ -784,6 +983,221 @@ def match_deep_face_bytes_for_attendance(
     }
 
 
+def match_fast_multi_face_for_attendance(
+    db: Session,
+    current_user: User,
+    department_id: int,
+    image_bytes: bytes,
+) -> dict:
+    """Detect and independently classify every usable face in one camera frame."""
+    ensure_department_access(current_user, department_id)
+    started = time.perf_counter()
+    try:
+        frame = get_deep_face_service().encode_fast_attendance_frame_bytes(image_bytes)
+    except DeepFaceInitializationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Deep recognition is unavailable: {exc}",
+        ) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Deep recognition could not process this attendance frame safely.",
+        ) from exc
+
+    gallery_started = time.perf_counter()
+    gallery, gallery_cache_hit = get_cached_fast_gallery(db, current_user, department_id)
+    gallery_milliseconds = (time.perf_counter() - gallery_started) * 1000.0
+
+    usable_faces = [face for face in frame.faces if face.embedding is not None]
+    matching_started = time.perf_counter()
+    rankings = rank_fast_gallery_embeddings(
+        [face.embedding for face in usable_faces if face.embedding is not None],
+        gallery,
+    )
+    matching_milliseconds = (time.perf_counter() - matching_started) * 1000.0
+    rankings_by_face_index = {
+        face.faceIndex: ranking
+        for face, ranking in zip(usable_faces, rankings, strict=True)
+    }
+
+    face_results: list[dict] = []
+    tentative_matches: list[dict] = []
+    for face in frame.faces:
+        x, y, width, height = face.faceBox
+        bbox = {
+            "x": x,
+            "y": y,
+            "width": width,
+            "height": height,
+            "normalizedX": round(x / max(frame.sourceWidth, 1), 6),
+            "normalizedY": round(y / max(frame.sourceHeight, 1), 6),
+            "normalizedWidth": round(width / max(frame.sourceWidth, 1), 6),
+            "normalizedHeight": round(height / max(frame.sourceHeight, 1), 6),
+        }
+        common = {
+            "faceId": f"face-{face.faceIndex}",
+            "faceIndex": face.faceIndex,
+            "bbox": bbox,
+            "detectionScore": face.detectionScore,
+            "quality": face.quality,
+            "attendanceMarked": False,
+            "attendanceRecordId": None,
+            "studentId": None,
+            "studentName": None,
+            "rollNo": None,
+            "classId": None,
+            "className": None,
+            "recognitionConfidence": None,
+            "secondRecognitionConfidence": None,
+            "identityMargin": None,
+            "thresholdUsed": DEEP_MATCH_THRESHOLD,
+            "requiredMargin": DEEP_MATCH_MIN_IDENTITY_MARGIN,
+            "recognitionProvider": DEEP_FACE_PROVIDER,
+            "recognitionEncodingVersion": DEEP_FACE_ENCODING_VERSION,
+            "recognitionMethod": DEEP_MATCH_SCORING_METHOD,
+            "livenessStatus": "NotChecked",
+        }
+        if face.embedding is None:
+            face_results.append(
+                {
+                    **common,
+                    "status": face.status,
+                    "message": face.message,
+                }
+            )
+            continue
+
+        ranking = rankings_by_face_index.get(face.faceIndex, [])
+        if not ranking:
+            face_results.append(
+                {
+                    **common,
+                    "status": "NotEligible",
+                    "message": "No eligible deep-enrolled students are available in this department.",
+                }
+            )
+            continue
+
+        top = ranking[0]
+        second = ranking[1] if len(ranking) > 1 else None
+        margin = round(top.score - second.score, 6) if second is not None else None
+        scored = {
+            **common,
+            "recognitionConfidence": top.score,
+            "secondRecognitionConfidence": second.score if second else None,
+            "identityMargin": margin,
+        }
+        if top.score < DEEP_MATCH_THRESHOLD:
+            face_results.append(
+                {
+                    **scored,
+                    "status": "Unknown",
+                    "message": "Face did not meet the identity-match threshold.",
+                }
+            )
+            continue
+        if margin is not None and margin < DEEP_MATCH_MIN_IDENTITY_MARGIN:
+            face_results.append(
+                {
+                    **scored,
+                    "status": "Ambiguous",
+                    "message": "The top identities are too close for a safe match.",
+                }
+            )
+            continue
+
+        identity = top.identity
+        tentative = {
+            **scored,
+            "matched": True,
+            "status": "RecognitionReady",
+            "message": "ArcFace identity passed the Fast attendance rule.",
+            "studentId": identity.studentId,
+            "studentName": identity.studentName,
+            "rollNo": identity.rollNo,
+            "classId": identity.classId,
+            "className": identity.className,
+            "departmentId": identity.departmentId,
+            "departmentName": identity.departmentName,
+            "similarityScore": top.score,
+            "scoreMargin": margin,
+            "aggregationMethod": DEEP_MATCH_SCORING_METHOD,
+            "encodingVersion": DEEP_FACE_ENCODING_VERSION,
+            "topStudentId": identity.studentId,
+            "topStudentName": identity.studentName,
+            "topRollNo": identity.rollNo,
+            "topScore": top.score,
+            "secondScore": second.score if second else None,
+            "candidateStudentCount": len(ranking),
+            "candidateEmbeddingCount": int(gallery.embeddingMatrix.shape[0]),
+        }
+        face_results.append(tentative)
+        tentative_matches.append(tentative)
+
+    winners_by_student: dict[int, dict] = {}
+    for match in sorted(
+        tentative_matches,
+        key=lambda item: (
+            -float(item["recognitionConfidence"]),
+            -float(item["identityMargin"] if item["identityMargin"] is not None else 1.0),
+            int(item["faceIndex"]),
+        ),
+    ):
+        student_id = int(match["studentId"])
+        if student_id not in winners_by_student:
+            winners_by_student[student_id] = match
+            continue
+        match.update(
+            {
+                "matched": False,
+                "status": "IdentityConflict",
+                "message": "Another face in this frame is the stronger match for this identity.",
+                "studentId": None,
+                "studentName": None,
+                "rollNo": None,
+                "classId": None,
+                "className": None,
+                "departmentId": None,
+                "departmentName": None,
+            }
+        )
+
+    return {
+        "sourceWidth": frame.sourceWidth,
+        "sourceHeight": frame.sourceHeight,
+        "rotationDegrees": 0,
+        "mirroredPreview": True,
+        "faces": face_results,
+        "galleryCacheHit": gallery_cache_hit,
+        "candidateStudentCount": len(gallery.identities),
+        "candidateEmbeddingCount": int(gallery.embeddingMatrix.shape[0]),
+        "timing": {
+            "decodeMilliseconds": frame.decodeMilliseconds,
+            "detectorMilliseconds": frame.detectorMilliseconds,
+            "alignmentMilliseconds": frame.alignmentMilliseconds,
+            "embeddingMilliseconds": frame.embeddingMilliseconds,
+            "galleryMilliseconds": round(gallery_milliseconds, 3),
+            "matchingMilliseconds": round(matching_milliseconds, 3),
+            "recognitionMilliseconds": round(
+                frame.detectorMilliseconds
+                + frame.alignmentMilliseconds
+                + frame.embeddingMilliseconds
+                + matching_milliseconds,
+                3,
+            ),
+            "serviceMilliseconds": round((time.perf_counter() - started) * 1000.0, 3),
+        },
+        "diagnostics": {
+            "rawDetectionCount": frame.rawDetectionCount,
+            "duplicateDetectionCount": frame.duplicateDetectionCount,
+            "invalidDetectionCount": frame.invalidDetectionCount,
+        },
+    }
+
+
 def deep_matching_policy() -> dict:
     return {
         "diagnosticMatchingImplemented": True,
@@ -807,4 +1221,9 @@ def deep_matching_policy() -> dict:
         "queryMinimumBrightness": DEEP_QUERY_MIN_BRIGHTNESS,
         "queryMaximumBrightness": DEEP_QUERY_MAX_BRIGHTNESS,
         "queryMinimumEdgeClearanceRatio": DEEP_QUERY_MIN_EDGE_CLEARANCE_RATIO,
+        "attendanceMode": ATTENDANCE_MODE,
+        "livenessRequiredForAttendance": ATTENDANCE_MODE == ATTENDANCE_MODE_SECURE_SINGLE_FACE,
+        "multiFaceAttendanceEnabled": ATTENDANCE_MODE == ATTENDANCE_MODE_FAST_MULTI_FACE,
+        "fastAttendanceSingleQuery": True,
+        "fastQueryMinimumFaceAreaRatio": DEEP_FAST_QUERY_MIN_FACE_AREA_RATIO,
     }

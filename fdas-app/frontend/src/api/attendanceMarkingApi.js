@@ -1,6 +1,14 @@
 import apiClient from './client'
 
 export const attendanceMarkingApi = {
+  markByFaceFast: ({ sessionId, file }) => {
+    const formData = new FormData()
+    formData.append('sessionId', sessionId)
+    formData.append('file', file, `fast_attendance_frame_${Date.now()}.jpg`)
+    return apiClient.post('/api/attendance/mark-by-face-fast', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(response => response.data)
+  },
   markByFace: ({ sessionId, file }) => {
     const formData = new FormData()
     formData.append('sessionId', sessionId)

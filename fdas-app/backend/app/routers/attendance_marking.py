@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.config import (
+    ATTENDANCE_MODE,
+    ATTENDANCE_MODE_FAST_MULTI_FACE,
+    ATTENDANCE_MODE_SECURE_SINGLE_FACE,
     DEEP_ATTENDANCE_CONTROLLED_STUDENT_ID,
     DEEP_ATTENDANCE_CONTROLLED_TEST_ENABLED,
     DEEP_CONTROLLED_MATCH_MIN_IDENTITY_MARGIN,
@@ -16,13 +19,18 @@ from app.config import (
 from app.dependencies import require_operator_or_admin
 from app.models.attendance_record import AttendanceRecord
 from app.models.user import User
-from app.schemas.attendance_marking import AttendanceMarkResult, AttendanceSessionRecordRead
+from app.schemas.attendance_marking import (
+    AttendanceMarkResult,
+    AttendanceSessionRecordRead,
+    FastAttendanceResult,
+)
 from app.services.attendance_marking import (
     apply_identity_safety_hold,
     create_attendance_from_match_result,
     ensure_active_session,
     list_session_records,
     mark_attendance_by_face,
+    mark_fast_multi_face_attendance,
     no_attendance_result,
 )
 from app.services.attendance_sessions import ensure_session_access, get_session_or_404
@@ -36,6 +44,26 @@ from app.services.liveness import LIVENESS_STATUS_FAILED, LIVENESS_STATUS_PASSED
 
 
 router = APIRouter(tags=["attendance-marking"])
+
+
+def ensure_attendance_mode(expected_mode: str) -> None:
+    if ATTENDANCE_MODE != expected_mode:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "AttendanceModeMismatch",
+                "activeMode": ATTENDANCE_MODE,
+                "requiredMode": expected_mode,
+            },
+        )
+
+
+def ensure_deep_attendance_released() -> None:
+    if not DEEP_RECOGNITION_ACTIVE_FOR_ATTENDANCE or IDENTITY_MATCHING_SAFETY_HOLD:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="AttendanceSafetyHold",
+        )
 
 
 def to_record_read(record: AttendanceRecord) -> AttendanceSessionRecordRead:
@@ -82,6 +110,7 @@ async def mark_by_face_live(
     current_user: User = Depends(require_operator_or_admin),
     db: Session = Depends(get_db),
 ):
+    ensure_attendance_mode(ATTENDANCE_MODE_SECURE_SINGLE_FACE)
     frame_bytes = await read_liveness_uploads(files)
     session = get_session_or_404(db, sessionId)
     ensure_session_access(current_user, session)
@@ -195,6 +224,24 @@ async def mark_by_face_live(
     attendance_result["livenessDiagnostics"] = liveness_result.diagnostics
     attendance_result["controlledTest"] = controlled_allowed
     return attendance_result
+
+
+@router.post("/api/attendance/mark-by-face-fast", response_model=FastAttendanceResult)
+async def mark_by_face_fast(
+    sessionId: int = Form(...),
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_operator_or_admin),
+    db: Session = Depends(get_db),
+):
+    ensure_attendance_mode(ATTENDANCE_MODE_FAST_MULTI_FACE)
+    ensure_deep_attendance_released()
+    image_bytes = await read_match_upload(file)
+    return mark_fast_multi_face_attendance(
+        db,
+        current_user,
+        sessionId,
+        image_bytes,
+    )
 
 
 @router.get("/api/attendance-sessions/{sessionId}/records", response_model=list[AttendanceSessionRecordRead])

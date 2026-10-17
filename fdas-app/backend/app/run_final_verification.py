@@ -66,6 +66,7 @@ VERIFIERS: tuple[VerifierSpec, ...] = (
     VerifierSpec("Phase 10.9 Genuine-User Reliability", "app.verify_phase10_9"),
     VerifierSpec("Phase 10.9B Controlled Policy Validation", "app.verify_phase10_9b"),
     VerifierSpec("Phase 10.10 Final Deep Attendance", "app.verify_phase10_10"),
+    VerifierSpec("Fast Multi-Face Attendance", "app.verify_fast_attendance"),
     VerifierSpec("Phase 10.12A Approval Email", "app.verify_phase10_12a"),
     VerifierSpec("Phase 10.12B SMTP/UI Infrastructure", "app.verify_phase10_12b"),
     VerifierSpec("Phase 10.12D Notifications/Delete/Import", "app.verify_phase10_12d"),
@@ -75,7 +76,7 @@ VERIFIERS: tuple[VerifierSpec, ...] = (
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
 VERIFIER_RUNNER_CODE = (
-    "import importlib,sys; "
+    "import importlib,os,sys; sys.path.insert(0,os.getcwd()); "
     "module=importlib.import_module(sys.argv[1]); "
     "module.BASE_URL=sys.argv[2]; "
     "runner=(getattr(module,'main',None) or getattr(module,'verify_phase2',None) "
@@ -109,13 +110,20 @@ def prepare_isolated_backend(temp_root: Path) -> Path:
     shutil.copy2(database_source, isolated_database)
 
     # Legacy Phase 3 uses this seeded operator as its positive RBAC fixture.
-    # Normalize only the disposable copy because the real account may be
+    # Legacy Phase 10.7D/10.8 uses Student 22 as canonical deep test fixture.
+    # Normalize only the disposable copy because the real account or student may be
     # intentionally disabled in production.
-    with sqlite3.connect(isolated_database) as connection:
+    connection = sqlite3.connect(isolated_database)
+    try:
         connection.execute(
             "UPDATE users SET status = 'Approved' WHERE email = 'operator.cs@fdas.local'"
         )
+        connection.execute(
+            "UPDATE students SET status = 'Active' WHERE studentId = 22"
+        )
         connection.commit()
+    finally:
+        connection.close()
 
     gitignore_source = SOURCE_BACKEND_DIR / ".gitignore"
     if gitignore_source.is_file():
@@ -123,7 +131,7 @@ def prepare_isolated_backend(temp_root: Path) -> Path:
     (isolated_backend / "storage").mkdir()
     source_enrollment_root = SOURCE_BACKEND_DIR / "storage" / "face_enrollments"
     isolated_enrollment_root = isolated_backend / "storage" / "face_enrollments"
-    for student_id in ("19", "22", "26", "27", "28", "29"):
+    for student_id in ("19", "22", "24", "26", "27", "28", "29", "30"):
         source_student_directory = source_enrollment_root / student_id
         if source_student_directory.is_dir():
             shutil.copytree(
@@ -173,6 +181,27 @@ def stop_process_tree(process: subprocess.Popen[str]) -> None:
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait(timeout=10)
+
+
+def remove_isolated_tree(path: Path) -> None:
+    """Remove the disposable verifier tree after Windows releases SQLite handles."""
+    resolved = path.resolve()
+    workspace = WORKSPACE_DIR.resolve()
+    if resolved.parent != workspace or not resolved.name.startswith(".fdas-final-verification-"):
+        raise RuntimeError(f"Refusing to remove unexpected verification path: {resolved}")
+
+    last_error: OSError | None = None
+    for attempt in range(30):
+        try:
+            shutil.rmtree(resolved)
+            return
+        except FileNotFoundError:
+            return
+        except OSError as exc:
+            last_error = exc
+            time.sleep(2)
+    if last_error is not None:
+        raise last_error
 
 
 def execute_verifiers(
@@ -269,49 +298,65 @@ def main() -> int:
     )
 
     try:
-        with tempfile.TemporaryDirectory(
+        temp_directory = Path(tempfile.mkdtemp(
             prefix=".fdas-final-verification-",
             dir=WORKSPACE_DIR,
-        ) as temp_directory:
-            isolated_backend = prepare_isolated_backend(Path(temp_directory))
-            stdout_path = isolated_backend / "uvicorn.stdout.log"
-            stderr_path = isolated_backend / "uvicorn.stderr.log"
-            server: subprocess.Popen[str] | None = None
+        ))
+        try:
+            isolated_backend = prepare_isolated_backend(temp_directory)
             results: list[VerifierResult] = []
 
-            with stdout_path.open("w", encoding="utf-8") as stdout_log, stderr_path.open(
-                "w", encoding="utf-8"
-            ) as stderr_log:
-                try:
-                    server = subprocess.Popen(
-                        [
-                            sys.executable,
-                            "-m",
-                            "uvicorn",
-                            "app.main:app",
-                            "--host",
-                            HOST,
-                            "--port",
-                            str(PORT),
-                        ],
-                        cwd=isolated_backend,
-                        env=environment,
-                        stdout=stdout_log,
-                        stderr=stderr_log,
-                        text=True,
-                    )
-                    wait_for_isolated_server(server, isolated_backend / "fdas_local.db")
-                    print(f"Isolated backend: {isolated_backend}", flush=True)
-                    results = execute_verifiers(VERIFIERS, isolated_backend, environment)
-                finally:
-                    if server is not None:
-                        stop_process_tree(server)
+            fast_specs = tuple(spec for spec in VERIFIERS if spec.module == "app.verify_fast_attendance")
+            secure_specs = tuple(spec for spec in VERIFIERS if spec.module != "app.verify_fast_attendance")
+            log_paths: list[tuple[Path, Path]] = []
+            for attendance_mode, specs in (
+                ("SECURE_SINGLE_FACE", secure_specs),
+                ("FAST_MULTI_FACE", fast_specs),
+            ):
+                if results and not results[-1].passed:
+                    break
+                mode_environment = environment.copy()
+                mode_environment["FDAS_ATTENDANCE_MODE"] = attendance_mode
+                suffix = attendance_mode.lower()
+                stdout_path = isolated_backend / f"uvicorn-{suffix}.stdout.log"
+                stderr_path = isolated_backend / f"uvicorn-{suffix}.stderr.log"
+                log_paths.append((stdout_path, stderr_path))
+                server: subprocess.Popen[str] | None = None
+                with stdout_path.open("w", encoding="utf-8") as stdout_log, stderr_path.open(
+                    "w", encoding="utf-8"
+                ) as stderr_log:
+                    try:
+                        server = subprocess.Popen(
+                            [
+                                sys.executable,
+                                "-c",
+                                (
+                                    "import os,sys; sys.path.insert(0,os.getcwd()); "
+                                    "import uvicorn; "
+                                    f"uvicorn.run('app.main:app', host='{HOST}', port={PORT})"
+                                ),
+                            ],
+                            cwd=isolated_backend,
+                            env=mode_environment,
+                            stdout=stdout_log,
+                            stderr=stderr_log,
+                            text=True,
+                        )
+                        wait_for_isolated_server(server, isolated_backend / "fdas_local.db")
+                        print(f"Isolated backend: {isolated_backend} ({attendance_mode})", flush=True)
+                        results.extend(execute_verifiers(specs, isolated_backend, mode_environment))
+                    finally:
+                        if server is not None:
+                            stop_process_tree(server)
 
             exit_code = print_summary(VERIFIERS, results)
             if exit_code != 0:
-                print_log_tail(stderr_path, "Isolated Uvicorn stderr (tail)")
-                print_log_tail(stdout_path, "Isolated Uvicorn stdout (tail)")
+                for stdout_path, stderr_path in log_paths:
+                    print_log_tail(stderr_path, f"{stderr_path.name} (tail)")
+                    print_log_tail(stdout_path, f"{stdout_path.name} (tail)")
             return exit_code
+        finally:
+            remove_isolated_tree(temp_directory)
     except Exception:
         traceback.print_exc()
         print("\nFINAL RESULT: FAIL", flush=True)

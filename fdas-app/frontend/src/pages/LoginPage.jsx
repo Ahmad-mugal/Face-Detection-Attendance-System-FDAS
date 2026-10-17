@@ -222,13 +222,6 @@ export default function LoginPage() {
                 Request an account
               </Link>
             </p>
-
-            {/* Demo hint */}
-            <div className="text-center text-xs rounded-xl p-3" style={{ backgroundColor: '#fff1eb', color: '#55433b' }}>
-              <p className="font-bold mb-1" style={{ color: '#887369' }}>Demo Credentials</p>
-              <p>Admin: <span className="font-mono font-bold">admin@fdas.local / Admin@12345</span></p>
-              <p>Operator: <span className="font-mono font-bold">operator.cs@fdas.local / Operator@12345</span></p>
-            </div>
           </div>
         </section>
       </main>

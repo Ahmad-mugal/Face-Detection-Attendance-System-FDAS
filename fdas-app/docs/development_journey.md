@@ -5551,3 +5551,130 @@ The existing attendance records, filters, summary cards, Print control, CSV expo
 ### Final Status
 
 **PASS — Admin-visible terminology now consistently uses Reports and Attendance Reports while `/admin/analytics` remains fully compatible and all existing reporting behavior is preserved.**
+
+## Phase 11 — Reversible Fast Multi-Face Attendance Mode (2026-10-17)
+
+### Context and Interrupted Codex Work Recovery
+
+The previous Codex session was implementing Reversible Fast Multi-Face Attendance Mode based on `docs/FDAS_Codex_Fast_Attendance_Implementation_Guide.md`, but stopped unexpectedly when the usage limit was reached.
+
+A complete audit of the working tree, Git status, and implementation files recovered the following exact baseline:
+
+1. **Working-Tree State Discovered:**
+   - Modified tracked files: `backend/app/config.py`, `backend/app/routers/attendance_marking.py`, `backend/app/schemas/attendance_marking.py`, `backend/app/schemas/deep_face.py`, `backend/app/services/attendance_marking.py`, `backend/app/services/deep_face.py`, `backend/app/services/deep_face_matching.py`, `backend/app/run_final_verification.py`, `backend/app/verify_phase10_10.py`, `backend/scripts/run_isolated_frontend_regressions.ps1`, `frontend/package.json`, `frontend/src/api/attendanceMarkingApi.js`, `frontend/src/components/LiveAttendanceStation.jsx`, `frontend/src/layouts/AdminLayout.jsx`.
+   - Untracked files: `backend/app/benchmark_fast_attendance.py`, `backend/app/verify_fast_attendance.py`, `frontend/scripts/fast-attendance-smoke.mjs`, `frontend/scripts/fast-attendance-unit.mjs`, `frontend/src/components/FaceOverlay.jsx`, `frontend/src/utils/faceTracking.js`, and `docs/FDAS_Codex_Fast_Attendance_Implementation_Guide.md`.
+
+2. **Completed Work Found:**
+   - `FDAS_ATTENDANCE_MODE` configuration (`FAST_MULTI_FACE` default, `SECURE_SINGLE_FACE` retained alternative) in `backend/app/config.py`.
+   - `POST /api/attendance/mark-by-face-fast` endpoint in `backend/app/routers/attendance_marking.py` requiring active mode and deep attendance release.
+   - Fast multi-face detection, quality checks, normalized crop extraction, and vectorized gallery matching in `backend/app/services/deep_face.py` and `backend/app/services/deep_face_matching.py`.
+   - Per-face database transactional persistence with duplicate protection in `backend/app/services/attendance_marking.py`.
+   - Reversible UI mode switching in `frontend/src/components/LiveAttendanceStation.jsx`.
+   - SVG face bounding box overlay in `frontend/src/components/FaceOverlay.jsx` with transient IoU tracking in `frontend/src/utils/faceTracking.js`.
+
+3. **Gaps & Defects Identified and Completed:**
+   - `FaceOverlay.jsx`: Misplaced bottom `import` statement was moved to the top of the file to adhere to ES module best practices and prevent bundler hazards.
+   - `AdminLayout.jsx`: Accidental color typo (`#4A2B00`) reverted to standard `#4A2B0F`.
+   - `benchmark_fast_attendance.py`: Hardcoded benchmark students `(22, 24, 30)` crashed because Student #22 was intentionally set to `Disabled` in production by the user. Updated benchmark to use active eligible students `(24, 30, 29)` with single-face sample validation and aspect-ratio preserved height normalization.
+   - `run_final_verification.py`: Normalized Student #22 to `Active` in the disposable verification database only, allowing legacy single-face regression suites (Phase 10.7D, 10.8, 10.9, 10.10) to pass without modifying production data.
+
+### Architecture & Reversibility
+
+- **Mode Configuration:** Governed authoritative server-side by `FDAS_ATTENDANCE_MODE=FAST_MULTI_FACE` (default) or `SECURE_SINGLE_FACE`.
+- **Fast Attendance (`FAST_MULTI_FACE`):**
+  - No `MOVE_CLOSER` liveness challenge, countdowns, area growth checks, or liveness delays.
+  - Multi-face detection enumerates all visible faces in a single frame using SCRFD/InsightFace.
+  - Each face meeting quality requirements (minimum area ratio 0.02, blur variance >= 50, brightness 45-210) is norm-cropped and embedded via ArcFace (512d).
+  - Embeddings are compared vectorized against cached department-eligible, active, deep-ready students (`mean_top_3` cosine similarity).
+  - Recognition threshold (`0.85`) and identity margin (`0.07`) are strictly enforced; no automatic legacy fallback.
+  - One-to-one assignment per frame prevents two faces from claiming the same student (stronger confidence wins; competing face flagged `IdentityConflict`).
+  - Attendance persistence records truthful `livenessStatus = 'NotChecked'`.
+- **Restoration of Secure Mode (`SECURE_SINGLE_FACE`):**
+  - The complete historical single-face pipeline is fully preserved.
+  - To reactivate: set `FDAS_ATTENDANCE_MODE=SECURE_SINGLE_FACE` in `fdas-app/backend/.env` (or environment) and restart the backend.
+  - In Secure Mode: `POST /api/attendance/mark-by-face-fast` is rejected with HTTP 409 (`AttendanceModeMismatch`), live camera restores exact-one-face continuity, `MOVE_CLOSER` challenge (area growth 0.12), and three-query / 2-of-3 ArcFace consensus.
+
+### Recognition Diagnostic & Production Identity Findings
+
+- **Student #22 vs. Student #30 Investigation:**
+  - Production database contains two records for Ahmad Mughal: Student #22 (`cs-2026-789`, Disabled, 22 ArcFace embeddings) and Student #30 (`cs 2022 49`, Active, 20 ArcFace embeddings).
+  - When both were active, images of Ahmad Mughal produced competing scores (~0.81 - 0.82) with margins below 0.07, resulting in ambiguous match rejection.
+  - Student #22 was disabled in production on 2026-10-16. With Student #22 disabled, candidate gallery for Department 1 consists of Students #24 (Mani), #29 (asher ahmed), and #30 (Ahmad Mughal 1).
+  - Genuine enrollment sample testing confirmed:
+    - Student #24: Similarity score = **0.9463**, margin = **0.7167** (exceeds 0.85 threshold and 0.07 margin) -> Confidently marked.
+    - Student #29: Similarity score = **0.9202**, margin = **0.7339** (exceeds 0.85 threshold and 0.07 margin) -> Confidently marked.
+    - Student #30: Similarity score = **0.8618**, margin = **0.6387** (exceeds 0.85 threshold and 0.07 margin) -> Confidently marked.
+    - Disabled Student #22's sample: Top score = 0.7862 (< 0.85 threshold) -> Safely rejected as `Unknown` without false acceptance.
+  - Threshold (0.85) and margin (0.07) were strictly preserved; no production student records were modified.
+
+### Performance Benchmarks on Local Laptop CPU
+
+- **Hardware:** Intel(R) Core(TM) i5-6300U CPU @ 2.40GHz (2 cores, 4 threads), 64-bit Windows 10, Python 3.11.9, ONNX Runtime CPUExecutionProvider.
+- **Cold Start:** Model initialization = 4,775 ms; first 1-face total execution = 777 ms.
+- **Warmed Execution (3-run averages on disposable DB):**
+  - **1 Face (640x480):** Detector = 328.2 ms, Alignment = 0.9 ms, Embedding = 283.6 ms, Gallery = 16.6 ms, Matching = 0.5 ms, Database = 20.0 ms. **Total = 658.0 ms** (p50: 652.6 ms, p95: 696.6 ms, max: 701.5 ms).
+  - **2 Faces (1280x480):** Detector = 304.3 ms, Alignment = 1.7 ms, Embedding = 530.8 ms, Gallery = 15.4 ms, Matching = 0.7 ms, Database = 36.6 ms. **Total = 902.5 ms** (p50: 922.3 ms, p95: 948.9 ms, max: 951.9 ms).
+  - **3 Faces (1920x480):** Detector = 282.1 ms, Alignment = 2.3 ms, Embedding = 737.6 ms, Gallery = 17.8 ms, Matching = 1.2 ms, Database = 60.7 ms. **Total = 1,116.1 ms** (p50: 1,135.0 ms, p95: 1,158.5 ms, max: 1,161.1 ms).
+- **Target Assessment:** All 1-, 2-, and 3-person batches comfortably met the 1–2 second performance target on local CPU hardware without lowering recognition thresholds.
+
+### Verification Results
+
+1. **Frontend Lint & Build:**
+   - `npm.cmd run lint`: PASS, 0 errors, 0 warnings across 89 files.
+   - `npm.cmd run build`: PASS (Vite production bundle built cleanly).
+   - `npm.cmd run verify:fast-attendance`: PASS (track reconciliation, IoU matching, mirrored coordinate transform).
+2. **Backend Fast Attendance Verification (`app.verify_fast_attendance`):**
+   - PASS, 24/24 assertions passed (zero faces, three faces independent outcomes, two distinct recognized, unknown rejected, no candidates fails closed, 1-to-1 conflict resolution, margin < 0.07 rejected, threshold < 0.85 rejected, poor quality un-marked, partial success persistence, truthful NotChecked liveness, repeated frame idempotency, audit metadata preserved, wrong department blocked, closed session blocked, simultaneous submissions idempotent, gallery caching/invalidation, corrupted image rejected, fast endpoint ignores liveness, safety hold blocks fast, fast rejected in secure mode, secure mode invokes liveness).
+3. **Unified Backend Regression (`app.run_final_verification` on Port 8020):**
+   - PASS, all 28 verification suites passed in sequence (Phase 2, Phase 3, Phase 4, Phase 6A, Phase 6B, Phase 7A, Phase 7B, Phase 7C, Phase 8B, Phase 8C, Phase 10, Phase 10.4, Phase 10.6C, Phase 10.6B, Phase 10.7A, Phase 10.7B, Phase 10.7B.1, Phase 10.7C, Phase 10.7D, Phase 10.8, Phase 10.9, Phase 10.9B, Phase 10.10, Fast Multi-Face Attendance, Phase 10.12A, Phase 10.12B, Phase 10.12D, Camera Preview & Password Recovery).
+4. **Isolated Browser Regressions (`scripts/run_isolated_frontend_regressions.ps1`):**
+   - `fast-attendance-smoke.mjs`: PASS (5/5 checks, 0 page errors, 0 console errors, overlay alignment across 375px–1920px and zoom levels 0.8–1.25).
+   - `ui-cleanup-print-smoke.mjs`: PASS (5/5 checks, 0 page errors, 0 console errors).
+   - `phase10_12d-smoke.mjs`: PASS (8/8 checks, 0 page errors, 0 console errors).
+
+### Production Data Preservation
+
+All mutation-capable testing operated exclusively on temporary isolated databases and mock storage.
+- Production database file: `fdas-app/backend/fdas_local.db` (5,042,176 bytes, SHA-256 `271b137025f7e472fd77d4caf0baa806c02d2c809267a6dbc9a92bb7a8ca12db`).
+- SQLite integrity: `ok`.
+- Users (7), Students (24), Attendance Records (24), Face Templates (4,803), ArcFace Embeddings (191), Notifications (16), Attendance Sessions (461), Attendance Time Windows (98), Storage Files (15,644 files, 32,677,769 bytes).
+- Zero production records were deleted, reset, reseeded, or altered.
+
+### Limitations & Security Disclosure
+
+1. **Reduced Spoof Resistance:** Fast Mode intentionally skips liveness verification. Presentation attacks using printed photos or screens may produce valid matches if similarity exceeds 0.85. Operators are explicitly informed in the UI banner.
+2. **Attendance Timing Grace Period:** Attendance time window grace periods remain stored and displayed but unenforced (separate pending architectural issue, preserved unchanged).
+3. **Multi-Person Live Webcam Validation:** Tested with multi-face composite fixtures and isolated Playwright browser automation; real-world multi-person webcam validation requires distinct physical participants in front of the active camera.
+
+### Final Status
+
+**PASS — Fast Multi-Face Attendance Mode is fully implemented, verified, and active as the default workflow with responsive bounding-box overlays, independent ArcFace recognition, duplicate protection, and ~658–1,116 ms latency on CPU. The original secure liveness workflow is fully preserved and instantly restorable via configuration. Production data and all existing features are intact. Final Documentation Synchronization & Implementation Freeze was not started and remains ON HOLD.**
+
+---
+
+## Post-Implementation UI Corrections (Targeted Fixes)
+
+### 1. Fix Misleading Attendance Recognition Status
+- **Root Cause:** When consecutive scans captured a frame with poor lighting or motion blur, `face.status` was classified as `PoorFaceQuality`. The backend grouped all non-marked/non-duplicate outcomes into `rejected_count`, causing the UI to display `"Unrecognized/Not eligible: 1"` and `"Faces were detected, but no new eligible attendance record was created"`. Additionally, continuous scanning (every ~650ms) immediately wiped out the previous scan's success notification.
+- **Resolution:**
+  - Added `qualityIssueCount` to `FastAttendanceResult` schema and backend service, cleanly separating `PoorFaceQuality` / `InvalidEmbedding` from genuine rejections (`Unknown`, `NotEligible`, etc.).
+  - Updated `FaceOverlay.jsx` with distinct color/label mapping: Green (`#22c55e`) for "Attendance Marked Successfully", Blue (`#38bdf8`) for "Already Marked Present", and Yellow (`#facc15`) for "Hold still / Improve image quality". Identity is only attached when confirmed.
+  - Updated `LiveAttendanceStation.jsx` with `lastSuccessMessageTimeRef` to retain the green success notification for 4.5 seconds instead of overwriting it on the next transient scan.
+  - Added dedicated `"Hold still / Quality"` counter in the scan summary bar and updated `buildFastResultMessage` to report already-marked and hold-still states truthfully.
+
+### 2. Fast Mode Banner Removal
+- Removed the yellow risk explanation banner (`"Fast Mode: liveness is disabled for normal attendance..."`) from `LiveAttendanceStation.jsx`.
+- Fast Mode attendance, configuration switch, and `SECURE_SINGLE_FACE` retention remain fully operational and untouched.
+
+### 3. Demo Credentials Removal
+- Removed the `"Demo Credentials"` card from `LoginPage.jsx` along with redundant spacing.
+- Preserved all login inputs (Email, Password, Remember Me, Forgot Password, Sign In, Request an Account) and responsive styling.
+
+### 4. Verification
+- `npm.cmd run lint`: PASS (0 errors, 0 warnings).
+- `npm.cmd run build`: PASS (Vite production bundle built cleanly).
+- `node scripts/fast-attendance-unit.mjs`: PASS.
+- `python -m app.verify_fast_attendance`: PASS (25/25 assertions passed).
+- Production database records, ArcFace thresholds (0.85), identity margin (0.07), and existing attendance records remain 100% intact.
+
+
